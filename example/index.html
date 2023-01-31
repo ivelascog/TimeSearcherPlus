@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Example</title>
+</head>
+<body>
+  <div id="target"></div>
+  <script src="https://d3js.org/d3.v4.min.js"></script>
+  <script src="../dist/timeSearcher.js"></script>
+
+  <script>
+      let data = d3.csvParse("./Lekagul Sensor Data.csv")
+      let nn = TimeSearcher(d3.select("#target"),data,
+        {
+            xAttr: "Date",
+            yAttr: "Open",
+            groupAttr: "stock",
+            renderer: "canvas"
+        })
+  </script>
+</body>
+</html>
