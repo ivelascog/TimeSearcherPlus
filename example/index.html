@@ -6,11 +6,12 @@
 </head>
 <body>
   <div id="target"></div>
-  <script src="https://d3js.org/d3.v4.min.js"></script>
-  <script src="../dist/timeSearcher.js"></script>
+  <script src="https://d3js.org/d3.v7.min.js"></script>
+  <script src="https://d3js.org/d3-array.v3.min.js"></script>
+  <script src="../dist/TimeSearcher.js"></script>
 
   <script>
-      let data = d3.csvParse("./Lekagul Sensor Data.csv")
+      let data = d3.csvParse("./sp500_20-22.csv")
       let nn = TimeSearcher(d3.select("#target"),data,
         {
             xAttr: "Date",

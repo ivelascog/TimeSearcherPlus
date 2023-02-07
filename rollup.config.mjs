@@ -1,5 +1,5 @@
 import ascii from "rollup-plugin-ascii";
-import node from "@rollup/plugin-node-resolve";
+import node, {nodeResolve} from "@rollup/plugin-node-resolve";
 import commonjs from "@rollup/plugin-commonjs";
 import terser from "@rollup/plugin-terser";
 import meta from "./package.json" assert {type: "json"};
@@ -19,7 +19,8 @@ export default [
         main: true,
         browser: true
       }),
-      ascii()
+      ascii(),
+        commonjs()
     ],
     external: [
       "d3",

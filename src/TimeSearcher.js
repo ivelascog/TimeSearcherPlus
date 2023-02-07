@@ -1,7 +1,6 @@
 import * as d3 from "d3"
-import * as d3Array from "d3-array";
+import "d3-array";
 
-"d3-array"
 function TimeSearcher(
     selection, data,
     {   xAttr,
@@ -29,7 +28,7 @@ function TimeSearcher(
         d["__id__"] = i;
     });
 
-    let groupedData = d3Array.group(data, (d) => d[groupAttr]);
+    let groupedData = d3.group(data, (d) => d[groupAttr]);
     groupedData = Array.from(groupedData);
 
     let overviewX = d3
