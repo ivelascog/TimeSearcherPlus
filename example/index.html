@@ -6,19 +6,33 @@
 </head>
 <body>
   <div id="target"></div>
-  <script src="https://d3js.org/d3.v7.min.js"></script>
+  <div id="targetDetailed"></div>
+  <script src="https://d3js.org/d3.v7.js"></script>
   <script src="https://d3js.org/d3-array.v3.min.js"></script>
   <script src="../dist/TimeSearcher.js"></script>
 
   <script>
-      let data = d3.csvParse("./sp500_20-22.csv")
-      let nn = TimeSearcher(d3.select("#target"),data,
-        {
-            xAttr: "Date",
-            yAttr: "Open",
-            groupAttr: "stock",
-            renderer: "canvas"
-        })
+      let nn = TimeSearcher(d3.select("#target"),d3.select("#targetDetailed"),
+              "Date",
+                "Open",
+               "stock",
+               "canvas"
+          )
+      d3.csv("./sp500_20-22.csv",type).then(data => nn.Data(data));
+
+      var fmt = d3.timeParse("%Y-%m-%d");
+      function type(row) {
+          row.Id = +row.Id
+          row.Date =fmt(row.Date)
+          row.Low = +row.Low;
+          row.Open = +row.Open;
+          row.Volume = +row.Volume;
+          row.High = +row.High;
+          row.Close = +row.Close;
+          row["Adjusted Close"] = +row["Adjusted Close"];
+          return row
+      }
+
   </script>
 </body>
 </html>

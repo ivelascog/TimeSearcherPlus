@@ -1,108 +1,84 @@
 import * as d3 from "d3"
 import "d3-array";
 
-function TimeSearcher(
-    selection, data,
-    {   xAttr,
-        yAttr,
-        groupAttr,
-        renderer = "svg",
-        overviewWidth = 600,
-        detailedWidth = 580 - 20,
-        overviewHeight = 400,
-        detailedHeight = overviewHeight / 2,
-        detailedContainerHeight = 400,
-        xPartitions = 10,
-        yPartitions = 10
-    } = {}
-) {
-    let wait = false;
-    let graphsInDetailed = Math.ceil(detailedContainerHeight / detailedHeight);
-    let margin = { left: 40, top: 20, bottom: 50, right: 20 };
-    let divOverview = selection.style("position","relative").node();
-    let divDetailed = document.createElement("div")
-    divDetailed = d3.select(divDetailed).attr("id","detail").style("height",`detailedContainerHeight}px`).style("overflow-y","scroll").node()
-    let brushes = new Map();
-    let brushCount = 0;
-    data.forEach((d, i) => {
-        d["__id__"] = i;
-    });
-
-    let groupedData = d3.group(data, (d) => d[groupAttr]);
-    groupedData = Array.from(groupedData);
-
-    let overviewX = d3
-        .scaleTime()
-        .domain(d3.extent(data, (d) => d[xAttr]))
-        .range([0, overviewWidth - margin.right - margin.left]);
-
-    let overviewY = d3
-        .scaleLinear()
-        .domain(d3.extent(data, (d) => d[yAttr]))
-        .range([overviewHeight - margin.top - margin.bottom, 0])
-        .nice();
-
-    let detailedX = d3
-        .scaleTime()
-        .domain(d3.extent(data, (d) => d[xAttr]))
-        .range([0, detailedWidth - margin.right - margin.left]);
-
-    let detailedY = d3
-        .scaleLinear()
-        .domain(d3.extent(data, (d) => d[yAttr]))
-        .range([detailedHeight - margin.top - margin.bottom, 0])
-        .nice();
-
-    let line2 = d3
-        .line()
-        .x((d) => overviewX(d[xAttr]))
-        .y((d) => overviewY(d[yAttr]));
-
-    let line2Detailed = d3
-        .line()
-        .x((d) => detailedX(d[xAttr]))
-        .y((d) => detailedY(d[yAttr]));
-
-    let BVH = makeBVH(
+function TimeSearcher(selectionOverview,
+                      selectionDetailed,
+                      _xAttr,
+                      _yAttr,
+                      _groupAttr,
+                      _renderer = "canvas",
+                      _overviewWidth = 600,
+                      _detailedWidth = 580 - 20,
+                      _overviewHeight = 400,
+                      _detailedHeight = _overviewHeight / 2,
+                      _detailedContainerHeight = 400) {
+    let ts = this || {},
+        data,
         groupedData,
-        xPartitions,
-        yPartitions,
-        overviewWidth,
-        overviewHeight
-    );
+        xAttr = _xAttr,
+        yAttr = _yAttr,
+        groupAttr = _groupAttr,
+        renderer = _renderer,
+        overviewWidth = _overviewWidth,
+        detailedWidth = _detailedWidth,
+        overviewHeight = _overviewHeight,
+        detailedHeight = _detailedHeight,
+        detailedContainerHeight = _detailedContainerHeight,
+        overviewX,
+        overviewY,
+        detailedX,
+        detailedY,
+        line2,
+        line2Detailed,
+        render,
+        renderObject,
+        prerenderDetailed,
+        divOverview,
+        divDetailed,
+        g,
+        gBrushes,
+        brushes,
+        brushCount,
+        BVH
 
-    let g = init();
-    let gBrushes = g.append("g").attr("id", "brushes");
 
-    const renderObject =
-        renderer === "canvas" ? renderCanvas(groupedData) : renderSVG();
-    const render = renderObject.render;
-    const prerenderDetailed = renderObject.preRender;
 
-    let observer = new IntersectionObserver(onDetailedScrolled, {
+    ts.xPartitions = 10;
+    ts.yPartitions = 10;
+
+    ts.wait = false;
+    ts.margin = { left: 60, top: 20, bottom: 50, right: 20 };
+    divOverview = selectionOverview.style("position","relative").node();
+    divDetailed = selectionDetailed
+    divDetailed = divDetailed
+        .attr("id","detail")
+        .style("height",`${detailedContainerHeight}px`)
+        .style("width",`${overviewWidth+40}px`)
+        .style("overflow-y","scroll")
+        .node()
+    brushes = new Map();
+    brushCount = 0;
+
+
+
+    ts.observer = new IntersectionObserver(onDetailedScrolled, {
         root: divDetailed,
         threshold: 0.1
     });
-
-    render(groupedData, []);
-
-    divOverview.value = groupedData;
-    divOverview.dispatchEvent(new Event("input", { bubbles: true }));
-
-    newBrush();
-    drawBrushes();
 
     function init() {
         //CreateOverView
         const svg = d3
             .select(divOverview)
             .append("svg")
-            .attr("viewBox", [0, 0, overviewWidth, overviewHeight]);
+            .attr("viewBox", [0, 0, overviewWidth, overviewHeight])
+            .attr("height", overviewHeight)
+            .attr("width", overviewWidth);
 
         const g = svg
             .append("g")
             .attr("class", "gDrawing")
-            .attr("transform", `translate(${margin.left}, ${margin.top})`)
+            .attr("transform", `translate(${ts.margin.left}, ${ts.margin.top})`)
             .attr("tab-index",0)
             .style("pointer-events", "all")
             .on("keydown", ({ keyCode, key }) => {
@@ -120,7 +96,7 @@ function TimeSearcher(
 
             .attr(
                 "transform",
-                `translate(0, ${overviewHeight - margin.top - margin.bottom})`
+                `translate(0, ${overviewHeight - ts.margin.top - ts.margin.bottom})`
             )
             .call((axis) =>
                 axis
@@ -128,7 +104,7 @@ function TimeSearcher(
                     .text(xAttr)
                     .attr(
                         "transform",
-                        `translate(${overviewWidth - margin.right - margin.left}, -10 )`
+                        `translate(${overviewWidth - ts.margin.right - ts.margin.left}, -10 )`
                     )
                     .style("fill", "black")
                     .style("text-anchor", "end")
@@ -137,6 +113,73 @@ function TimeSearcher(
             .style("pointer-events", "none");
 
         return g;
+    }
+
+      ts.Data = function (_data) {
+        data = _data;
+        groupedData = d3.group(data, (d) => d[groupAttr]);
+        groupedData = Array.from(groupedData);
+
+        data.forEach((d, i) => {
+            d["__id__"] = i;
+        });
+
+        overviewX = d3
+            .scaleTime()
+            .domain(d3.extent(data, (d) => d[xAttr]))
+            .range([0, overviewWidth - ts.margin.right - ts.margin.left]);
+
+       overviewY = d3
+            .scaleLinear()
+            .domain(d3.extent(data, (d) => d[yAttr]))
+            .range([overviewHeight - ts.margin.top - ts.margin.bottom, 0])
+            .nice();
+
+        detailedX = d3
+            .scaleTime()
+            .domain(d3.extent(data, (d) => d[xAttr]))
+            .range([0, detailedWidth - ts.margin.right - ts.margin.left]);
+
+        detailedY = d3
+            .scaleLinear()
+            .domain(d3.extent(data, (d) => d[yAttr]))
+            .range([detailedHeight - ts.margin.top - ts.margin.bottom, 0])
+            .nice();
+
+        line2 = d3
+            .line()
+            .x((d) => overviewX(d[xAttr]))
+            .y((d) => overviewY(d[yAttr]));
+
+        line2Detailed = d3
+            .line()
+            .x((d) => detailedX(d[xAttr]))
+            .y((d) => detailedY(d[yAttr]));
+
+        BVH = makeBVH(
+            groupedData,
+            ts.xPartitions,
+            ts.yPartitions,
+            overviewWidth,
+            overviewHeight
+        );
+
+        g = init();
+        gBrushes = g.append("g").attr("id", "brushes");
+
+        newBrush();
+        drawBrushes();
+
+        renderObject =
+            renderer === "canvas" ? renderCanvas(groupedData) : renderSVG();
+        render = renderObject.render;
+        prerenderDetailed = renderObject.preRender;
+
+        render(groupedData, []);
+
+        divOverview.value = groupedData;
+        divOverview.dispatchEvent(new Event("input", { bubbles: true }));
+
     }
 
     function onDetailedScrolled(entries, observer) {
@@ -225,7 +268,7 @@ function TimeSearcher(
                                 .attr("height", detailedHeight)
                                 .attr("width", detailedWidth)
                                 .append("g");
-                            g.attr("transform", `translate(${margin.left}, ${margin.top})`);
+                            g.attr("transform", `translate(${ts.margin.left}, ${ts.margin.top})`);
 
                             g.append("g")
                                 .attr("class", "mainYAxis")
@@ -236,7 +279,7 @@ function TimeSearcher(
                                 .call(d3.axisBottom(detailedX))
                                 .attr(
                                     "transform",
-                                    `translate(0, ${detailedHeight - margin.top - margin.bottom})`
+                                    `translate(0, ${detailedHeight - ts.margin.top - ts.margin.bottom})`
                                 );
 
                             g.append("text")
@@ -277,8 +320,8 @@ function TimeSearcher(
             .attr("height", overviewHeight * window.devicePixelRatio)
             .attr("width", overviewWidth * window.devicePixelRatio)
             .style("position", "absolute")
-            .style("top", `${margin.top}px`)
-            .style("left", `${margin.left}px`)
+            .style("top", `${ts.margin.top}px`)
+            .style("left", `${ts.margin.left}px`)
             .style("width", `${overviewWidth}px`)
             .style("height", `${overviewHeight}px`)
             .style("pointer-events", "none");
@@ -337,7 +380,7 @@ function TimeSearcher(
             window.requestIdleCallback(() => {
                 divDetailed.replaceChildren(frag);
                 divDetailed.querySelectorAll(".detailedContainer").forEach((d) => {
-                    observer.observe(d);
+                    ts.observer.observe(d);
                 });
             });
         }
@@ -357,7 +400,7 @@ function TimeSearcher(
                     .attr("width", detailedWidth)
                     .append("g")
                     .attr("class", "gDrawing")
-                    .attr("transform", `translate(${margin.left}, ${margin.top})`);
+                    .attr("transform", `translate(${ts.margin.left}, ${ts.margin.top})`);
 
                 g.append("g")
                     .attr("class", "detailedYAxis")
@@ -368,7 +411,7 @@ function TimeSearcher(
                     .call(d3.axisBottom(detailedX))
                     .attr(
                         "transform",
-                        `translate(0, ${detailedHeight - margin.top - margin.bottom})`
+                        `translate(0, ${detailedHeight - ts.margin.top - ts.margin.bottom})`
                     );
 
                 g.append("text")
@@ -382,8 +425,8 @@ function TimeSearcher(
                     .attr("height", detailedHeight)
                     .attr("width", detailedWidth)
                     .style("position", "absolute")
-                    .style("top", `${margin.top}px`)
-                    .style("left", `${margin.left}px`)
+                    .style("top", `${ts.margin.top}px`)
+                    .style("left", `${ts.margin.left}px`)
                     .style("pointer-events", "none");
 
                 let context = canvas.node().getContext("2d");
@@ -409,15 +452,15 @@ function TimeSearcher(
             let distY = y0 - brush[1].selection[0][1];
             moveSelectedBrushes(distX, distY, brush);
         } else {
-            if (wait) return; // control the update of view and intesesctions
+            if (ts.wait) return; // control the update of view and intesesctions
 
-            wait = true;
+            ts.wait = true;
             if (updateBrush(brush, groupedData, x0, y0, x1, y1)) {
                 //Update intersections with modified brush
                 brushFilterRender();
             }
 
-            setTimeout(() => (wait = false), 100);
+            setTimeout(() => (ts.wait = false), 100);
         }
 
         brush[1].selection = selection;
@@ -567,8 +610,8 @@ function TimeSearcher(
             }
         }
 
-        if (wait) return; //Controls the update frequency of intersections and drawing
-        wait = true;
+        if (ts.wait) return; //Controls the update frequency of intersections and drawing
+        ts.wait = true;
 
         let update = false;
         for (const brush of brushes) {
@@ -580,7 +623,7 @@ function TimeSearcher(
         if (update) {
             brushFilterRender();
         }
-        setTimeout(() => (wait = false), 100);
+        setTimeout(() => (ts.wait = false), 100);
     }
 
     function makeBVH(data, xPartitions, yPartitions, width, height) {
@@ -732,7 +775,7 @@ function TimeSearcher(
     }
 
     divOverview.details = divDetailed;
-    return divOverview;
+    return ts;
 }
 
 export default TimeSearcher
