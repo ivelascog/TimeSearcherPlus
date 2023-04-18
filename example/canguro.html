@@ -9,28 +9,50 @@
   <div id="targetDetailed"></div>
   <script src="https://d3js.org/d3.v7.js"></script>
   <script src="https://d3js.org/d3-array.v3.min.js"></script>
+  <script src="https://d3js.org/d3-scale.v4.min.js"></script>
+  <script src="https://d3js.org/d3-scale-chromatic.v3.min.js"></script>
+  <script src="https://unpkg.com/@popperjs/core@2"></script>
   <script src="../dist/TimeSearcher.js"></script>
 
   <script>
-      let nn = TimeSearcher(d3.select("#target"),d3.select("#targetDetailed"),
-              "__stageId",
+            let nn = TimeSearcher(d3.select("#target"),d3.select("#targetDetailed"),
+              "__time",
                 "peso",
-               "Iden_Codigo",
+               "Code",
                "canvas"
           )
-      d3.csv("./tData.csv",type).then(data => nn.Data(data));
-      nn.updateCallback(selected => console.log(selected));
+      //nn.updateCallback(selected => console.log(selected));
+      //      nn.statusCallback(status => console.log(status))
+      nn.doubleYlegend = true;
+      nn.hasDetailed = true;
+      nn.defaultColor = "black"
+      nn.defaultAlpha = 0.1
+            nn.noSelectedAlpha = 0.1
+      nn.selectedAlpha = 0.3
+      nn.selectedColor = "blue"
+      nn.margin.right = 40;
+      nn.groupAttr = "ERN_Sexo"
+      nn.showGrid = true;
+      nn.autoUpdate = true;
 
-      var fmt = d3.timeParse("%Y-%m-%d");
+
+            nn.brushGruopSize = 20
+      d3.csv("./tData20000.csv",type).then(data => {
+          data = data.filter(d => d["__time"] < 89 && d["__time"] > 24 && d["peso"] < 20000)
+        //data = data.filter(d => ["1-0000001","1-0000002"].includes(d["Code"]))
+          nn.Data(data)
+        d3.json("./curvas.json").then(curves => {
+          nn.addReferenceCurves(curves)
+        })
+      });
+
+
       function type(row) {
-          row.Id = +row.Id
-          row.Date =fmt(row.Date)
-          row.Low = +row.Low;
-          row.Open = +row.Open;
-          row.Volume = +row.Volume;
-          row.High = +row.High;
-          row.Close = +row.Close;
-          row["Adjusted Close"] = +row["Adjusted Close"];
+          //row.Iden_Codigo = +row.Iden_Codigo;
+          row.__stageId = +row.__stageId;
+          row.ERN_Sexo = + row.ERN_Sexo
+          row.peso = row.peso === "" ? null: +row.peso;
+          row.__time = row.__time === "" ? null: +row.__time;
           return row
       }
 

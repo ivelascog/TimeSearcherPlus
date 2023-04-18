@@ -1,23 +1,29 @@
 import * as d3 from "d3"
 import "d3-array";
+import "d3-scale"
+import "d3-scale-chromatic"
+import {throttle} from "throttle-debounce";
+import {createPopper} from "@popperjs/core"
 
 function TimeSearcher(selectionOverview,
                       selectionDetailed,
                       _xAttr,
                       _yAttr,
-                      _groupAttr,
+                      _indexAttr,
                       _renderer = "canvas",
-                      _overviewWidth = 600,
-                      _detailedWidth = 580 - 20,
-                      _overviewHeight = 400,
+                      _overviewWidth = 1200,
+                      _detailedWidth = 1200 - 20,
+                      _overviewHeight = 600,
                       _detailedHeight = _overviewHeight / 2,
                       _detailedContainerHeight = 400) {
     let ts = this || {},
         data,
         groupedData,
+        fData,
+        nGroups,
         xAttr = _xAttr,
         yAttr = _yAttr,
-        groupAttr = _groupAttr,
+        indexAttr = _indexAttr,
         renderer = _renderer,
         overviewWidth = _overviewWidth,
         detailedWidth = _detailedWidth,
@@ -34,32 +40,78 @@ function TimeSearcher(selectionOverview,
         renderObject,
         prerenderDetailed,
         divOverview,
+        divRender,
+        divControls,
         divDetailed,
+        svg,
         g,
+        gGroupBrushes,
         gBrushes,
-        brushes,
+        gEditbrushes,
+        gReferences,
+        brushesGroup,
+        brushGroupSelected,
         brushCount,
-        BVH
+        brushSize,
+        brushTooltipElement,
+        brushTooltip,
+        brushSpinBoxes,
+        tooltipCoords = {x: 0, y: 0},
+        BVH,
+        dataSelected,
+        dataNotSelected,
+        tBrushed,
+        tShowTooltip,
+        tUpdateSelection,
+        tUpdateBrushSpinBox,
+        gGroupData,
+        selectedGroupData,
+        nGroupsData,
+        updateCallback = function (data) {},
+        statusCallback = function (status){}
 
 
-
+    // Default Parameters
     ts.xPartitions = 10;
     ts.yPartitions = 10;
+    ts.defaultAlpha = 1;
+    ts.selectedAlpha = 1;
+    ts.noSelectedAlpha = 0.1;
+    ts.defaultColor = "#000000"
+    ts.selectedColor = "#000000"
+    ts.noSelectedColor = "#808080"
+    ts.hasDetailed = true;
+    ts.margin = {left: 50, top: 30, bottom: 50, right: 20};
+    ts.colorScale = d3.scaleOrdinal(d3.schemeCategory10);
+    ts.brushesColorScale = d3.scaleOrdinal(d3.schemeCategory10);
+    ts.groupAttr = null;
+    ts.doubleYlegend = false;
+    ts.showGrid = false;
+    ts.showBrushTooltip = true;
+    ts.autoUpdate = true;
+    ts.brushGruopSize = 15
 
-    ts.wait = false;
-    ts.margin = { left: 60, top: 20, bottom: 50, right: 20 };
-    divOverview = selectionOverview.style("position","relative").node();
+
+    divOverview = selectionOverview.style("display","flex").node();
     divDetailed = selectionDetailed
     divDetailed = divDetailed
-        .attr("id","detail")
-        .style("height",`${detailedContainerHeight}px`)
-        .style("width",`${overviewWidth+40}px`)
-        .style("overflow-y","scroll")
+        .attr("id", "detail")
+        .style("height", `${detailedContainerHeight}px`)
+        .style("width", `${overviewWidth + 40}px`)
+        .style("overflow-y", "scroll")
         .node()
-    brushes = new Map();
+    brushesGroup = [];
+    brushGroupSelected = 0;
     brushCount = 0;
+    brushSize = 0;
+    dataSelected = []
+    selectedGroupData = new Set()
+    nGroupsData = 0;
 
-
+    tBrushed = throttle(250, brushed)
+    tShowTooltip = throttle(50, showBrushTooltip)
+    tUpdateSelection = throttle(100, updateSelection)
+    tUpdateBrushSpinBox = throttle(50, updateBrushSpinBox)
 
     ts.observer = new IntersectionObserver(onDetailedScrolled, {
         root: divDetailed,
@@ -68,8 +120,17 @@ function TimeSearcher(selectionOverview,
 
     function init() {
         //CreateOverView
-        const svg = d3
-            .select(divOverview)
+        divControls = d3.select(divOverview)
+            .append("div")
+            .attr("id", "controls")
+            .style("margin-top", `${ts.margin.top}px`)
+
+        divRender = d3.select(divOverview)
+            .append("div")
+            .attr("id", "render")
+            .style("position", "relative")
+
+        svg = divRender
             .append("svg")
             .attr("viewBox", [0, 0, overviewWidth, overviewHeight])
             .attr("height", overviewHeight)
@@ -79,18 +140,30 @@ function TimeSearcher(selectionOverview,
             .append("g")
             .attr("class", "gDrawing")
             .attr("transform", `translate(${ts.margin.left}, ${ts.margin.top})`)
-            .attr("tab-index",0)
+            .attr("tabindex", 0)
             .style("pointer-events", "all")
-            .on("keydown", ({ keyCode, key }) => {
-                console.log("keyPress")
+            .style("outline", "-webkit-focus-ring-color solid 0px")
+            .on("keydown", ({keyCode, key}) => {
+                if (key === "+") {
+                    addBrushGroup()
+                }
+
             });
 
-        g.append("g")
+        let gmainY = g.append("g")
             .attr("class", "mainYAxis")
             .call(d3.axisLeft(overviewY))
             .style("pointer-events", "none");
 
-        g.append("g")
+        if (ts.doubleYlegend) {
+            g.append("g")
+                .attr("class", "secondYaxis")
+                .call(d3.axisRight(overviewY))
+                .attr("transform", `translate(${overviewWidth - ts.margin.left - ts.margin.right},0)`)
+                .style("pointer-events", "none")
+        }
+
+        let gmainx = g.append("g")
             .attr("class", "mainXAxis")
             .call(d3.axisBottom(overviewX))
 
@@ -104,7 +177,7 @@ function TimeSearcher(selectionOverview,
                     .text(xAttr)
                     .attr(
                         "transform",
-                        `translate(${overviewWidth - ts.margin.right - ts.margin.left}, -10 )`
+                        `translate(${overviewWidth - ts.margin.right - ts.margin.left - 5}, -10 )`
                     )
                     .style("fill", "black")
                     .style("text-anchor", "end")
@@ -112,37 +185,236 @@ function TimeSearcher(selectionOverview,
             )
             .style("pointer-events", "none");
 
+        gReferences = g.append("g")
+            .attr("class", "gReferences")
+            .style("pointer-events", "none")
+
+        if (ts.showGrid) {
+            gmainY.selectAll("g.tick")
+                .append("line")
+                .attr("class", "gridline")
+                .attr("x1", 0)
+                .attr("y1", 0)
+                .attr("x2", overviewWidth - ts.margin.right - ts.margin.left)
+                .attr("y2", 0)
+                .attr("stroke", "#9ca5aecf") // line color
+                .attr("stroke-dasharray", "4") // make it dashed;;
+
+            gmainx.selectAll("g.tick")
+                .append("line")
+                .attr("class", "gridline")
+                .attr("x1", 0)
+                .attr("y1", -overviewHeight + ts.margin.top + ts.margin.bottom)
+                .attr("x2", 0)
+                .attr("y2", 0)
+                .attr("stroke", "#9ca5aecf") // line color
+                .attr("stroke-dasharray", "4") // make it dashed;
+        }
+
+        gGroupData = svg.append("g")
+            .attr("class", "groupData")
+            .attr("transform", `translate(10,${ts.margin.top} )`)
+
+
+        if (ts.groupAttr) {
+            fData.forEach(d => selectedGroupData.add(d[ts.groupAttr]))
+            nGroupsData = selectedGroupData.size;
+        }
+
+        gEditbrushes = svg.append("g")
+            .attr("class","editBrushes")
+
+
+        gGroupBrushes = svg.append("g")
+            .attr("class", "colorBrushes")
+            .attr("transform", `translate(${ts.margin.left + 10},${ts.margin.top - ts.brushGruopSize - 5} )`);
+
+        gGroupBrushes
+            .append("text")
+            .attr("x",0)
+            .attr("y",ts.brushGruopSize / 2 + 2)
+            .text("Brush groups: ")
+
         return g;
     }
 
-      ts.Data = function (_data) {
+    function updateBrushSpinBox({selection, sourceEvent}, brush) {
+        if (sourceEvent === undefined) return
+
+        let [[x0, y0], [x1, y1]] = selection;
+        let [[sx0, sy0], [sx1, sy1]] = brushSpinBoxes;
+
+        sx0.node().value = overviewX.invert(x0).toFixed(2)
+        sx1.node().value = overviewX.invert(x1).toFixed(2)
+        sy0.node().value = overviewY.invert(y0).toFixed(2)
+        sy1.node().value = overviewY.invert(y1).toFixed(2)
+
+    }
+
+    function generateInteractionDiv() {
+        let divData = divControls.append("div")
+
+        divData.append("span")
+            .text("Data groups: ")
+
+        divData.selectAll(".groupData")
+            .data(selectedGroupData)
+            .join("button")
+            .attr("class", "groupData")
+            .text(d => d)
+            .style("font-size", `${ts.brushGruopSize}px`)
+            .style("stroke", "black")
+            .style("margin", "10px")
+            .style("display", "block")
+            .style("border", "3px solid black")
+            .style("background-color", (d) => ts.colorScale(d))
+            .on("click", function (event, d) {
+                if (selectedGroupData.has(d)) {
+                    selectedGroupData.delete(d)
+                    d3.select(this)
+                        .style("border", "0px solid black")
+                        .style("font-size", `${ts.brushGruopSize + 3}px`)
+                } else {
+                    selectedGroupData.add(d);
+                    d3.select(this)
+                        .style("border", "3px solid black")
+                        .style("font-size", `${ts.brushGruopSize}px`)
+
+                }
+                brushFilterRender()
+            })
+
+
+        let divBrushes = divControls.append("div")
+        divBrushes.append("span")
+            .text("Brush Coordinates: ")
+        let divX = divBrushes.append("div")
+
+        divX.append("span")
+            .text("X:")
+
+        let domainX = overviewX.domain()
+        let x0 = divX.append("input")
+            .attr("type", "number")
+            .attr("min", domainX[0])
+            .attr("max", domainX[1])
+            .on("change", onSpinboxChange)
+
+        let x1 = divX.append("input")
+            .attr("type", "number")
+            .attr("min", domainX[0])
+            .attr("max", domainX[1])
+            .on("change", onSpinboxChange)
+
+        let divY = divBrushes.append("div")
+
+        divY.append("span")
+            .text("Y:")
+
+        let domainY = overviewY.domain()
+
+        let y0 = divY.append("input")
+            .attr("type", "number")
+            .attr("min", domainY[1])
+            .attr("max", domainY[0])
+            .on("change", onSpinboxChange)
+
+
+        let y1 = divY.append("input")
+            .attr("type", "number")
+            .attr("min", domainY[0])
+            .attr("max", domainY[1])
+            .on("change", onSpinboxChange)
+
+        brushSpinBoxes = [[x0, y0], [x1, y1]]
+    }
+
+    function onSpinboxChange() {
+        let [[sx0, sy0], [sx1, sy1]] = brushSpinBoxes;
+
+        let x0 = sx0.node().value
+        let x1 = sx1.node().value
+        let y0 = sy0.node().value
+        let y1 = sy1.node().value
+
+        let selection = [[x0, y0], [x1, y1]]
+    }
+
+    ts.addReferenceCurves = function (curves) {
+        curves.forEach(c => {
+            let [xmin, xmax] = overviewX.domain()
+            let [ymin, ymax] = overviewY.domain()
+            c.data = c.data.filter(point => {
+                return point[0] <= xmax && point[0] >= xmin &&
+                    point[1] <= ymax && point[1] >= ymin
+            });
+        })
+
+        let line2 = d3.line()
+            .x(d => overviewX(d[0]))
+            .y(d => overviewY(d[1]))
+
+        gReferences
+            .selectAll(".referenceCurve")
+            .data(curves)
+            .join("path")
+            .attr("class", "referenceCurve")
+            .attr("d", (c) => line2(c.data))
+            .attr("stroke-width", 2)
+            .style("fill", "none")
+            .style("stroke", (c) => c.color)
+            .style("opacity", (c) => c.opacity)
+    }
+
+    ts.updateCallback = function (_) {
+        return arguments.length ? ((updateCallback = _), ts) : updateCallback;
+    };
+
+    ts.statusCallback = function (_){
+        return arguments.length ? ((statusCallback = _), ts) : statusCallback;
+
+    }
+
+    ts.Data = function (_data) {
         data = _data;
-        groupedData = d3.group(data, (d) => d[groupAttr]);
+        fData = data.filter(d => d[yAttr] && d[xAttr])
+        groupedData = d3.group(fData, (d) => d[indexAttr]);
         groupedData = Array.from(groupedData);
 
-        data.forEach((d, i) => {
-            d["__id__"] = i;
-        });
+        let xDataType = typeof (fData[0][xAttr])
+        if (xDataType === "object" && fData[0][xAttr] instanceof Date) {
+            overviewX = d3
+                .scaleTime()
+                .domain(d3.extent(fData, (d) => d[xAttr]))
+                .range([0, overviewWidth - ts.margin.right - ts.margin.left])
 
-        overviewX = d3
-            .scaleTime()
-            .domain(d3.extent(data, (d) => d[xAttr]))
-            .range([0, overviewWidth - ts.margin.right - ts.margin.left]);
+            detailedX = d3
+                .scaleTime()
+                .domain(d3.extent(fData, (d) => d[xAttr]))
+                .range([0, detailedWidth - ts.margin.right - ts.margin.left]);
+        } else if (xDataType === "number") {
+            overviewX = d3
+                .scaleLinear()
+                .domain(d3.extent(fData, (d) => d[xAttr]))
+                .range([0, overviewWidth - ts.margin.right - ts.margin.left])
+            //.nice();
 
-       overviewY = d3
+            detailedX = d3
+                .scaleLinear()
+                .domain(d3.extent(fData, (d) => d[xAttr]))
+                .range([0, detailedWidth - ts.margin.right - ts.margin.left]);
+        }
+
+        overviewY = d3
             .scaleLinear()
-            .domain(d3.extent(data, (d) => d[yAttr]))
+            .domain(d3.extent(fData, (d) => d[yAttr]))
             .range([overviewHeight - ts.margin.top - ts.margin.bottom, 0])
             .nice();
 
-        detailedX = d3
-            .scaleTime()
-            .domain(d3.extent(data, (d) => d[xAttr]))
-            .range([0, detailedWidth - ts.margin.right - ts.margin.left]);
 
         detailedY = d3
             .scaleLinear()
-            .domain(d3.extent(data, (d) => d[yAttr]))
+            .domain(d3.extent(fData, (d) => d[yAttr]))
             .range([detailedHeight - ts.margin.top - ts.margin.bottom, 0])
             .nice();
 
@@ -166,20 +438,24 @@ function TimeSearcher(selectionOverview,
 
         g = init();
         gBrushes = g.append("g").attr("id", "brushes");
-
-        newBrush();
-        drawBrushes();
+        createBrushTooltip();
 
         renderObject =
             renderer === "canvas" ? renderCanvas(groupedData) : renderSVG();
         render = renderObject.render;
-        prerenderDetailed = renderObject.preRender;
+        if (ts.hasDetailed) {
+            prerenderDetailed = renderObject.preRender;
+        }
 
-        render(groupedData, []);
+        generateInteractionDiv()
 
-        divOverview.value = groupedData;
-        divOverview.dispatchEvent(new Event("input", { bubbles: true }));
+        addBrushGroup();
+        dataSelected[0] = groupedData
+        newBrush();
+        drawBrushes();
 
+        updateCallback([])
+        selectBrushGroup(0)
     }
 
     function onDetailedScrolled(entries, observer) {
@@ -187,6 +463,7 @@ function TimeSearcher(selectionOverview,
             if (entry.isIntersecting) {
                 let div = entry.target;
                 let group = div.getAttribute("group");
+                group = typeof (groupedData[0][0]) === 'number' ? +group : group;
                 div.appendChild(prerenderDetailed.get(group).node());
             } else {
                 entry.target.innerHTML = "";
@@ -310,16 +587,17 @@ function TimeSearcher(selectionOverview,
                     (exit) => exit.remove()
                 );
         }
-        return { render: render, preRender: prerenderDetailed };
+
+        return {render: render, preRender: prerenderDetailed};
     }
 
     function renderCanvas(data) {
-        const canvas = d3
-            .select(divOverview)
+        const canvas = divRender
             .append("canvas")
             .attr("height", overviewHeight * window.devicePixelRatio)
             .attr("width", overviewWidth * window.devicePixelRatio)
             .style("position", "absolute")
+            .style("z-index", "-1")
             .style("top", `${ts.margin.top}px`)
             .style("left", `${ts.margin.left}px`)
             .style("width", `${overviewWidth}px`)
@@ -336,30 +614,52 @@ function TimeSearcher(selectionOverview,
 
         let paths = new Map();
         data.forEach((d) => {
-            paths.set(d[0], new Path2D(line2(d[1])));
+            let group = ts.groupAttr ? d[1][0][ts.groupAttr] : null
+            let pathObject = {path: new Path2D(line2(d[1])), group: group}
+            paths.set(d[0], pathObject);
         });
 
-        let prerenderDetailed = generatePrerenderDetailed(data);
+        prerenderDetailed = ts.hasDetailed ? generatePrerenderDetailed(data) : null;
 
-        function render(data) {
-            renderOverviewCanvas(data);
-            window.requestAnimationFrame(() => renderDetailedCanvas(data));
+
+        function render(dataSelected, dataNotSelected) {
+            renderOverviewCanvas(dataSelected, dataNotSelected);
+            if (ts.hasDetailed) {
+                window.requestAnimationFrame(() => renderDetailedCanvas(dataSelected));
+            }
         }
 
-        function renderOverviewCanvas(data) {
-            let namesSelected = data.map((d) => d[0]);
+        function renderOverviewCanvas(dataSelected, dataNotSelected) {
             context.clearRect(0, 0, canvas.node().width, canvas.node().height);
+            if (brushSize === 0) {
+                context.globalAlpha = ts.defaultAlpha;
+                dataSelected[0].forEach(d => {
+                    let path = paths.get(d[0]);
+                    context.strokeStyle = ts.groupAttr ? ts.colorScale(path.group) : ts.defaultColor;
+                    context.stroke(path.path)
+                })
+            } else {
+                context.globalAlpha = ts.selectedAlpha;
+                dataSelected[brushGroupSelected].forEach(d => {
+                    let path = paths.get(d[0])
+                    context.strokeStyle = ts.groupAttr ? ts.colorScale(path.group) : ts.selectedColor;
+                    context.stroke(path.path)
 
-            paths.forEach((d, name) => {
-                if (namesSelected.includes(name)) {
-                    context.globalAlpha = 1.0;
-                    context.styleStroke = "black";
-                } else {
-                    context.globalAlpha = 0.1;
-                    context.styleStroke = "gray";
-                }
-                context.stroke(d);
-            });
+                })
+
+                dataSelected.forEach((g,i) => {
+                    if (i !== brushGroupSelected) {
+                       dataNotSelected = dataNotSelected.concat(g)
+                    }
+                })
+
+                context.globalAlpha = ts.noSelectedAlpha;
+                dataNotSelected.forEach(d => {
+                    let path = paths.get(d[0])
+                    context.strokeStyle = ts.groupAttr ? ts.colorScale(path.group) : ts.noSelectedColor;
+                    context.stroke(path.path)
+                })
+            }
         }
 
         function renderDetailedCanvas(data) {
@@ -420,79 +720,191 @@ function TimeSearcher(selectionOverview,
                     .style("fill", "black")
                     .style("font-size", "0.7em");
 
-                let canvas = div
-                    .append("canvas")
-                    .attr("height", detailedHeight)
-                    .attr("width", detailedWidth)
-                    .style("position", "absolute")
-                    .style("top", `${ts.margin.top}px`)
-                    .style("left", `${ts.margin.left}px`)
-                    .style("pointer-events", "none");
+                g.append("path")
+                    .attr("d", line2Detailed(d[1]))
+                    .style("fill", "none")
+                    .style("stroke", "black");
 
-                let context = canvas.node().getContext("2d");
-                let path = new Path2D(line2Detailed(d[1]));
-                context.stroke(path);
+                /*  let canvas = div
+                      .append("canvas")
+                      .attr("height", detailedHeight)
+                      .attr("width", detailedWidth)
+                      .style("position", "absolute")
+                      .style("top", `${ts.margin.top}px`)
+                      .style("left", `${ts.margin.left}px`)
+                      .style("pointer-events", "none");
+
+                  let context = canvas.node().getContext("2d");
+                  let path = new Path2D(line2Detailed(d[1]));
+                  context.stroke(path); */
 
                 prerenderDetailed.set(d[0], div);
             });
             return prerenderDetailed;
         }
 
-        return { render: render, preRender: prerenderDetailed };
+        return {render: render, preRender: prerenderDetailed};
     }
 
     //------------- Brush section ---------- //
 
-    function brushed({ selection, sourceEvent }, brush) {
-        if (sourceEvent === undefined) return; // dont execute this method when move brushes programatically
-
-        let [[x0, y0], [x1, y1]] = selection;
-        if (brush[1].isSelected) {
-            let distX = x0 - brush[1].selection[0][0];
-            let distY = y0 - brush[1].selection[0][1];
-            moveSelectedBrushes(distX, distY, brush);
-        } else {
-            if (ts.wait) return; // control the update of view and intesesctions
-
-            ts.wait = true;
-            if (updateBrush(brush, groupedData, x0, y0, x1, y1)) {
-                //Update intersections with modified brush
-                brushFilterRender();
-            }
-
-            setTimeout(() => (ts.wait = false), 100);
-        }
-
-        brush[1].selection = selection;
+    function addBrushGroup() {
+        dataSelected.push([])
+        brushesGroup.push(new Map())
+        gGroupBrushes.append("rect")
+            .attr("class", "colorBrushes")
+            .attr("id", "colorBrush-" + (brushesGroup.length - 1))
+            .attr("height", ts.brushGruopSize)
+            .attr("width", ts.brushGruopSize)
+            .attr("transform", `translate(${100 + (brushesGroup.length - 1) * (ts.brushGruopSize + 5) })`)
+            .style("fill", ts.brushesColorScale(brushesGroup.length - 1))
+            .on("click", function (event) {
+                let id = d3.select(this).attr("id").substr("11")
+                selectBrushGroup(+id)
+            });
+        updateStatus()
     }
 
-    function endBrush({ selection }) {
-        const selectedBrush = parseInt(d3.select(this).attr("id").substring(6));
+    function selectBrushGroup(id) {
+        brushGroupSelected = id
+        gGroupBrushes.selectAll("rect.colorBrushes")
+            .style("stroke-width", 0)
+
+        gGroupBrushes.select("#colorBrush-" + id)
+            .style("stroke-width", 3)
+            .style("stroke", "black")
+
+        render(dataSelected,dataNotSelected)
+    }
+
+    function createBrushTooltip() {
+        brushTooltipElement = d3.select("body")
+            .append("div")
+            .attr("class", "__ts_popper")
+            .style("pointer-events", "none")
+            .style("display", "none")
+
+        let ul = brushTooltipElement
+            .append("ul");
+
+        ul.append("li")
+            .attr("class", "tool_x_text")
+
+        ul.append("li")
+            .attr("class", "tool_y_text")
+
+        const ref = {
+            getBoundingClientRect: () => {
+                const svgBR = g.node().getBoundingClientRect();
+                return {
+                    top: tooltipCoords.y, //+ svgBR.top,
+                    right: tooltipCoords.x,// + svgBR.left,
+                    bottom: tooltipCoords.y, // + svgBR.top,
+                    left: tooltipCoords.x, // + svgBR.left,
+                    width: 0,
+                    height: 0
+                }
+            }
+        }
+
+
+        brushTooltip = createPopper(ref, brushTooltipElement.node(), {
+            placement: "right"
+        })
+    }
+
+    function showBrushTooltip({selection, sourceEvent}) {
+        if (!selection || sourceEvent === undefined) return
+
+        let [[x0, y0], [x1, y1]] = selection;
+        let textX = "X: [" + overviewX.invert(x0).toFixed(2) + ", " + overviewX.invert(x1).toFixed(2) + "]"
+        let textY = "Y: [" + overviewY.invert(y1).toFixed(2) + ", " + overviewY.invert(y0).toFixed(2) + "]"
+
+
+        brushTooltipElement.style("display", "initial")
+        brushTooltipElement.select(".tool_x_text").text(textX)
+        brushTooltipElement.select(".tool_y_text").text(textY);
+
+        tooltipCoords.x = sourceEvent.x;
+        tooltipCoords.y = sourceEvent.y;
+
+        brushTooltip.update();
+    }
+
+    function hideTooltip(element, removed) {
+        if (removed || element.style("pointer-events") === "all") {
+            brushTooltipElement.style("display", "none")
+        }
+    }
+
+    function brushed({selection, sourceEvent}, brush) {
+        if (sourceEvent === undefined) return; // dont execute this method when move brushes programatically
+
+        brush[1].selection = selection;
+        if (updateBrush(brush)) {
+            //Update intersections with modified brush
+            brushFilterRender();
+            updateStatus()
+        }
+    }
+
+    function endBrush({selection, sourceEvent}, brush) {
+        if (sourceEvent === undefined) return
         if (selection) {
             let [[x0, y0], [x1, y1]] = selection;
             if (Math.abs(x0 - x1) < 20 && Math.abs(y0 - y1) < 20) {
-                removeBrush(selectedBrush);
+                removeBrush(brush);
+            } else if (!ts.autoUpdate) {
+                if (brush[1].isSelected) {
+                    updateSelection()
+                } else {
+                    brushed({selection, sourceEvent}, brush)
+                }
             }
         } else {
-            removeBrush(selectedBrush);
+            removeBrush(brush);
         }
-        if (selectedBrush === brushCount - 1) newBrush();
+        if (brush[0] === brushCount - 1) newBrush();
 
         drawBrushes();
     }
 
     function newBrush() {
-        let brush = d3.brush().on("start brush", brushed).on("end", endBrush);
-        brushes.set(brushCount, {
+        let brush = d3.brush().on("start", (e, brush) => {
+            if (brush[0] === brushCount - 1) {
+                brushSize++;
+                brushesGroup[brush[1].group].delete(brush[0])
+                brush[1].group = brushGroupSelected;
+                brushesGroup[brushGroupSelected].set(brush[0],brush[1])
+                drawBrushes()
+            }
+            if (ts.autoUpdate) {
+                tBrushed(e, brush)
+            }
+        })
+        brush.on("brush.move", moveSelectedBrushes)
+        brush.on("brush.spinBox", tUpdateBrushSpinBox)
+
+        if (ts.autoUpdate) {
+            brush.on("brush.brushed", tBrushed)
+        }
+        if (ts.showBrushTooltip) {
+            brush.on("brush.show", tShowTooltip)
+        }
+        brush.on("end", endBrush);
+        brushesGroup[brushGroupSelected].set(brushCount, {
             brush: brush,
             intersections: new Map(),
             isSelected: false,
-            currentSelection: undefined
+            group: brushGroupSelected,
+            selection: null
         });
         brushCount++;
     }
 
     function drawBrushes() {
+        let brushes = [];
+        brushesGroup.forEach(d => brushes = brushes.concat(Array.from(d)));
         g.select("#brushes")
             .selectAll(".brush")
             .data(brushes, (d) => d[0])
@@ -507,26 +919,35 @@ function TimeSearcher(selectionOverview,
                             return d3.select(this).call(d[1].brush);
                         })
                         .each(function (d) {
-                            return d3
-                                .select(this)
+                            d3.select(this)
                                 .selectAll(".selection")
                                 .style("outline", "-webkit-focus-ring-color solid 2px")
                                 .attr("tabindex", 0)
-                                .on("keydown", ({ keyCode, key }) => {
-                                    if (key === "r" || key === "Backspace") removeBrush(d[0]);
+                                .on("keydown", ({keyCode, key}) => {
+                                    if (key === "r" || key === "Backspace") removeBrush(d);
                                 })
-                                .on("mousedown", ({ shiftKey }) => {
+                                .on("mousedown", ({shiftKey}) => {
                                     if (shiftKey) {
                                         selectBrush(d);
                                     }
                                 });
+                            if (ts.showBrushTooltip) {
+                                d3.select(this).selectAll(":not(.overlay)")
+                                    .on("mousemove", (sourceEvent) => {
+                                        let selection = d[1].selection
+                                        showBrushTooltip({selection, sourceEvent})
+                                    })
+                                    .on("mouseout", (event) => hideTooltip(d3.select(this)), false)
+                            }
                         });
                 },
                 (update) =>
                     update.each(function (d) {
                         d3.select(this)
                             .selectAll(".selection")
-                            .attr("fill", d[1].isSelected ? "#99f" : "#777");
+                            .style("outline", d[1].isSelected ? "-webkit-focus-ring-color dashed 4px" : "-webkit-focus-ring-color solid 2px")
+                            .style("fill", ts.brushesColorScale(d[1].group))
+
                     }),
                 (exit) => exit.remove()
             );
@@ -544,45 +965,64 @@ function TimeSearcher(selectionOverview,
     }
 
     function brushFilterRender() {
-        let dataSelected = [];
-        let dataNotSelected = [];
-        if (brushes.size > 0) {
-            groupedData.forEach((d) => {
-                (allIntersect(d) ? dataSelected : dataNotSelected).push(d);
-            });
+        dataNotSelected = [];
+        dataSelected = []
+        brushesGroup.forEach(() => dataSelected.push([]))
 
-            divOverview.value = dataSelected;
-            divOverview.dispatchEvent(new Event("input", { bubbles: true }));
+        if (brushSize > 0) {
+            for (let d of groupedData) {
+                if (selectedGroupData.has(d[1][0][ts.groupAttr])) {
+                    let isSelected = false;
+                    for (let i = 0; i < brushesGroup.length; ++i) {
+                        if (intersectGroup(d, brushesGroup[i])) {
+                            dataSelected[i].push(d);
+                            isSelected = true;
+                        }
+                    }
+                    if (!isSelected) {
+                        dataNotSelected.push(d)
+                    }
+                }
+            }
 
-            render(dataSelected);
+            updateCallback(dataSelected)
+            render(dataSelected, dataNotSelected);
         } else {
-            divOverview.value = groupedData;
-            divOverview.dispatchEvent(new Event("input", { bubbles: true }));
-            render(groupedData);
+            updateCallback([])
+            if (ts.groupAttr) {
+                dataSelected[0] = groupedData.filter( d => selectedGroupData.has(d[1][0][ts.groupAttr]))
+                render(dataSelected, dataNotSelected);
+            } else {
+                render(groupedData, dataNotSelected);
+            }
         }
 
         return [dataSelected, dataNotSelected];
     }
 
-    function removeBrush(id) {
-        brushes.delete(id);
+    function removeBrush(brush) {
+        brushSize--;
+        brushesGroup[brush[1].group].delete(brush[0])
         drawBrushes();
         brushFilterRender();
+        hideTooltip(null, true)
     }
 
-    function updateBrush(brush, data, x0, y0, x1, y1) {
+    function updateBrush(brush) {
+        let [[x0, y0], [x1, y1]] = brush[1].selection;
         let newIntersections = inteserctBVH(BVH, x0, y0, x1, y1);
         let updated = !compareMaps(newIntersections, brush[1].intersections);
         brush[1].intersections = newIntersections;
         return updated;
     }
 
-    function allIntersect(data) {
+    function intersectGroup(data, group) {
+        if (group.size === 0 || (group.size === 1 && group.values().next().value.intersections.size === 0)) return false
         let intersect = true;
-        for (const brush of brushes.values()) {
+        for (const brush of group) {
             intersect =
                 intersect &&
-                (brush.intersections.get(data[0]) || brush.intersections.size === 0);
+                (brush[1].intersections.get(data[0]) || brush[1].intersections.size === 0);
         }
         return intersect;
     }
@@ -591,39 +1031,54 @@ function TimeSearcher(selectionOverview,
         brush[1].isSelected = !brush[1].isSelected;
     }
 
-    function moveSelectedBrushes(distX, distY, triggerBrush) {
-        for (const brush of brushes) {
-            if (brush[1].isSelected && !(triggerBrush[0] === brush[0])) {
-                let [[x0, y0], [x1, y1]] = brush[1].selection;
-                x0 += distX;
-                x1 += distX;
-                y0 += distY;
-                y1 += distY;
-                gBrushes.select("#brush-" + brush[0]).call(brush[1].brush.move, [
-                    [x0, y0],
-                    [x1, y1]
-                ]);
-                brush[1].selection = [
-                    [x0, y0],
-                    [x1, y1]
-                ];
+    function updateSelection() {
+        let someUpdate = false;
+        for (const brushGroup of brushesGroup) {
+            for (const brush of brushGroup) {
+                if (brush[1].isSelected) {
+                    let update = updateBrush(brush) //avoid lazy evaluation
+                    someUpdate = someUpdate || update
+                }
             }
         }
-
-        if (ts.wait) return; //Controls the update frequency of intersections and drawing
-        ts.wait = true;
-
-        let update = false;
-        for (const brush of brushes) {
-            if (brush[1].isSelected) {
-                let [[x0, y0], [x1, y1]] = brush[1].selection;
-                update = update || updateBrush(brush, groupedData, x0, y0, x1, y1);
-            }
-        }
-        if (update) {
+        if (someUpdate) {
             brushFilterRender();
+            updateStatus();
         }
-        setTimeout(() => (ts.wait = false), 100);
+    }
+
+
+    function moveSelectedBrushes({selection, sourceEvent}, triggerBrush) {
+        if (sourceEvent === undefined) return // dont execute this method when move brushes programatically
+        if (!selection || !triggerBrush[1].isSelected) return
+
+        let [[x0, y0], [x1, y1]] = selection;
+        let distX = x0 - triggerBrush[1].selection[0][0];
+        let distY = y0 - triggerBrush[1].selection[0][1];
+        triggerBrush[1].selection = selection;
+        for (const brushGroup of brushesGroup) {
+            for (const brush of brushGroup) {
+                if (brush[1].isSelected && !(triggerBrush[0] === brush[0])) {
+                    let [[x0, y0], [x1, y1]] = brush[1].selection;
+                    x0 += distX;
+                    x1 += distX;
+                    y0 += distY;
+                    y1 += distY;
+                    gBrushes.select("#brush-" + brush[0]).call(brush[1].brush.move, [
+                        [x0, y0],
+                        [x1, y1]
+                    ]);
+                    brush[1].selection = [
+                        [x0, y0],
+                        [x1, y1]
+                    ];
+                }
+            }
+        }
+
+        if (ts.autoUpdate) {
+            tUpdateSelection()
+        }
     }
 
     function makeBVH(data, xPartitions, yPartitions, width, height) {
@@ -662,31 +1117,40 @@ function TimeSearcher(selectionOverview,
                 let current = d[1][i];
                 let xCoor = overviewX(current[xAttr]);
                 let yCoor = overviewY(current[yAttr]);
-                let xIndex = Math.floor(xCoor / xinc);
-                let yIndex = Math.floor(yCoor / yinc);
+                if (xCoor != null && yCoor != null) {
+                    let xIndex = Math.floor(xCoor / xinc);
+                    let yIndex = Math.floor(yCoor / yinc);
 
-                if (xIndex === lastXindex && yIndex === lastYindex) {
-                    BVH.BVH[xIndex][yIndex].data.get(key).at(-1).push(current);
-                }
-                // The operator ?. is there for posible null fields
-
-                if (i > 0) {
-                    if (xIndex !== lastXindex || yIndex !== lastYindex) {
-                        BVH.BVH[lastXindex][lastYindex].data.get(key).at(-1).push(current);
-                        let previous = d[1][i - 1];
-                        if (BVH.BVH[xIndex][yIndex].data.has(key)) {
-                            BVH.BVH[xIndex][yIndex].data.get(key).push([previous]);
+                    if (i === 0) {
+                        BVH.BVH[xIndex][yIndex].data.set(key, [[current]]);
+                    } else {
+                        if (xIndex === lastXindex && yIndex === lastYindex) {
                             BVH.BVH[xIndex][yIndex].data.get(key).at(-1).push(current);
                         } else {
-                            BVH.BVH[xIndex][yIndex].data.set(key, [[previous]]);
-                            BVH.BVH[xIndex][yIndex].data.get(key).at(-1).push(current);
+                            let previousCell = BVH.BVH[lastXindex][lastYindex]
+                            previousCell.data.get(key).at(-1).push(current);
+                            let previous = d[1][i - 1];
+                            for (let row of BVH.BVH) {
+                                for (let cell of row) {
+                                    if (cell !== previousCell) {
+                                        if (lineIntersection([previous, current], cell.x0, cell.y0, cell.x1, cell.y1)) {
+                                            if (cell.data.has(key)) {
+                                                cell.data.get(key).push([previous]);
+                                                cell.data.get(key).at(-1).push(current);
+                                            } else {
+                                                cell.data.set(key, [[previous]]);
+                                                cell.data.get(key).at(-1).push(current);
+                                            }
+                                        }
+                                    }
+                                }
+                            }
                         }
+
                     }
-                } else {
-                    BVH.BVH[xIndex][yIndex].data.set(key, [[current]]);
+                    lastXindex = xIndex;
+                    lastYindex = yIndex;
                 }
-                lastXindex = xIndex;
-                lastYindex = yIndex;
             }
         });
         return BVH;
@@ -694,7 +1158,7 @@ function TimeSearcher(selectionOverview,
 
     function inteserctBVH(BVH, x0, y0, x1, y1) {
         //avoid overflow when brush are in the limits
-        x1 = x1 === BVH.widht ? x1 - 1 : x1;
+        x1 = x1 === BVH.width ? x1 - 1 : x1;
         y1 = y1 === BVH.height ? y1 - 1 : y1;
 
         let initI = Math.floor(x0 / BVH.xinc);
@@ -728,7 +1192,7 @@ function TimeSearcher(selectionOverview,
 
         for (let index = 1; index < line.length; ++index) {
             let finalPoint = line[index];
-            let intersectX0 = initPoint[0] <= x0 && finalPoint[0] >= x0;
+            let intersectX0 = (initPoint[0] <= x0 && finalPoint[0] >= x0) || (initPoint[0] >= x0 && finalPoint[0] <= x0);
             if (intersectX0) {
                 let m = (finalPoint[1] - initPoint[1]) / (finalPoint[0] - initPoint[0]);
                 let y = m * (x0 - initPoint[0]) + initPoint[1];
@@ -736,7 +1200,7 @@ function TimeSearcher(selectionOverview,
                 if (intersect) return true;
             }
 
-            let intersectX1 = initPoint[0] <= x1 && finalPoint[0] >= x1;
+            let intersectX1 = (initPoint[0] <= x1 && finalPoint[0]) >= x1 || (initPoint[0] >= x1 && finalPoint[0] <= x1);
             if (intersectX1) {
                 let m = (finalPoint[1] - initPoint[1]) / (finalPoint[0] - initPoint[0]);
                 let y = m * (x1 - initPoint[0]) + initPoint[1];
@@ -744,7 +1208,7 @@ function TimeSearcher(selectionOverview,
                 if (intersect) return true;
             }
 
-            let intersectY0 = initPoint[1] <= y0 && finalPoint[1] >= y0;
+            let intersectY0 = (initPoint[1] <= y0 && finalPoint[1] >= y0) || (initPoint[1] >= y0 && finalPoint[1] <= y0);
             if (intersectY0) {
                 let m = (finalPoint[1] - initPoint[1]) / (finalPoint[0] - initPoint[0]);
                 let x = (y0 - initPoint[1]) / m + initPoint[0];
@@ -752,7 +1216,7 @@ function TimeSearcher(selectionOverview,
                 if (intersect) return true;
             }
 
-            let intersectY1 = initPoint[1] >= y1 && finalPoint[1] <= y1;
+            let intersectY1 = (initPoint[1] >= y1 && finalPoint[1] <= y1) || (initPoint[1] <= y1 && finalPoint[1] >= y1);
             if (intersectY1) {
                 let m = (finalPoint[1] - initPoint[1]) / (finalPoint[0] - initPoint[0]);
                 let x = (y1 - initPoint[1]) / m + initPoint[0];
@@ -772,6 +1236,23 @@ function TimeSearcher(selectionOverview,
             }
         }
         return true;
+    }
+
+    function updateStatus() {
+        // exportColors
+        let colors = []
+        for (let i of ts.colorScale.domain()){
+            colors.push({value: i, color:ts.colorScale(i)})
+        }
+        //Export brushes
+        let brushGroups = []
+        brushesGroup.forEach ((d,i) => {
+            let brushes = []
+            d.forEach( (d) => {if (d.selection) brushes.push(d.selection)})
+            brushGroups.push({color: ts.brushesColorScale(i), brushes: brushes})
+        })
+
+        statusCallback({colors: colors, brushGroups: brushGroups})
     }
 
     divOverview.details = divDetailed;

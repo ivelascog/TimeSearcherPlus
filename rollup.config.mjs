@@ -2,6 +2,7 @@ import ascii from "rollup-plugin-ascii";
 import node, {nodeResolve} from "@rollup/plugin-node-resolve";
 import commonjs from "@rollup/plugin-commonjs";
 import terser from "@rollup/plugin-terser";
+import injectProcessEnv from 'rollup-plugin-inject-process-env';
 import meta from "./package.json" assert {type: "json"};
 
 
@@ -20,11 +21,19 @@ export default [
         browser: true
       }),
       ascii(),
-        commonjs()
+      commonjs(),
+      injectProcessEnv({
+        NODE_ENV: 'debug',
+      }),
+      nodeResolve()
+
     ],
     external: [
       "d3",
-      "d3-array"
+      "d3-array",
+      "d3-scale",
+      "d3-scale-chromatic",
+      "@popperjs"
     ],
     output: {
       extend: true,
@@ -36,7 +45,10 @@ export default [
       // sourcemap: true,
       globals: {
         d3:"d3",
-        "d3-array": "d3Array"
+        "d3-array": "d3Array",
+        "d3-scale": "d3Scale",
+        "d3-scale-chromatic": "d3ScaleChromatic",
+        "@popperjs": "PopperCore"
       }
     }
   },
@@ -50,11 +62,18 @@ export default [
         jsxnext: true
       }),
       ascii(),
-      commonjs()
+      commonjs(),
+      injectProcessEnv({
+        NODE_ENV: 'debug',
+      }),
+        nodeResolve()
     ],
     external: [
       "d3",
-      "d3-array"
+      "d3-array",
+        "d3-scale",
+        "d3-scale-chromatic",
+      "@popperjs"
     ],
     output: {
       extend: true,
@@ -66,7 +85,10 @@ export default [
       name: "TimeSearcher",
       globals: {
         d3:"d3",
-        "d3-array": "d3Array"
+        "d3-array": "d3Array",
+        "d3-scale": "d3Scale",
+        "d3-scale-chromatic": "d3ScaleChromatic",
+        "@popperjs": "PopperCore"
       }
     }
   },
@@ -83,7 +105,10 @@ export default [
     ],
     external: [
         "d3",
-        "d3-array"
+        "d3-array",
+        "d3-scale",
+        "d3-scale-chromatic",
+      "@popperjs"
     ],
     output: {
       extend: true,
@@ -93,7 +118,10 @@ export default [
       name: "TimeSearcher",
       globals: {
         d3:"d3",
-        "d3-array":"d3Array"
+        "d3-array":"d3Array",
+        "d3-scale":"d3Scale",
+        "d3-scale-chromatic":"d3ScaleChromatic",
+        "@popperjs":"PopperCore"
       }
     }
   }
