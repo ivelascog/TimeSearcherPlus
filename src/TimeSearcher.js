@@ -751,7 +751,12 @@ function TimeSearcher(
         let div = entry.target;
         let group = div.getAttribute("group");
         group = typeof groupedData[0][0] === "number" ? +group : group;
-        div.appendChild(prerenderDetailed.get(group).node());
+        const prerenderDetailedEle = prerenderDetailed.get(group);
+        if (!prerenderDetailedEle) {
+          console.log("Error onDetailedScrolled couldn't find ", group, " on ", prerenderDetailed);
+          return;
+        }
+        div.appendChild(prerenderDetailedEle.node());
       } else {
         entry.target.innerHTML = "";
       }
@@ -926,6 +931,10 @@ function TimeSearcher(
         context.globalAlpha = ts.defaultAlpha;
         dataSelected[0].forEach((d) => {
           let path = paths.get(d[0]);
+          if (!path) {
+            console.log("error finding path", d[0], d);
+            return;
+          }
           context.strokeStyle = ts.groupAttr
             ? ts.colorScale(path.group)
             : ts.defaultColor;
