@@ -1,4 +1,4 @@
-import * as d3 from "d3"
+﻿import * as d3 from "d3"
 import "d3-array";
 import "d3-scale"
 import "d3-scale-chromatic"
@@ -56,6 +56,7 @@ function TimeSearcher(selectionOverview,
         brushTooltipElement,
         brushTooltip,
         brushSpinBoxes,
+        brushInSpinBox,
         tooltipCoords = {x: 0, y: 0},
         BVH,
         dataSelected,
@@ -77,6 +78,7 @@ function TimeSearcher(selectionOverview,
     ts.defaultAlpha = 1;
     ts.selectedAlpha = 1;
     ts.noSelectedAlpha = 0.1;
+    ts.backgroundColor = "#ffffff"
     ts.defaultColor = "#000000"
     ts.selectedColor = "#000000"
     ts.noSelectedColor = "#808080"
@@ -90,9 +92,11 @@ function TimeSearcher(selectionOverview,
     ts.showBrushTooltip = true;
     ts.autoUpdate = true;
     ts.brushGruopSize = 15
+    ts.stepX = 1;
+    ts.stepY = 1;
 
 
-    divOverview = selectionOverview.style("display","flex").node();
+    divOverview = selectionOverview.style("display","flex").style("background-color",ts.backgroundColor).node();
     divDetailed = selectionDetailed
     divDetailed = divDetailed
         .attr("id", "detail")
@@ -129,12 +133,13 @@ function TimeSearcher(selectionOverview,
             .append("div")
             .attr("id", "render")
             .style("position", "relative")
+            .style("z-index",1)
 
         svg = divRender
             .append("svg")
             .attr("viewBox", [0, 0, overviewWidth, overviewHeight])
             .attr("height", overviewHeight)
-            .attr("width", overviewWidth);
+            .attr("width", overviewWidth)
 
         const g = svg
             .append("g")
@@ -143,11 +148,25 @@ function TimeSearcher(selectionOverview,
             .attr("tabindex", 0)
             .style("pointer-events", "all")
             .style("outline", "-webkit-focus-ring-color solid 0px")
-            .on("keydown", ({keyCode, key}) => {
-                if (key === "+") {
-                    addBrushGroup()
+            .on("keydown", (e) => {
+                e.preventDefault()
+                switch (e.key) {
+                    case "+":
+                        addBrushGroup()
+                        break;
+                    case "ArrowRight":
+                        onArrowRigth(e)
+                        break;
+                    case "ArrowLeft":
+                        onArrowLeft(e)
+                        break;
+                    case "ArrowUp":
+                        onArrowUp(e)
+                        break
+                    case "ArrowDown":
+                        onArrowDown(e)
+                        break
                 }
-
             });
 
         let gmainY = g.append("g")
@@ -239,51 +258,65 @@ function TimeSearcher(selectionOverview,
     }
 
     function updateBrushSpinBox({selection, sourceEvent}, brush) {
-        if (sourceEvent === undefined) return
+
+        brushInSpinBox = brush;
 
         let [[x0, y0], [x1, y1]] = selection;
         let [[sx0, sy0], [sx1, sy1]] = brushSpinBoxes;
 
         sx0.node().value = overviewX.invert(x0).toFixed(2)
         sx1.node().value = overviewX.invert(x1).toFixed(2)
-        sy0.node().value = overviewY.invert(y0).toFixed(2)
-        sy1.node().value = overviewY.invert(y1).toFixed(2)
+        sy0.node().value = overviewY.invert(y1).toFixed(2)
+        sy1.node().value = overviewY.invert(y0).toFixed(2)
+    }
 
+    function emptyBrushSpinBox() {
+        let [[sx0, sy0], [sx1, sy1]] = brushSpinBoxes;
+
+        sx0.node().value = ""
+        sx1.node().value = ""
+        sy0.node().value = ""
+        sy1.node().value = ""
+
+        brushInSpinBox = null;
     }
 
     function generateInteractionDiv() {
-        let divData = divControls.append("div")
 
-        divData.append("span")
-            .text("Data groups: ")
+        if (ts.groupAttr) {
+            let divData = divControls.append("div")
 
-        divData.selectAll(".groupData")
-            .data(selectedGroupData)
-            .join("button")
-            .attr("class", "groupData")
-            .text(d => d)
-            .style("font-size", `${ts.brushGruopSize}px`)
-            .style("stroke", "black")
-            .style("margin", "10px")
-            .style("display", "block")
-            .style("border", "3px solid black")
-            .style("background-color", (d) => ts.colorScale(d))
-            .on("click", function (event, d) {
-                if (selectedGroupData.has(d)) {
-                    selectedGroupData.delete(d)
-                    d3.select(this)
-                        .style("border", "0px solid black")
-                        .style("font-size", `${ts.brushGruopSize + 3}px`)
-                } else {
-                    selectedGroupData.add(d);
-                    d3.select(this)
-                        .style("border", "3px solid black")
-                        .style("font-size", `${ts.brushGruopSize}px`)
+            divData.append("span")
+                .text("Data groups: ")
 
-                }
-                brushFilterRender()
-            })
-
+            let divButtons = divData.selectAll(".groupData")
+                .data(selectedGroupData)
+                .join("div")
+                .attr("class", "groupData")
+            divButtons.append("button")
+                .style("font-size", `${ts.brushGruopSize}px`)
+                .style("stroke", "black")
+                .style("margin", "2px")
+                .style("margin-right", "10px")
+                .style("border-width", "3px")
+                .style("border", "solid black")
+                .style("width", `${ts.brushGruopSize}px`)
+                .style("height", `${ts.brushGruopSize}px`)
+                .style("background-color", (d) => ts.colorScale(d))
+                .on("click", function (event, d) {
+                    if (selectedGroupData.has(d)) {
+                        selectedGroupData.delete(d)
+                        d3.select(this)
+                            .style("border", "solid transparent")
+                    } else {
+                        selectedGroupData.add(d);
+                        d3.select(this)
+                            .style("border", "solid black")
+                    }
+                    brushFilterRender()
+                })
+            divButtons.append("span").text(d => d)
+        }
 
         let divBrushes = divControls.append("div")
         divBrushes.append("span")
@@ -293,17 +326,23 @@ function TimeSearcher(selectionOverview,
         divX.append("span")
             .text("X:")
 
+        let divInputX = divX.append("div")
+
         let domainX = overviewX.domain()
-        let x0 = divX.append("input")
+        let x0 = divInputX.append("input")
             .attr("type", "number")
             .attr("min", domainX[0])
             .attr("max", domainX[1])
+            .attr("step",ts.stepX)
+            .style("background-color", ts.backgroundColor)
             .on("change", onSpinboxChange)
 
-        let x1 = divX.append("input")
+        let x1 = divInputX.append("input")
             .attr("type", "number")
             .attr("min", domainX[0])
             .attr("max", domainX[1])
+            .attr("step",ts.stepX)
+            .style("background-color", ts.backgroundColor)
             .on("change", onSpinboxChange)
 
         let divY = divBrushes.append("div")
@@ -311,34 +350,237 @@ function TimeSearcher(selectionOverview,
         divY.append("span")
             .text("Y:")
 
+        let divInputY = divY.append("div")
+
         let domainY = overviewY.domain()
 
-        let y0 = divY.append("input")
-            .attr("type", "number")
-            .attr("min", domainY[1])
-            .attr("max", domainY[0])
-            .on("change", onSpinboxChange)
-
-
-        let y1 = divY.append("input")
+        let y0 = divInputY.append("input")
             .attr("type", "number")
             .attr("min", domainY[0])
             .attr("max", domainY[1])
+            .attr("step",ts.stepY)
+            .style("background-color", ts.backgroundColor)
+            .on("change", onSpinboxChange)
+
+
+        let y1 = divInputY.append("input")
+            .attr("type", "number")
+            .attr("min", domainY[0])
+            .attr("max", domainY[1])
+            .attr("step",ts.stepY)
+            .style("background-color", ts.backgroundColor)
             .on("change", onSpinboxChange)
 
         brushSpinBoxes = [[x0, y0], [x1, y1]]
     }
 
-    function onSpinboxChange() {
+    function onSpinboxChange(sourceEvent) {
+        if (brushInSpinBox === null) return
+
         let [[sx0, sy0], [sx1, sy1]] = brushSpinBoxes;
 
-        let x0 = sx0.node().value
-        let x1 = sx1.node().value
-        let y0 = sy0.node().value
-        let y1 = sy1.node().value
+        let x0 = +sx0.node().value
+        let x1 = +sx1.node().value
+        let y0 = +sy1.node().value
+        let y1 = +sy0.node().value
+
+        if ( x0 >= x1 ) {
+            if (sourceEvent.target === sx0.node()) {
+                x0 = x1 - ts.stepX;
+                sx0.node().value = x0
+            } else {
+                x1 = x0 + ts.stepX;
+                sx1.node().value = x1;
+            }
+        }
+        if ( y1 >= y0 ) {
+            if (sourceEvent.target === sy0.node()) {
+                y0 = y1 - ts.stepY
+                sy1.node().value = y0
+            } else {
+                y1 = y0 - ts.stepY
+                sy0.node().value = y1
+            }
+        }
+
+        x0 = overviewX(x0)
+        x1 = overviewX(x1)
+        y0 = overviewY(y0)
+        y1 = overviewY(y1)
+
+        gBrushes.select("#brush-" + brushInSpinBox[0]).call(brushInSpinBox[1].brush.move, [
+            [x0, y0],
+            [x1, y1]
+        ])
 
         let selection = [[x0, y0], [x1, y1]]
+
+        brushed({selection, sourceEvent}, brushInSpinBox)
+
+        //moveSelectedBrushes({selection,sourceEvent},brushInSpinBox)
     }
+
+    function onArrowRigth(sourceEvent) {
+        if (brushInSpinBox === null) return
+
+        let [[sx0, sy0], [sx1, sy1]] = brushSpinBoxes;
+
+        let x0 = +sx0.node().value
+        let x1 = +sx1.node().value
+        let y0 = +sy1.node().value
+        let y1 = +sy0.node().value
+
+        x1 += ts.stepX
+        
+        let maxX = +sx0.node().max
+
+        if (x1 > maxX) {
+            let dist = maxX - x1 + ts.stepX
+            x1 = maxX
+            x0 -= dist
+        } else {
+            x0 += ts.stepX
+        }
+
+        sx0.node().value = x0;
+        sx1.node().value = x1;
+
+        x0 = overviewX(x0)
+        x1 = overviewX(x1)
+        y0 = overviewY(y0)
+        y1 = overviewY(y1)
+
+        gBrushes.select("#brush-" + brushInSpinBox[0]).call(brushInSpinBox[1].brush.move, [
+            [x0, y0],
+            [x1, y1]
+        ])
+
+        let selection = [[x0, y0], [x1, y1]]
+
+        brushed({selection, sourceEvent}, brushInSpinBox)
+
+    }
+
+    function onArrowLeft(sourceEvent) {
+        if (brushInSpinBox === null) return
+
+        let [[sx0, sy0], [sx1, sy1]] = brushSpinBoxes;
+
+        let x0 = +sx0.node().value
+        let x1 = +sx1.node().value
+        let y0 = +sy1.node().value
+        let y1 = +sy0.node().value
+
+        x0 -= ts.stepX
+        let minX = +sx0.node().min
+
+        if (x0 < minX) {
+            let dist = x0 + ts.stepX - minX
+            x0 = minX
+            x1 -= dist
+        } else {
+            x1 -= ts.stepX
+        }
+
+        sx0.node().value = x0;
+        sx1.node().value = x1;
+
+        x0 = overviewX(x0)
+        x1 = overviewX(x1)
+        y0 = overviewY(y0)
+        y1 = overviewY(y1)
+
+        gBrushes.select("#brush-" + brushInSpinBox[0]).call(brushInSpinBox[1].brush.move, [
+            [x0, y0],
+            [x1, y1]
+        ])
+
+        let selection = [[x0, y0], [x1, y1]]
+
+        brushed({selection, sourceEvent}, brushInSpinBox)
+    }
+
+    function onArrowDown(sourceEvent) {
+        if (brushInSpinBox === null) return
+
+        let [[sx0, sy0], [sx1, sy1]] = brushSpinBoxes;
+
+        let x0 = +sx0.node().value
+        let x1 = +sx1.node().value
+        let y0 = +sy1.node().value
+        let y1 = +sy0.node().value
+
+        y1 -= ts.stepY
+        
+        let minY = +sy0.node().min
+
+        if (y1 < minY) {
+            let dist = y1 + ts.stepY - minY
+            y1 = minY
+            y0 -= dist
+        } else {
+            y0 -= ts.stepY
+        }
+
+        sy0.node().value = y1;
+        sy1.node().value = y0;
+
+        x0 = overviewX(x0)
+        x1 = overviewX(x1)
+        y0 = overviewY(y0)
+        y1 = overviewY(y1)
+
+        gBrushes.select("#brush-" + brushInSpinBox[0]).call(brushInSpinBox[1].brush.move, [
+            [x0, y0],
+            [x1, y1]
+        ])
+
+        let selection = [[x0, y0], [x1, y1]]
+
+        brushed({selection, sourceEvent}, brushInSpinBox)
+    }
+
+    function onArrowUp(sourceEvent) {
+        if (brushInSpinBox === null) return
+
+        let [[sx0, sy0], [sx1, sy1]] = brushSpinBoxes;
+
+        let x0 = +sx0.node().value
+        let x1 = +sx1.node().value
+        let y0 = +sy1.node().value
+        let y1 = +sy0.node().value
+
+        y0 += ts.stepY
+        
+        let maxY = +sy0.node().max
+
+        if (y0 > maxY) {
+            let dist = maxY - y0 + ts.stepY
+            y0 = maxY
+            y1 += dist
+        } else {
+            y1 += ts.stepY
+        }
+
+        sy0.node().value = y1;
+        sy1.node().value = y0;
+
+        x0 = overviewX(x0)
+        x1 = overviewX(x1)
+        y0 = overviewY(y0)
+        y1 = overviewY(y1)
+
+        gBrushes.select("#brush-" + brushInSpinBox[0]).call(brushInSpinBox[1].brush.move, [
+            [x0, y0],
+            [x1, y1]
+        ])
+
+        let selection = [[x0, y0], [x1, y1]]
+
+        brushed({selection, sourceEvent}, brushInSpinBox)
+    }
+
+
 
     ts.addReferenceCurves = function (curves) {
         curves.forEach(c => {
@@ -665,7 +907,7 @@ function TimeSearcher(selectionOverview,
         function renderDetailedCanvas(data) {
             let frag = document.createDocumentFragment();
 
-            data.forEach((d) => {
+            data[brushGroupSelected].forEach((d) => {
                 let div = document.createElement("div");
                 div.className = "detailedContainer";
                 div.setAttribute("group", d[0]);
@@ -774,6 +1016,7 @@ function TimeSearcher(selectionOverview,
             .style("stroke-width", 3)
             .style("stroke", "black")
 
+        drawBrushes()
         render(dataSelected,dataNotSelected)
     }
 
@@ -783,6 +1026,7 @@ function TimeSearcher(selectionOverview,
             .attr("class", "__ts_popper")
             .style("pointer-events", "none")
             .style("display", "none")
+            .style("z-index", 2)
 
         let ul = brushTooltipElement
             .append("ul");
@@ -924,10 +1168,16 @@ function TimeSearcher(selectionOverview,
                                 .style("outline", "-webkit-focus-ring-color solid 2px")
                                 .attr("tabindex", 0)
                                 .on("keydown", ({keyCode, key}) => {
-                                    if (key === "r" || key === "Backspace") removeBrush(d);
+                                    switch (key) {
+                                        case "r":
+                                        case "Backspace":
+                                            removeBrush(d)
+                                    }
                                 })
-                                .on("mousedown", ({shiftKey}) => {
-                                    if (shiftKey) {
+                                .on("mousedown", (sourceEvent) => {
+                                    let selection = d[1].selection
+                                    updateBrushSpinBox({selection,sourceEvent},d)
+                                    if (sourceEvent.shiftKey) {
                                         selectBrush(d);
                                     }
                                 });
@@ -945,7 +1195,9 @@ function TimeSearcher(selectionOverview,
                     update.each(function (d) {
                         d3.select(this)
                             .selectAll(".selection")
-                            .style("outline", d[1].isSelected ? "-webkit-focus-ring-color dashed 4px" : "-webkit-focus-ring-color solid 2px")
+                            .style("outline-width", d[1].group === brushGroupSelected ? " 4px" : " 2px")
+                            .style("outline-style",  d[1].isSelected ? "dashed" : "solid" )
+                            .style("outline-color", ts.brushesColorScale(d[1].group) )
                             .style("fill", ts.brushesColorScale(d[1].group))
 
                     }),
@@ -1006,6 +1258,7 @@ function TimeSearcher(selectionOverview,
         drawBrushes();
         brushFilterRender();
         hideTooltip(null, true)
+        emptyBrushSpinBox()
     }
 
     function updateBrush(brush) {
@@ -1029,6 +1282,13 @@ function TimeSearcher(selectionOverview,
 
     function selectBrush(brush) {
         brush[1].isSelected = !brush[1].isSelected;
+    }
+    function deselectAllBrushes() {
+        for (let brushGroup of brushesGroup) {
+            for (let brush of brushGroup) {
+                brush[1].isSelected = false;
+            }
+        }
     }
 
     function updateSelection() {
