@@ -1296,7 +1296,7 @@ function TimeSearcher(
 
     if (brushSize > 0) {
       for (let d of groupedData) {
-        if (selectedGroupData.has(d[1][0][ts.groupAttr])) {
+        if (!ts.groupAttr || selectedGroupData.has(d[1][0][ts.groupAttr])) {
           let isSelected = false;
           for (let i = 0; i < brushesGroup.length; ++i) {
             if (intersectGroup(d, brushesGroup[i])) {
