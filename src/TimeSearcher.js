@@ -2,37 +2,29 @@
 import { throttle } from "throttle-debounce";
 import { createPopper } from "@popperjs/core";
 
-function TimeSearcher(
-  selectionOverview,
-  selectionDetailed,
-  _xAttr,
-  _yAttr,
-  _indexAttr,
-  _renderer = "canvas",
-  _overviewWidth = 1200,
-  _detailedWidth = 1200 - 20,
-  _overviewHeight = 600,
-  _detailedHeight = _overviewHeight / 2,
-  _detailedContainerHeight = 400,
-  { // John TODO: Let's change everything to Observable's style TimeSearcher(data, { width, etc})
-    fmtX = d3.timeFormat("%d/%m/%y"), // Function, how to format x points in the tooltip
-    fmtY = d3.format(".2d"), // Function, how to format x points in the tooltip
-  } = {}
-) {
-  let ts = this || {},
-    data,
+function TimeSearcher({
+  // John TODO: Let's change everything to Observable's style TimeSearcher(data, { width, etc})
+  data,
+  target = document.createElement("div"), // pass a d3 selection to the html element where you want to render
+  detailedElement = document.createElement("div"), // pass a d3 selection to the html element where you want to render the details
+  xAttr = (d) => d.x,
+  yAttr = (d) => d.y,
+  indexAttr = (d) => d.id,
+  renderer = "canvas",
+  overviewWidth = 1200,
+  detailedWidth = 1200 - 20,
+  overviewHeight = 600,
+  detailedHeight = 300,
+  detailedContainerHeight = 400,
+  updateCallback = (data) => {},
+  statusCallback = (status) => {},
+  fmtX = d3.timeFormat("%d/%m/%y"), // Function, how to format x points in the tooltip
+  fmtY = d3.format(".2d"), // Function, how to format x points in the tooltip
+} = {}) {
+  let ts = {},
     groupedData,
     fData,
     nGroups,
-    xAttr = _xAttr,
-    yAttr = _yAttr,
-    indexAttr = _indexAttr,
-    renderer = _renderer,
-    overviewWidth = _overviewWidth,
-    detailedWidth = _detailedWidth,
-    overviewHeight = _overviewHeight,
-    detailedHeight = _detailedHeight,
-    detailedContainerHeight = _detailedContainerHeight,
     overviewX,
     overviewY,
     detailedX,
@@ -70,9 +62,7 @@ function TimeSearcher(
     tUpdateBrushSpinBox,
     gGroupData,
     selectedGroupData,
-    nGroupsData,
-    updateCallback = function (data) {},
-    statusCallback = function (status) {};
+    nGroupsData;
 
   // Default Parameters
   ts.xPartitions = 10;
@@ -97,11 +87,11 @@ function TimeSearcher(
   ts.stepX = 1;
   ts.stepY = 1;
 
-  divOverview = selectionOverview
+  divOverview = d3.select(target)
     .style("display", "flex")
     .style("background-color", ts.backgroundColor)
     .node();
-  divDetailed = selectionDetailed;
+  divDetailed = d3.select(detailedElement);
   divDetailed = divDetailed
     .attr("id", "detail")
     .style("height", `${detailedContainerHeight}px`)
@@ -624,127 +614,6 @@ function TimeSearcher(
     brushed({ selection, sourceEvent }, brushInSpinBox);
   }
 
-  ts.addReferenceCurves = function (curves) {
-    curves.forEach((c) => {
-      let [xmin, xmax] = overviewX.domain();
-      let [ymin, ymax] = overviewY.domain();
-      c.data = c.data.filter((point) => {
-        return (
-          point[0] <= xmax &&
-          point[0] >= xmin &&
-          point[1] <= ymax &&
-          point[1] >= ymin
-        );
-      });
-    });
-
-    let line2 = d3
-      .line()
-      .x((d) => overviewX(d[0]))
-      .y((d) => overviewY(d[1]));
-
-    gReferences
-      .selectAll(".referenceCurve")
-      .data(curves)
-      .join("path")
-      .attr("class", "referenceCurve")
-      .attr("d", (c) => line2(c.data))
-      .attr("stroke-width", 2)
-      .style("fill", "none")
-      .style("stroke", (c) => c.color)
-      .style("opacity", (c) => c.opacity);
-  };
-
-  ts.updateCallback = function (_) {
-    return arguments.length ? ((updateCallback = _), ts) : updateCallback;
-  };
-
-  ts.statusCallback = function (_) {
-    return arguments.length ? ((statusCallback = _), ts) : statusCallback;
-  };
-
-  ts.Data = function (_data) {
-    data = _data;
-    fData = data.filter((d) => d[yAttr] && d[xAttr]);
-    groupedData = d3.group(fData, (d) => d[indexAttr]);
-    groupedData = Array.from(groupedData);
-
-    let xDataType = typeof fData[0][xAttr];
-    if (xDataType === "object" && fData[0][xAttr] instanceof Date) {
-      overviewX = d3
-        .scaleTime()
-        .domain(d3.extent(fData, (d) => d[xAttr]))
-        .range([0, overviewWidth - ts.margin.right - ts.margin.left]);
-
-      detailedX = d3
-        .scaleTime()
-        .domain(d3.extent(fData, (d) => d[xAttr]))
-        .range([0, detailedWidth - ts.margin.right - ts.margin.left]);
-    } else if (xDataType === "number") {
-      overviewX = d3
-        .scaleLinear()
-        .domain(d3.extent(fData, (d) => d[xAttr]))
-        .range([0, overviewWidth - ts.margin.right - ts.margin.left]);
-      //.nice();
-
-      detailedX = d3
-        .scaleLinear()
-        .domain(d3.extent(fData, (d) => d[xAttr]))
-        .range([0, detailedWidth - ts.margin.right - ts.margin.left]);
-    }
-
-    overviewY = d3
-      .scaleLinear()
-      .domain(d3.extent(fData, (d) => d[yAttr]))
-      .range([overviewHeight - ts.margin.top - ts.margin.bottom, 0])
-      .nice();
-
-    detailedY = d3
-      .scaleLinear()
-      .domain(d3.extent(fData, (d) => d[yAttr]))
-      .range([detailedHeight - ts.margin.top - ts.margin.bottom, 0])
-      .nice();
-
-    line2 = d3
-      .line()
-      .x((d) => overviewX(d[xAttr]))
-      .y((d) => overviewY(d[yAttr]));
-
-    line2Detailed = d3
-      .line()
-      .x((d) => detailedX(d[xAttr]))
-      .y((d) => detailedY(d[yAttr]));
-
-    BVH = makeBVH(
-      groupedData,
-      ts.xPartitions,
-      ts.yPartitions,
-      overviewWidth,
-      overviewHeight
-    );
-
-    g = init();
-    gBrushes = g.append("g").attr("id", "brushes");
-    createBrushTooltip();
-
-    renderObject =
-      renderer === "canvas" ? renderCanvas(groupedData) : renderSVG();
-    render = renderObject.render;
-    if (ts.hasDetailed) {
-      prerenderDetailed = renderObject.preRender;
-    }
-
-    generateInteractionDiv();
-
-    addBrushGroup();
-    dataSelected[0] = groupedData;
-    newBrush();
-    drawBrushes();
-
-    updateCallback([]);
-    selectBrushGroup(0);
-  };
-
   function onDetailedScrolled(entries, observer) {
     entries.forEach((entry) => {
       if (entry.isIntersecting) {
@@ -753,7 +622,12 @@ function TimeSearcher(
         group = typeof groupedData[0][0] === "number" ? +group : group;
         const prerenderDetailedEle = prerenderDetailed.get(group);
         if (!prerenderDetailedEle) {
-          console.log("Error onDetailedScrolled couldn't find ", group, " on ", prerenderDetailed);
+          console.log(
+            "Error onDetailedScrolled couldn't find ",
+            group,
+            " on ",
+            prerenderDetailed
+          );
           return;
         }
         div.appendChild(prerenderDetailedEle.node());
@@ -1620,8 +1494,136 @@ function TimeSearcher(
     statusCallback({ colors: colors, brushGroups: brushGroups });
   }
 
+  ts.addReferenceCurves = function (curves) {
+    curves.forEach((c) => {
+      let [xmin, xmax] = overviewX.domain();
+      let [ymin, ymax] = overviewY.domain();
+      c.data = c.data.filter((point) => {
+        return (
+          point[0] <= xmax &&
+          point[0] >= xmin &&
+          point[1] <= ymax &&
+          point[1] >= ymin
+        );
+      });
+    });
+
+    let line2 = d3
+      .line()
+      .x((d) => overviewX(d[0]))
+      .y((d) => overviewY(d[1]));
+
+    gReferences
+      .selectAll(".referenceCurve")
+      .data(curves)
+      .join("path")
+      .attr("class", "referenceCurve")
+      .attr("d", (c) => line2(c.data))
+      .attr("stroke-width", 2)
+      .style("fill", "none")
+      .style("stroke", (c) => c.color)
+      .style("opacity", (c) => c.opacity);
+  };
+
+  ts.updateCallback = function (_) {
+    return arguments.length ? ((updateCallback = _), ts) : updateCallback;
+  };
+
+  ts.statusCallback = function (_) {
+    return arguments.length ? ((statusCallback = _), ts) : statusCallback;
+  };
+
+  ts.Data = function (_data) {
+    data = _data;
+    fData = data.filter((d) => d[yAttr] && d[xAttr]);
+    groupedData = d3.group(fData, (d) => d[indexAttr]);
+    groupedData = Array.from(groupedData);
+
+    let xDataType = typeof fData[0][xAttr];
+    if (xDataType === "object" && fData[0][xAttr] instanceof Date) {
+      overviewX = d3
+        .scaleTime()
+        .domain(d3.extent(fData, (d) => d[xAttr]))
+        .range([0, overviewWidth - ts.margin.right - ts.margin.left]);
+
+      detailedX = d3
+        .scaleTime()
+        .domain(d3.extent(fData, (d) => d[xAttr]))
+        .range([0, detailedWidth - ts.margin.right - ts.margin.left]);
+    } else if (xDataType === "number") {
+      overviewX = d3
+        .scaleLinear()
+        .domain(d3.extent(fData, (d) => d[xAttr]))
+        .range([0, overviewWidth - ts.margin.right - ts.margin.left]);
+      //.nice();
+
+      detailedX = d3
+        .scaleLinear()
+        .domain(d3.extent(fData, (d) => d[xAttr]))
+        .range([0, detailedWidth - ts.margin.right - ts.margin.left]);
+    }
+
+    overviewY = d3
+      .scaleLinear()
+      .domain(d3.extent(fData, (d) => d[yAttr]))
+      .range([overviewHeight - ts.margin.top - ts.margin.bottom, 0])
+      .nice();
+
+    detailedY = d3
+      .scaleLinear()
+      .domain(d3.extent(fData, (d) => d[yAttr]))
+      .range([detailedHeight - ts.margin.top - ts.margin.bottom, 0])
+      .nice();
+
+    line2 = d3
+      .line()
+      .x((d) => overviewX(d[xAttr]))
+      .y((d) => overviewY(d[yAttr]));
+
+    line2Detailed = d3
+      .line()
+      .x((d) => detailedX(d[xAttr]))
+      .y((d) => detailedY(d[yAttr]));
+
+    BVH = makeBVH(
+      groupedData,
+      ts.xPartitions,
+      ts.yPartitions,
+      overviewWidth,
+      overviewHeight
+    );
+
+    g = init();
+    gBrushes = g.append("g").attr("id", "brushes");
+    createBrushTooltip();
+
+    renderObject =
+      renderer === "canvas" ? renderCanvas(groupedData) : renderSVG();
+    render = renderObject.render;
+    if (ts.hasDetailed) {
+      prerenderDetailed = renderObject.preRender;
+    }
+
+    generateInteractionDiv();
+
+    addBrushGroup();
+    dataSelected[0] = groupedData;
+    newBrush();
+    drawBrushes();
+
+    updateCallback([]);
+    selectBrushGroup(0);
+  };
+
+  // If we receive the data on initialization call ts.Data
+  if (data) {
+    ts.Data(data);
+  }
+
+  // Make the ts object accesible 
+  divOverview.ts = ts;
   divOverview.details = divDetailed;
-  return ts;
+  return divOverview;
 }
 
 export default TimeSearcher;

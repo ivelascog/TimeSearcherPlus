@@ -1,8 +1,9 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <title>Example</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Document</title>
 </head>
 <body>
   <div id="target"></div>
@@ -11,17 +12,22 @@
   <script src="https://unpkg.com/@popperjs/core@2"></script>
   <script src="../dist/TimeSearcher.js"></script>
 
-  <script>
-      let nn = TimeSearcher(d3.select("#target"),d3.select("#targetDetailed"),
-              "Date",
-                "Open",
-               "stock",
-               "canvas"
-          )
-      nn.updateCallback(selected => console.log(selected));
-      nn.doubleYlegend = true;
+  <script >        
+    let target = TimeSearcher({
+      target: d3.select("#target").node(), 
+      detailedElement: d3.select("#targetDetailed").node(),
+      xAttr: "Date",
+      yAttr:  "Open",
+      indexAttr: "stock",
+      renderer: "canvas"
+    })
+    target.ts.updateCallback(selected => console.log(selected));
+    target.ts.doubleYlegend = true;
 
-      d3.csv("./sp500_20-22.csv",type).then(data => nn.Data(data));
+
+    d3.csv("./sp500_20-22.csv",type).then(data => {
+      target.ts.Data(data);
+    });
 
       var fmt = d3.timeParse("%Y-%m-%d");
       function type(row) {
@@ -37,5 +43,4 @@
       }
 
   </script>
-</body>
 </html>
