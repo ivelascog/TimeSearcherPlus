@@ -21,6 +21,9 @@ function TimeSearcher({
   fmtX = d3.timeFormat("%d/%m/%y"), // Function, how to format x points in the tooltip
   fmtY = d3.format(".2d"), // Function, how to format x points in the tooltip
 } = {}) {
+
+  console.log("TimeSearcher", arguments);
+
   let ts = {},
     groupedData,
     fData,
