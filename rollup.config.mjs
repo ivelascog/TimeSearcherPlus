@@ -14,10 +14,10 @@ export default [
   {
     input: "src/index.js",
     plugins: [
-      babel({
+      /*babel({
         exclude: "node_modules/**",
         babelHelpers: "bundled",
-      }),
+      }),*/
       node({
         jsxnext: true,
         main: true,
@@ -31,7 +31,6 @@ export default [
       nodeResolve(),
     ],
     external: ["d3", "@popperjs"
-      // , "luxon"
       ],
     output: {
       extend: true,
@@ -43,7 +42,6 @@ export default [
       sourcemap: true,
       globals: {
         d3: "d3",
-        // luxon: "luxon",
       },
     },
   },
@@ -65,7 +63,6 @@ export default [
       nodeResolve(),
     ],
     external: ["d3", "@popperjs"
-      // , "luxon"
       ],
     output: {
       extend: true,
@@ -97,7 +94,6 @@ export default [
       terser({ output: { preamble: copyright } }),
     ],
     external: ["d3", "@popperjs"
-      // , "luxon"
       ],
     output: {
       extend: true,
@@ -107,7 +103,6 @@ export default [
       name: "TimeSearcher",
       globals: {
         d3: "d3",
-        // luxon: "luxon",
       },
     },
   },
