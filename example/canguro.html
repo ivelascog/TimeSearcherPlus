@@ -17,9 +17,9 @@
     target: d3.select("#target").node(),
     detailedElement: d3.select("#targetDetailed").node(),
     brushCoordinatesElement: d3.select("#targetCoordinates").node(),
-    xAttr: "__time",
-    yAttr: "peso",
-    indexAttr: "Code",
+    x: "__time",
+    y: "peso",
+    id: "Code",
     renderer: "canvas",
     fmtX: d3.format(".2d")
   });
@@ -45,7 +45,7 @@
   d3.csv("./tData20000.csv", type).then(data => {
     data = data.filter(d => d["__time"] < 89 && d["__time"] > 24 && d["peso"] < 20000);
     //data = data.filter(d => ["1-0000001","1-0000002"].includes(d["Code"]))
-    target.ts.Data(data);
+    target.ts.data(data);
     d3.json("./curvas.json").then(curves => {
       target.ts.addReferenceCurves(curves);
     });

@@ -94,22 +94,19 @@ function TimeSearcher({
   ts.stepX = 1000 * 24 * 3600; // Defines the pitch used, both in the spinboxes and with the arrows on the X axis.
   ts.stepY = 1; // // Defines the pitch used, both in the spinboxes and with the arrows on the Y axis.
 
-
-
   // Convert attrStrings to functions
   if (typeof x === "string") {
     let _x = x;
-    x = d => d[_x];
-  } 
+    x = (d) => d[_x];
+  }
   if (typeof y === "string") {
     let _y = y;
-    y = d => d[_y];
-  } 
+    y = (d) => d[_y];
+  }
   if (typeof id === "string") {
     let _id = id;
-    id = d => d[_id];
-  } 
-
+    id = (d) => d[_id];
+  }
 
   divOverview = d3
     .select(target)
@@ -1226,10 +1223,12 @@ function TimeSearcher({
         }
       }
 
-      updateCallback(dataSelected);
+      returnSelection(dataSelected);
+
       render(dataSelected, dataNotSelected);
     } else {
-      updateCallback([]);
+      returnSelection([]);
+
       if (ts.groupAttr) {
         dataSelected[0] = groupedData.filter((d) =>
           selectedGroupData.has(d[1][0][ts.groupAttr])
@@ -1528,6 +1527,14 @@ function TimeSearcher({
     statusCallback({ colors: colors, brushGroups: brushGroups });
   }
 
+  // Triggers the update of the selection calls callback and dispatches input event
+  function returnSelection(sel) {
+    updateCallback(sel);
+
+    divOverview.value = sel;
+    divOverview.dispatchEvent(new Event("input", { bubbles: true }));
+  }
+
   ts.addReferenceCurves = function (curves) {
     curves.forEach((c) => {
       let [xmin, xmax] = overviewX.domain();
@@ -1544,6 +1551,7 @@ function TimeSearcher({
 
     let line2 = d3
       .line()
+      .defined((d) => d[1] !== undefined && d[1] !== null)
       .x((d) => overviewX(d[0]))
       .y((d) => overviewY(d[1]));
 
@@ -1567,7 +1575,7 @@ function TimeSearcher({
     return arguments.length ? ((statusCallback = _), ts) : statusCallback;
   };
 
-  ts.Data = function (_data) {
+  ts.data = function (_data) {
     data = _data;
     fData = data.filter((d) => y(d) && x(d));
     groupedData = d3.group(fData, id);
@@ -1612,11 +1620,13 @@ function TimeSearcher({
 
     line2 = d3
       .line()
+      .defined((d) => y(d) !== undefined && y(d) !== null)
       .x((d) => overviewX(x(d)))
       .y((d) => overviewY(y(d)));
 
     line2Detailed = d3
       .line()
+      .defined((d) => y(d) !== undefined && y(d) !== null)
       .x((d) => detailedX(x(d)))
       .y((d) => detailedY(y(d)));
 
@@ -1647,19 +1657,21 @@ function TimeSearcher({
     newBrush();
     drawBrushes();
 
-    updateCallback([]);
+    returnSelection([]);
     selectBrushGroup(0);
   };
 
   // If we receive the data on initialization call ts.Data
   if (data) {
-    ts.Data(data);
+    ts.data(data);
   }
 
   // Make the ts object accesible
   divOverview.ts = ts;
   divOverview.details = divDetailed;
   divOverview.brushesCoordinates = divBrushesCoordinates;
+
+  updateSelection(data);
   return divOverview;
 }
 

@@ -22,9 +22,9 @@
       target: d3.select("#target").node(), 
       detailedElement: d3.select("#targetDetailed").node(),
       brushCoordinatesElement: d3.select("#targetCoordinates").node(),
-      xAttr: "Date",
-      yAttr:  "Open",
-      indexAttr: "stock",
+      x: "Date",
+      y:  "Open",
+      id: "stock",
       renderer: "canvas"
     })
     target.ts.updateCallback(selected => console.log(selected));
@@ -33,7 +33,7 @@
 
 
     d3.csv("./sp500_20-22.csv",type).then(data => {
-      target.ts.Data(data);
+      target.ts.data(data);
     });
 
       var fmt = d3.timeParse("%Y-%m-%d");
