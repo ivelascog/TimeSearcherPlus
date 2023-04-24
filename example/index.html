@@ -5,17 +5,23 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Document</title>
 </head>
-<body>
+<s>
   <div id="target"></div>
+  <div id="targetCoordinates"></div>
   <div id="targetDetailed"></div>
   <script src="https://d3js.org/d3.v7.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/luxon@3.3.0/build/global/luxon.min.js"></script>
   <script src="https://unpkg.com/@popperjs/core@2"></script>
+
   <script src="../dist/TimeSearcher.js"></script>
 
-  <script >        
+  <script >
+
+
     let target = TimeSearcher({
       target: d3.select("#target").node(), 
       detailedElement: d3.select("#targetDetailed").node(),
+      brushCoordinatesElement: d3.select("#targetCoordinates").node(),
       xAttr: "Date",
       yAttr:  "Open",
       indexAttr: "stock",
@@ -23,6 +29,7 @@
     })
     target.ts.updateCallback(selected => console.log(selected));
     target.ts.doubleYlegend = true;
+    target.ts.stepY = 100;
 
 
     d3.csv("./sp500_20-22.csv",type).then(data => {
