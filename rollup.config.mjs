@@ -1,41 +1,38 @@
 import ascii from "rollup-plugin-ascii";
-import node, {nodeResolve} from "@rollup/plugin-node-resolve";
+import node, { nodeResolve } from "@rollup/plugin-node-resolve";
 import commonjs from "@rollup/plugin-commonjs";
 import terser from "@rollup/plugin-terser";
-import injectProcessEnv from 'rollup-plugin-inject-process-env';
-import meta from "./package.json" assert {type: "json"};
+import injectProcessEnv from "rollup-plugin-inject-process-env";
+import meta from "./package.json" assert { type: "json" };
+import { babel } from "@rollup/plugin-babel";
 
-
-const copyright = `// ${meta.homepage} v${meta.version} Copyright ${(new Date).getFullYear()} ${meta.author.name}`;
+const copyright = `// ${meta.homepage} v${
+  meta.version
+} Copyright ${new Date().getFullYear()} ${meta.author.name}`;
 
 export default [
   {
     input: "src/index.js",
     plugins: [
-      // babel({
-      //   exclude: "node_modules/**"
-      // }),
+      babel({
+        exclude: "node_modules/**",
+        babelHelpers: "bundled",
+      }),
       node({
         jsxnext: true,
         main: true,
-        browser: true
+        browser: true,
       }),
       ascii(),
       commonjs(),
       injectProcessEnv({
-        NODE_ENV: 'debug',
+        NODE_ENV: "debug",
       }),
-      nodeResolve()
-
+      nodeResolve(),
     ],
-    external: [
-      "d3",
-      "d3-array",
-      "d3-scale",
-      "d3-scale-chromatic",
-      "@popperjs",
-      "luxon"
-    ],
+    external: ["d3", "@popperjs"
+      // , "luxon"
+      ],
     output: {
       extend: true,
       banner: copyright,
@@ -43,37 +40,33 @@ export default [
       format: "umd",
       indent: false,
       name: "TimeSearcher",
-      // sourcemap: true,
+      sourcemap: true,
       globals: {
-        d3:"d3",
-        luxon:"luxon"
-      }
-    }
+        d3: "d3",
+        // luxon: "luxon",
+      },
+    },
   },
   {
     input: "src/index.js",
     plugins: [
-      // babel({
-      //   exclude: "node_modules/**"
-      // }),
+      babel({
+        exclude: "node_modules/**",
+        babelHelpers: "bundled",
+      }),
       node({
-        jsxnext: true
+        jsxnext: true,
       }),
       ascii(),
       commonjs(),
       injectProcessEnv({
-        NODE_ENV: 'debug',
+        NODE_ENV: "debug",
       }),
-        nodeResolve()
+      nodeResolve(),
     ],
-    external: [
-      "d3",
-      "d3-array",
-        "d3-scale",
-        "d3-scale-chromatic",
-      "@popperjs",
-      "luxon"
-    ],
+    external: ["d3", "@popperjs"
+      // , "luxon"
+      ],
     output: {
       extend: true,
       banner: copyright,
@@ -83,30 +76,29 @@ export default [
       // sourcemap: true,
       name: "TimeSearcher",
       globals: {
-        d3:"d3",
-        luxon:"luxon"
-      }
-    }
+        d3: "d3",
+        // luxon: "luxon",
+      },
+    },
   },
   {
     input: "src/index.js",
     plugins: [
+      babel({
+        exclude: "node_modules/**",
+        babelHelpers: "bundled",
+      }),
       node({
         jsxnext: true,
         main: true,
-        browser: true
+        browser: true,
       }),
       ascii(),
-      terser({output: {preamble: copyright}})
+      terser({ output: { preamble: copyright } }),
     ],
-    external: [
-        "d3",
-        "d3-array",
-        "d3-scale",
-        "d3-scale-chromatic",
-      "@popperjs",
-      "luxon"
-    ],
+    external: ["d3", "@popperjs"
+      // , "luxon"
+      ],
     output: {
       extend: true,
       file: "dist/TimeSearcher.min.js",
@@ -114,9 +106,9 @@ export default [
       indent: false,
       name: "TimeSearcher",
       globals: {
-        d3:"d3",
-        luxon:"luxon"
-      }
-    }
-  }
+        d3: "d3",
+        // luxon: "luxon",
+      },
+    },
+  },
 ];

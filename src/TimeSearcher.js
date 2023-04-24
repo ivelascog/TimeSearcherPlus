@@ -1,7 +1,7 @@
 ﻿import * as d3 from "d3";
 import { throttle } from "throttle-debounce";
 import { createPopper } from "@popperjs/core";
-import {Duration} from "luxon";
+// import { Duration } from "luxon";
 
 function TimeSearcher({
   // John TODO: Let's change everything to Observable's style TimeSearcher(data, { width, etc})
@@ -9,9 +9,9 @@ function TimeSearcher({
   target = document.createElement("div"), // pass a d3 selection to the html element where you want to render
   detailedElement = document.createElement("div"), // pass a d3 selection to the html element where you want to render the details
   brushCoordinatesElement = document.createElement("div"), // pass a d3 selection to the html element where you want to render the brush coordinates Input.
-  xAttr = (d) => d.x,
-  yAttr = (d) => d.y,
-  indexAttr = (d) => d.id,
+  x = (d) => d.x,
+  y = (d) => d.y,
+  id = (d) => d.id,
   renderer = "canvas",
   overviewWidth = 1200,
   detailedWidth = 1200 - 20,
@@ -22,10 +22,9 @@ function TimeSearcher({
   statusCallback = (status) => {},
   fmtX = d3.timeFormat("%d/%m/%y"), // Function, how to format x points in the tooltip
   fmtY = d3.format(".2d"), // Function, how to format x points in the tooltip
+  yLabel = "",
+  xLabel = "",
 } = {}) {
-
-  console.log("TimeSearcher", arguments);
-
   let ts = {},
     groupedData,
     fData,
@@ -91,10 +90,29 @@ function TimeSearcher({
   ts.showBrushTooltip = true; // Allows to display a tooltip on the brushes containing its coordinates.
   ts.autoUpdate = true; // Allows to decide whether changes in brushes are processed while moving, or only at the end of the movement.
   ts.brushGruopSize = 15; //Controls the size of the colored rectangles used to select the different brushGroups.
-  ts.stepX = Duration.fromObject({days:1}); // Defines the pitch used, both in the spinboxes and with the arrows on the X axis.
+  // ts.stepX = Duration.fromObject({ days: 1 }); // Defines the pitch used, both in the spinboxes and with the arrows on the X axis.
+  ts.stepX = 1000 * 24 * 3600; // Defines the pitch used, both in the spinboxes and with the arrows on the X axis.
   ts.stepY = 1; // // Defines the pitch used, both in the spinboxes and with the arrows on the Y axis.
 
-  divOverview = d3.select(target)
+
+
+  // Convert attrStrings to functions
+  if (typeof x === "string") {
+    let _x = x;
+    x = d => d[_x];
+  } 
+  if (typeof y === "string") {
+    let _y = y;
+    y = d => d[_y];
+  } 
+  if (typeof id === "string") {
+    let _id = id;
+    id = d => d[_id];
+  } 
+
+
+  divOverview = d3
+    .select(target)
     .style("display", "flex")
     .style("background-color", ts.backgroundColor)
     .node();
@@ -105,7 +123,7 @@ function TimeSearcher({
     .style("width", `${overviewWidth + 40}px`)
     .style("overflow-y", "scroll")
     .node();
-  divBrushesCoordinates = d3.select(brushCoordinatesElement)
+  divBrushesCoordinates = d3.select(brushCoordinatesElement);
   brushesGroup = [];
   brushGroupSelected = 0;
   brushCount = 0;
@@ -157,8 +175,7 @@ function TimeSearcher({
         switch (e.key) {
           case "r":
           case "Backspace":
-            if (brushInSpinBox)
-              removeBrush(brushInSpinBox)
+            if (brushInSpinBox) removeBrush(brushInSpinBox);
             break;
           case "+":
             addBrushGroup();
@@ -207,7 +224,7 @@ function TimeSearcher({
       .call((axis) =>
         axis
           .append("text")
-          .text(xAttr)
+          .text(xLabel)
           .attr(
             "transform",
             `translate(${
@@ -302,7 +319,7 @@ function TimeSearcher({
 
     brushInSpinBox = null;
   }
-  
+
   function generateBrushCoordinatesDiv() {
     divBrushesCoordinates.append("span").text("Brush Coordinates: ");
     let divX = divBrushesCoordinates.append("div");
@@ -454,7 +471,7 @@ function TimeSearcher({
 
     let x0, x1;
     if (hasScaleTime) {
-      let timeParse = d3.timeParse(fmtX)
+      let timeParse = d3.timeParse(fmtX);
       x0 = timeParse(sx0.node().value);
       x1 = timeParse(sx1.node().value);
     } else {
@@ -463,7 +480,7 @@ function TimeSearcher({
     }
     let y0 = +sy1.node().value;
     let y1 = +sy0.node().value;
-    return {x0, x1, y0, y1};
+    return { x0, x1, y0, y1 };
   }
 
   function onArrowRigth(sourceEvent) {
@@ -471,25 +488,23 @@ function TimeSearcher({
 
     let [[sx0, sy0], [sx1, sy1]] = brushSpinBoxes;
 
-    let {x0, x1, y0, y1} = getSpinBoxValues();
+    let { x0, x1, y0, y1 } = getSpinBoxValues();
 
-
-   if (hasScaleTime) {
+    if (hasScaleTime) {
       // let luxDate =
+    } else {
+      x1 += ts.stepX;
 
-   } else {
-     x1 += ts.stepX;
+      let maxX = +sx0.node().max;
 
-     let maxX = +sx0.node().max;
-
-     if (x1 > maxX) {
-       let dist = maxX - x1 + ts.stepX;
-       x1 = maxX;
-       x0 -= dist;
-     } else {
-       x0 += ts.stepX;
-     }
-   }
+      if (x1 > maxX) {
+        let dist = maxX - x1 + ts.stepX;
+        x1 = maxX;
+        x0 -= dist;
+      } else {
+        x0 += ts.stepX;
+      }
+    }
 
     sx0.node().value = x0;
     sx1.node().value = x1;
@@ -519,7 +534,7 @@ function TimeSearcher({
 
     let [[sx0, sy0], [sx1, sy1]] = brushSpinBoxes;
 
-    let {x0, x1, y0, y1} = getSpinBoxValues();
+    let { x0, x1, y0, y1 } = getSpinBoxValues();
 
     x0 -= ts.stepX;
     let minX = +sx0.node().min;
@@ -560,7 +575,7 @@ function TimeSearcher({
 
     let [[sx0, sy0], [sx1, sy1]] = brushSpinBoxes;
 
-    let {x0, x1, y0, y1} = getSpinBoxValues();
+    let { x0, x1, y0, y1 } = getSpinBoxValues();
 
     y1 -= ts.stepY;
 
@@ -602,8 +617,7 @@ function TimeSearcher({
 
     let [[sx0, sy0], [sx1, sy1]] = brushSpinBoxes;
 
-
-    let {x0, x1, y0, y1} = getSpinBoxValues();
+    let { x0, x1, y0, y1 } = getSpinBoxValues();
 
     y0 += ts.stepY;
 
@@ -684,8 +698,8 @@ function TimeSearcher({
             enter
               .append("circle")
               .attr("class", "point")
-              .attr("cy", (d) => overviewY(d[yAttr]))
-              .attr("cx", (d) => overviewX(d[xAttr]))
+              .attr("cy", (d) => overviewY(y(d)))
+              .attr("cx", (d) => overviewX(x(d)))
               .attr("fill", "black")
               .attr("r", 2)
               .style("opacity", 1.0);
@@ -766,8 +780,8 @@ function TimeSearcher({
                 .data(d[1])
                 .join("circle")
                 .attr("class", "point")
-                .attr("cy", (d) => detailedY(d[yAttr]))
-                .attr("cx", (d) => detailedX(d[xAttr]))
+                .attr("cy", (d) => detailedY(y(d)))
+                .attr("cx", (d) => detailedX(x(d)))
                 .attr("fill", "black")
                 .attr("r", 2);
 
@@ -1357,8 +1371,8 @@ function TimeSearcher({
       let lastYindex = -1;
       for (let i = 0; i < d[1].length; ++i) {
         let current = d[1][i];
-        let xCoor = overviewX(current[xAttr]);
-        let yCoor = overviewY(current[yAttr]);
+        let xCoor = overviewX(x(current));
+        let yCoor = overviewY(y(current));
         if (xCoor != null && yCoor != null) {
           let xIndex = Math.floor(xCoor / xinc);
           let yIndex = Math.floor(yCoor / yinc);
@@ -1436,7 +1450,7 @@ function TimeSearcher({
   }
 
   function lineIntersection(line, x0, y0, x1, y1) {
-    line = line.map((d) => [overviewX(d[xAttr]), overviewY(d[yAttr])]);
+    line = line.map((d) => [overviewX(x(d)), overviewY(y(d))]);
     let initPoint = line[0];
 
     for (let index = 1; index < line.length; ++index) {
@@ -1555,56 +1569,56 @@ function TimeSearcher({
 
   ts.Data = function (_data) {
     data = _data;
-    fData = data.filter((d) => d[yAttr] && d[xAttr]);
-    groupedData = d3.group(fData, (d) => d[indexAttr]);
+    fData = data.filter((d) => y(d) && x(d));
+    groupedData = d3.group(fData, id);
     groupedData = Array.from(groupedData);
 
-    let xDataType = typeof fData[0][xAttr];
-    if (xDataType === "object" && fData[0][xAttr] instanceof Date) {
+    let xDataType = typeof x(fData[0]);
+    if (xDataType === "object" && x(fData[0]) instanceof Date) {
       hasScaleTime = true;
       overviewX = d3
         .scaleTime()
-        .domain(d3.extent(fData, (d) => d[xAttr]))
+        .domain(d3.extent(fData, (d) => x(d)))
         .range([0, overviewWidth - ts.margin.right - ts.margin.left]);
 
       detailedX = d3
         .scaleTime()
-        .domain(d3.extent(fData, (d) => d[xAttr]))
+        .domain(d3.extent(fData, (d) => x(d)))
         .range([0, detailedWidth - ts.margin.right - ts.margin.left]);
     } else if (xDataType === "number") {
       overviewX = d3
         .scaleLinear()
-        .domain(d3.extent(fData, (d) => d[xAttr]))
+        .domain(d3.extent(fData, (d) => x(d)))
         .range([0, overviewWidth - ts.margin.right - ts.margin.left]);
       //.nice();
 
       detailedX = d3
         .scaleLinear()
-        .domain(d3.extent(fData, (d) => d[xAttr]))
+        .domain(d3.extent(fData, (d) => x(d)))
         .range([0, detailedWidth - ts.margin.right - ts.margin.left]);
     }
 
     overviewY = d3
       .scaleLinear()
-      .domain(d3.extent(fData, (d) => d[yAttr]))
+      .domain(d3.extent(fData, (d) => y(d)))
       .range([overviewHeight - ts.margin.top - ts.margin.bottom, 0])
       .nice();
 
     detailedY = d3
       .scaleLinear()
-      .domain(d3.extent(fData, (d) => d[yAttr]))
+      .domain(d3.extent(fData, (d) => y(d)))
       .range([detailedHeight - ts.margin.top - ts.margin.bottom, 0])
       .nice();
 
     line2 = d3
       .line()
-      .x((d) => overviewX(d[xAttr]))
-      .y((d) => overviewY(d[yAttr]));
+      .x((d) => overviewX(x(d)))
+      .y((d) => overviewY(y(d)));
 
     line2Detailed = d3
       .line()
-      .x((d) => detailedX(d[xAttr]))
-      .y((d) => detailedY(d[yAttr]));
+      .x((d) => detailedX(x(d)))
+      .y((d) => detailedY(y(d)));
 
     BVH = makeBVH(
       groupedData,
@@ -1642,7 +1656,7 @@ function TimeSearcher({
     ts.Data(data);
   }
 
-  // Make the ts object accesible 
+  // Make the ts object accesible
   divOverview.ts = ts;
   divOverview.details = divDetailed;
   divOverview.brushesCoordinates = divBrushesCoordinates;
