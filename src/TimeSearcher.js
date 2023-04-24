@@ -3,6 +3,14 @@ import { throttle } from "throttle-debounce";
 import { createPopper } from "@popperjs/core";
 import {add, sub, intervalToDuration} from "date-fns"
 
+let DEBUG = true;
+let before = 0;
+
+function log(msg) {
+  if (DEBUG) console.log(msg, performance.now() - before);
+  before = performance.now();
+}
+
 function TimeSearcher({
   // John TODO: Let's change everything to Observable's style TimeSearcher(data, { width, etc})
   data,
@@ -73,13 +81,13 @@ function TimeSearcher({
   // Default Parameters
   ts.xPartitions = 10; // Partitions performed on the X-axis for the collision acceleration algorithm.
   ts.yPartitions = 10; // Partitions performed on the Y-axis for the collision acceleration algorithm.
-  ts.defaultAlpha = 1; // Default transparency (when no selection is active) of drawn lines
+  ts.defaultAlpha = 0.8; // Default transparency (when no selection is active) of drawn lines
   ts.selectedAlpha = 1; // Transparency of selected lines
-  ts.noSelectedAlpha = 0.1; // Transparency of unselected lines
+  ts.noSelectedAlpha = 0.4; // Transparency of unselected lines
   ts.backgroundColor = "#ffffff";
-  ts.defaultColor = "#000000"; // Default color (when no selection is active) of the drawn lines. It only has effect when "groupAttr" is not defined.
-  ts.selectedColor = "#000000"; // Color of selected lines. It only has effect when "groupAttr" is not defined.
-  ts.noSelectedColor = "#808080"; // Color of unselected lines. It only has effect when "groupAttr" is not defined.
+  ts.defaultColor = "#aaa"; // Default color (when no selection is active) of the drawn lines. It only has effect when "groupAttr" is not defined.
+  ts.selectedColor = "#aaa"; // Color of selected lines. It only has effect when "groupAttr" is not defined.
+  ts.noSelectedColor = "#ddd"; // Color of unselected lines. It only has effect when "groupAttr" is not defined.
   ts.hasDetailed = true; // Determines whether detail data will be displayed or not. Disabling it saves preprocessing time if detail data is not to be displayed.
   ts.margin = { left: 50, top: 30, bottom: 50, right: 20 };
   ts.colorScale = d3.scaleOrdinal(d3.schemeCategory10); // The color scale to be used to display the different groups defined by the "groupAttr" attribute.
@@ -859,27 +867,19 @@ function TimeSearcher({
     function renderOverviewCanvas(dataSelected, dataNotSelected) {
       context.clearRect(0, 0, canvas.node().width, canvas.node().height);
       if (brushSize === 0) {
-        context.globalAlpha = ts.defaultAlpha;
-        dataSelected[0].forEach((d) => {
-          let path = paths.get(d[0]);
-          if (!path) {
-            console.log("error finding path", d[0], d);
-            return;
-          }
-          context.strokeStyle = ts.groupAttr
-            ? ts.colorScale(path.group)
-            : ts.defaultColor;
-          context.stroke(path.path);
-        });
+        // Render all
+        renderOverviewCanvasGroup(
+          dataSelected[0],
+          ts.defaultAlpha,
+          ts.defaultColor
+        );
       } else {
-        context.globalAlpha = ts.selectedAlpha;
-        dataSelected[brushGroupSelected].forEach((d) => {
-          let path = paths.get(d[0]);
-          context.strokeStyle = ts.groupAttr
-            ? ts.colorScale(path.group)
-            : ts.selectedColor;
-          context.stroke(path.path);
-        });
+        // Render Selected
+        renderOverviewCanvasGroup(
+          dataSelected[brushGroupSelected],
+          ts.defaultAlpha,
+          ts.selectedColor
+        );
 
         dataSelected.forEach((g, i) => {
           if (i !== brushGroupSelected) {
@@ -887,15 +887,32 @@ function TimeSearcher({
           }
         });
 
-        context.globalAlpha = ts.noSelectedAlpha;
-        dataNotSelected.forEach((d) => {
-          let path = paths.get(d[0]);
-          context.strokeStyle = ts.groupAttr
-            ? ts.colorScale(path.group)
-            : ts.noSelectedColor;
-          context.stroke(path.path);
-        });
+        // Render Non selected
+        renderOverviewCanvasGroup(
+          dataNotSelected,
+          ts.noSelectedAlpha,
+          ts.noSelectedColor
+        );
       }
+    }
+
+    // Draws a group of lines with a default alpha and color
+    function renderOverviewCanvasGroup(dataSubset, alpha, color) {
+      log("renderOverviewCanvas startRendering brush=0 ");
+
+      context.save();
+      context.globalAlpha = alpha;
+      for (let d of dataSubset) {
+        let path = paths.get(d[0]);
+        if (!path) {
+          console.log("renderOverviewCanvasGroup error finding path", d[0], d);
+          return;
+        }
+        context.strokeStyle = ts.groupAttr ? ts.colorScale(path.group) : color;
+        context.stroke(path.path);
+      }
+
+      log("renderOverviewCanvas endRendering brush=0 ");
     }
 
     function renderDetailedCanvas(data) {
