@@ -5,59 +5,62 @@
     <title>Example</title>
 </head>
 <body>
-  <div id="target"></div>
-  <div id="targetDetailed"></div>
-  <script src="https://d3js.org/d3.v7.js"></script>
-  <script src="https://d3js.org/d3-array.v3.min.js"></script>
-  <script src="https://d3js.org/d3-scale.v4.min.js"></script>
-  <script src="https://d3js.org/d3-scale-chromatic.v3.min.js"></script>
-  <script src="https://unpkg.com/@popperjs/core@2"></script>
-  <script src="../dist/TimeSearcher.js"></script>
+<div id="target"></div>
+<div id="targetCoordinates"></div>
+<div id="targetDetailed"></div>
+<script src="https://d3js.org/d3.v7.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/luxon@3.3.0/build/global/luxon.min.js"></script>
+<script src="../dist/TimeSearcher.js"></script>
 
-  <script>
-            let nn = TimeSearcher(d3.select("#target"),d3.select("#targetDetailed"),
-              "__time",
-                "peso",
-               "Code",
-               "canvas"
-          )
-      //nn.updateCallback(selected => console.log(selected));
-      //      nn.statusCallback(status => console.log(status))
-      nn.doubleYlegend = true;
-      nn.hasDetailed = false;
-      nn.defaultColor = "black"
-      nn.defaultAlpha = 0.1
-            nn.noSelectedAlpha = 0.1
-      nn.selectedAlpha = 0.3
-      nn.selectedColor = "blue"
-      nn.margin.right = 40;
-      nn.groupAttr = "ERN_Sexo"
-      nn.showGrid = true;
-      nn.autoUpdate = true;
-      nn.stepX = 1;
-      nn.stepY = 100;
+<script>
+  let target = TimeSearcher({
+    target: d3.select("#target").node(),
+    detailedElement: d3.select("#targetDetailed").node(),
+    brushCoordinatesElement: d3.select("#targetCoordinates").node(),
+    xAttr: "__time",
+    yAttr: "peso",
+    indexAttr: "Code",
+    renderer: "canvas",
+    fmtX: d3.format(".2d")
+  });
 
-
-            nn.brushGruopSize = 20
-      d3.csv("./tData20000.csv",type).then(data => {
-          data = data.filter(d => d["__time"] < 89 && d["__time"] > 24 && d["peso"] < 20000)
-        //data = data.filter(d => ["1-0000001","1-0000002"].includes(d["Code"]))
-          nn.Data(data)
-        d3.json("./curvas.json").then(curves => {
-          nn.addReferenceCurves(curves)
-        })
-      });
+  //nn.updateCallback(selected => console.log(selected));
+  //      nn.statusCallback(status => console.log(status))
+  target.ts.doubleYlegend = true;
+  target.ts.hasDetailed = false;
+  target.ts.defaultColor = "black";
+  target.ts.defaultAlpha = 0.1;
+  target.ts.noSelectedAlpha = 0.1;
+  target.ts.selectedAlpha = 0.3;
+  target.ts.selectedColor = "blue";
+  target.ts.margin.right = 40;
+  target.ts.groupAttr = "ERN_Sexo";
+  target.ts.showGrid = true;
+  target.ts.autoUpdate = true;
+  target.ts.stepX = 1;
+  target.ts.stepY = 100;
 
 
-      function type(row) {
-          //row.Iden_Codigo = +row.Iden_Codigo;
-          row.__stageId = +row.__stageId;
-          row.ERN_Sexo = + row.ERN_Sexo
-          row.peso = row.peso === "" ? null: +row.peso;
-          row.__time = row.__time === "" ? null: +row.__time;
-          return row
-      }
+  target.ts.brushGruopSize = 20;
+  d3.csv("./tData20000.csv", type).then(data => {
+    data = data.filter(d => d["__time"] < 89 && d["__time"] > 24 && d["peso"] < 20000);
+    //data = data.filter(d => ["1-0000001","1-0000002"].includes(d["Code"]))
+    target.ts.Data(data);
+    d3.json("./curvas.json").then(curves => {
+      target.ts.addReferenceCurves(curves);
+    });
+  });
 
-  </script>
+
+  function type(row) {
+    //row.Iden_Codigo = +row.Iden_Codigo;
+    row.__stageId = +row.__stageId;
+    row.ERN_Sexo = +row.ERN_Sexo;
+    row.peso = row.peso === "" ? null : +row.peso;
+    row.__time = row.__time === "" ? null : +row.__time;
+    return row;
+  }
+
+</script>
 </body>
 </html>

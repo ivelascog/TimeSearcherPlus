@@ -1,12 +1,14 @@
 ﻿import * as d3 from "d3";
 import { throttle } from "throttle-debounce";
 import { createPopper } from "@popperjs/core";
+import {Duration} from "luxon";
 
 function TimeSearcher({
   // John TODO: Let's change everything to Observable's style TimeSearcher(data, { width, etc})
   data,
   target = document.createElement("div"), // pass a d3 selection to the html element where you want to render
   detailedElement = document.createElement("div"), // pass a d3 selection to the html element where you want to render the details
+  brushCoordinatesElement = document.createElement("div"), // pass a d3 selection to the html element where you want to render the brush coordinates Input.
   xAttr = (d) => d.x,
   yAttr = (d) => d.y,
   indexAttr = (d) => d.id,
@@ -38,6 +40,7 @@ function TimeSearcher({
     divRender,
     divControls,
     divDetailed,
+    divBrushesCoordinates,
     svg,
     g,
     gGroupBrushes,
@@ -62,30 +65,31 @@ function TimeSearcher({
     tUpdateBrushSpinBox,
     gGroupData,
     selectedGroupData,
+    hasScaleTime,
     nGroupsData;
 
   // Default Parameters
-  ts.xPartitions = 10;
-  ts.yPartitions = 10;
-  ts.defaultAlpha = 1;
-  ts.selectedAlpha = 1;
-  ts.noSelectedAlpha = 0.1;
+  ts.xPartitions = 10; // Partitions performed on the X-axis for the collision acceleration algorithm.
+  ts.yPartitions = 10; // Partitions performed on the Y-axis for the collision acceleration algorithm.
+  ts.defaultAlpha = 1; // Default transparency (when no selection is active) of drawn lines
+  ts.selectedAlpha = 1; // Transparency of selected lines
+  ts.noSelectedAlpha = 0.1; // Transparency of unselected lines
   ts.backgroundColor = "#ffffff";
-  ts.defaultColor = "#000000";
-  ts.selectedColor = "#000000";
-  ts.noSelectedColor = "#808080";
-  ts.hasDetailed = true;
+  ts.defaultColor = "#000000"; // Default color (when no selection is active) of the drawn lines. It only has effect when "groupAttr" is not defined.
+  ts.selectedColor = "#000000"; // Color of selected lines. It only has effect when "groupAttr" is not defined.
+  ts.noSelectedColor = "#808080"; // Color of unselected lines. It only has effect when "groupAttr" is not defined.
+  ts.hasDetailed = true; // Determines whether detail data will be displayed or not. Disabling it saves preprocessing time if detail data is not to be displayed.
   ts.margin = { left: 50, top: 30, bottom: 50, right: 20 };
-  ts.colorScale = d3.scaleOrdinal(d3.schemeCategory10);
-  ts.brushesColorScale = d3.scaleOrdinal(d3.schemeCategory10);
-  ts.groupAttr = null;
-  ts.doubleYlegend = false;
-  ts.showGrid = false;
-  ts.showBrushTooltip = true;
-  ts.autoUpdate = true;
-  ts.brushGruopSize = 15;
-  ts.stepX = 1;
-  ts.stepY = 1;
+  ts.colorScale = d3.scaleOrdinal(d3.schemeCategory10); // The color scale to be used to display the different groups defined by the "groupAttr" attribute.
+  ts.brushesColorScale = d3.scaleOrdinal(d3.schemeCategory10); // The color scale to be used to display the brushes
+  ts.groupAttr = null; // Specifies the attribute to be used to discriminate the groups.
+  ts.doubleYlegend = false; // Allows the y-axis legend to be displayed on both sides of the chart.
+  ts.showGrid = false; // If active, a reference grid is displayed.
+  ts.showBrushTooltip = true; // Allows to display a tooltip on the brushes containing its coordinates.
+  ts.autoUpdate = true; // Allows to decide whether changes in brushes are processed while moving, or only at the end of the movement.
+  ts.brushGruopSize = 15; //Controls the size of the colored rectangles used to select the different brushGroups.
+  ts.stepX = Duration.fromObject({days:1}); // Defines the pitch used, both in the spinboxes and with the arrows on the X axis.
+  ts.stepY = 1; // // Defines the pitch used, both in the spinboxes and with the arrows on the Y axis.
 
   divOverview = d3.select(target)
     .style("display", "flex")
@@ -98,6 +102,7 @@ function TimeSearcher({
     .style("width", `${overviewWidth + 40}px`)
     .style("overflow-y", "scroll")
     .node();
+  divBrushesCoordinates = d3.select(brushCoordinatesElement)
   brushesGroup = [];
   brushGroupSelected = 0;
   brushCount = 0;
@@ -147,6 +152,11 @@ function TimeSearcher({
       .on("keydown", (e) => {
         e.preventDefault();
         switch (e.key) {
+          case "r":
+          case "Backspace":
+            if (brushInSpinBox)
+              removeBrush(brushInSpinBox)
+            break;
           case "+":
             addBrushGroup();
             break;
@@ -289,8 +299,67 @@ function TimeSearcher({
 
     brushInSpinBox = null;
   }
+  
+  function generateBrushCoordinatesDiv() {
+    divBrushesCoordinates.append("span").text("Brush Coordinates: ");
+    let divX = divBrushesCoordinates.append("div");
 
-  function generateInteractionDiv() {
+    divX.append("span").text("X:");
+
+    let divInputX = divX.append("div");
+
+    let domainX = overviewX.domain();
+    let x0 = divInputX
+      .append("input")
+      // .attr("type", "number")
+      .attr("min", domainX[0])
+      .attr("max", domainX[1])
+      .attr("step", ts.stepX)
+      .style("background-color", ts.backgroundColor)
+      .on("change", onSpinboxChange);
+
+    let x1 = divInputX
+      .append("input")
+      // .attr("type", "number")
+      .attr("min", domainX[0])
+      .attr("max", domainX[1])
+      .attr("step", ts.stepX)
+      .style("background-color", ts.backgroundColor)
+      .on("change", onSpinboxChange);
+
+    let divY = divBrushesCoordinates.append("div");
+
+    divY.append("span").text("Y:");
+
+    let divInputY = divY.append("div");
+
+    let domainY = overviewY.domain();
+
+    let y0 = divInputY
+      .append("input")
+      .attr("type", "number")
+      .attr("min", domainY[0])
+      .attr("max", domainY[1])
+      .attr("step", ts.stepY)
+      .style("background-color", ts.backgroundColor)
+      .on("change", onSpinboxChange);
+
+    let y1 = divInputY
+      .append("input")
+      .attr("type", "number")
+      .attr("min", domainY[0])
+      .attr("max", domainY[1])
+      .attr("step", ts.stepY)
+      .style("background-color", ts.backgroundColor)
+      .on("change", onSpinboxChange);
+
+    brushSpinBoxes = [
+      [x0, y0],
+      [x1, y1],
+    ];
+  }
+
+  function generateDataSelectionDiv() {
     if (ts.groupAttr) {
       let divData = divControls.append("div");
 
@@ -324,64 +393,6 @@ function TimeSearcher({
         });
       divButtons.append("span").text((d) => d);
     }
-
-    let divBrushes = divControls.append("div");
-    divBrushes.append("span").text("Brush Coordinates: ");
-    let divX = divBrushes.append("div");
-
-    divX.append("span").text("X:");
-
-    let divInputX = divX.append("div");
-
-    let domainX = overviewX.domain();
-    let x0 = divInputX
-      .append("input")
-      // .attr("type", "number")
-      .attr("min", domainX[0])
-      .attr("max", domainX[1])
-      .attr("step", ts.stepX)
-      .style("background-color", ts.backgroundColor)
-      .on("change", onSpinboxChange);
-
-    let x1 = divInputX
-      .append("input")
-      // .attr("type", "number")
-      .attr("min", domainX[0])
-      .attr("max", domainX[1])
-      .attr("step", ts.stepX)
-      .style("background-color", ts.backgroundColor)
-      .on("change", onSpinboxChange);
-
-    let divY = divBrushes.append("div");
-
-    divY.append("span").text("Y:");
-
-    let divInputY = divY.append("div");
-
-    let domainY = overviewY.domain();
-
-    let y0 = divInputY
-      .append("input")
-      .attr("type", "number")
-      .attr("min", domainY[0])
-      .attr("max", domainY[1])
-      .attr("step", ts.stepY)
-      .style("background-color", ts.backgroundColor)
-      .on("change", onSpinboxChange);
-
-    let y1 = divInputY
-      .append("input")
-      .attr("type", "number")
-      .attr("min", domainY[0])
-      .attr("max", domainY[1])
-      .attr("step", ts.stepY)
-      .style("background-color", ts.backgroundColor)
-      .on("change", onSpinboxChange);
-
-    brushSpinBoxes = [
-      [x0, y0],
-      [x1, y1],
-    ];
   }
 
   function onSpinboxChange(sourceEvent) {
@@ -396,16 +407,16 @@ function TimeSearcher({
 
     if (x0 >= x1) {
       if (sourceEvent.target === sx0.node()) {
-        x0 = x1 - ts.stepX;
-        sx0.node().value = x0;
-      } else {
         x1 = x0 + ts.stepX;
         sx1.node().value = x1;
+      } else {
+        x0 = x1 - ts.stepX;
+        sx0.node().value = x0;
       }
     }
     if (y1 >= y0) {
       if (sourceEvent.target === sy0.node()) {
-        y0 = y1 - ts.stepY;
+        y0 = y1 + ts.stepY;
         sy1.node().value = y0;
       } else {
         y1 = y0 - ts.stepY;
@@ -435,27 +446,47 @@ function TimeSearcher({
     //moveSelectedBrushes({selection,sourceEvent},brushInSpinBox)
   }
 
+  function getSpinBoxValues() {
+    let [[sx0, sy0], [sx1, sy1]] = brushSpinBoxes;
+
+    let x0, x1;
+    if (hasScaleTime) {
+      let timeParse = d3.timeParse(fmtX)
+      x0 = timeParse(sx0.node().value);
+      x1 = timeParse(sx1.node().value);
+    } else {
+      x0 = +sx0.node().value;
+      x1 = +sx1.node().value;
+    }
+    let y0 = +sy1.node().value;
+    let y1 = +sy0.node().value;
+    return {x0, x1, y0, y1};
+  }
+
   function onArrowRigth(sourceEvent) {
     if (brushInSpinBox === null) return;
 
     let [[sx0, sy0], [sx1, sy1]] = brushSpinBoxes;
 
-    let x0 = +sx0.node().value;
-    let x1 = +sx1.node().value;
-    let y0 = +sy1.node().value;
-    let y1 = +sy0.node().value;
+    let {x0, x1, y0, y1} = getSpinBoxValues();
 
-    x1 += ts.stepX;
 
-    let maxX = +sx0.node().max;
+   if (hasScaleTime) {
+      // let luxDate =
 
-    if (x1 > maxX) {
-      let dist = maxX - x1 + ts.stepX;
-      x1 = maxX;
-      x0 -= dist;
-    } else {
-      x0 += ts.stepX;
-    }
+   } else {
+     x1 += ts.stepX;
+
+     let maxX = +sx0.node().max;
+
+     if (x1 > maxX) {
+       let dist = maxX - x1 + ts.stepX;
+       x1 = maxX;
+       x0 -= dist;
+     } else {
+       x0 += ts.stepX;
+     }
+   }
 
     sx0.node().value = x0;
     sx1.node().value = x1;
@@ -485,10 +516,7 @@ function TimeSearcher({
 
     let [[sx0, sy0], [sx1, sy1]] = brushSpinBoxes;
 
-    let x0 = +sx0.node().value;
-    let x1 = +sx1.node().value;
-    let y0 = +sy1.node().value;
-    let y1 = +sy0.node().value;
+    let {x0, x1, y0, y1} = getSpinBoxValues();
 
     x0 -= ts.stepX;
     let minX = +sx0.node().min;
@@ -529,10 +557,7 @@ function TimeSearcher({
 
     let [[sx0, sy0], [sx1, sy1]] = brushSpinBoxes;
 
-    let x0 = +sx0.node().value;
-    let x1 = +sx1.node().value;
-    let y0 = +sy1.node().value;
-    let y1 = +sy0.node().value;
+    let {x0, x1, y0, y1} = getSpinBoxValues();
 
     y1 -= ts.stepY;
 
@@ -574,10 +599,8 @@ function TimeSearcher({
 
     let [[sx0, sy0], [sx1, sy1]] = brushSpinBoxes;
 
-    let x0 = +sx0.node().value;
-    let x1 = +sx1.node().value;
-    let y0 = +sy1.node().value;
-    let y1 = +sy0.node().value;
+
+    let {x0, x1, y0, y1} = getSpinBoxValues();
 
     y0 += ts.stepY;
 
@@ -1116,13 +1139,6 @@ function TimeSearcher({
                 .selectAll(".selection")
                 .style("outline", "-webkit-focus-ring-color solid 2px")
                 .attr("tabindex", 0)
-                .on("keydown", ({ keyCode, key }) => {
-                  switch (key) {
-                    case "r":
-                    case "Backspace":
-                      removeBrush(d);
-                  }
-                })
                 .on("mousedown", (sourceEvent) => {
                   let selection = d[1].selection;
                   updateBrushSpinBox({ selection, sourceEvent }, d);
@@ -1203,7 +1219,8 @@ function TimeSearcher({
         );
         render(dataSelected, dataNotSelected);
       } else {
-        render(groupedData, dataNotSelected);
+        dataSelected[0] = groupedData;
+        render(dataSelected, dataNotSelected);
       }
     }
 
@@ -1541,6 +1558,7 @@ function TimeSearcher({
 
     let xDataType = typeof fData[0][xAttr];
     if (xDataType === "object" && fData[0][xAttr] instanceof Date) {
+      hasScaleTime = true;
       overviewX = d3
         .scaleTime()
         .domain(d3.extent(fData, (d) => d[xAttr]))
@@ -1604,7 +1622,8 @@ function TimeSearcher({
       prerenderDetailed = renderObject.preRender;
     }
 
-    generateInteractionDiv();
+    generateDataSelectionDiv();
+    generateBrushCoordinatesDiv();
 
     addBrushGroup();
     dataSelected[0] = groupedData;
@@ -1623,6 +1642,7 @@ function TimeSearcher({
   // Make the ts object accesible 
   divOverview.ts = ts;
   divOverview.details = divDetailed;
+  divOverview.brushesCoordinates = divBrushesCoordinates;
   return divOverview;
 }
 

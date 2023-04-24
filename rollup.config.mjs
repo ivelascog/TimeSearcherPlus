@@ -33,7 +33,8 @@ export default [
       "d3-array",
       "d3-scale",
       "d3-scale-chromatic",
-      "@popperjs"
+      "@popperjs",
+      "luxon"
     ],
     output: {
       extend: true,
@@ -45,10 +46,7 @@ export default [
       // sourcemap: true,
       globals: {
         d3:"d3",
-        "d3-array": "d3Array",
-        "d3-scale": "d3Scale",
-        "d3-scale-chromatic": "d3ScaleChromatic",
-        "@popperjs": "PopperCore"
+        luxon:"luxon"
       }
     }
   },
@@ -73,7 +71,8 @@ export default [
       "d3-array",
         "d3-scale",
         "d3-scale-chromatic",
-      "@popperjs"
+      "@popperjs",
+      "luxon"
     ],
     output: {
       extend: true,
@@ -85,10 +84,7 @@ export default [
       name: "TimeSearcher",
       globals: {
         d3:"d3",
-        "d3-array": "d3Array",
-        "d3-scale": "d3Scale",
-        "d3-scale-chromatic": "d3ScaleChromatic",
-        "@popperjs": "PopperCore"
+        luxon:"luxon"
       }
     }
   },
@@ -108,7 +104,8 @@ export default [
         "d3-array",
         "d3-scale",
         "d3-scale-chromatic",
-      "@popperjs"
+      "@popperjs",
+      "luxon"
     ],
     output: {
       extend: true,
@@ -118,10 +115,7 @@ export default [
       name: "TimeSearcher",
       globals: {
         d3:"d3",
-        "d3-array":"d3Array",
-        "d3-scale":"d3Scale",
-        "d3-scale-chromatic":"d3ScaleChromatic",
-        "@popperjs":"PopperCore"
+        luxon:"luxon"
       }
     }
   }
