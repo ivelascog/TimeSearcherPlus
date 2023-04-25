@@ -14,9 +14,11 @@ function log(msg) {
 function TimeSearcher({
   // John TODO: Let's change everything to Observable's style TimeSearcher(data, { width, etc})
   data,
-  target = document.createElement("div"), // pass a d3 selection to the html element where you want to render
-  detailedElement = document.createElement("div"), // pass a d3 selection to the html element where you want to render the details
-  brushCoordinatesElement = document.createElement("div"), // pass a d3 selection to the html element where you want to render the brush coordinates Input.
+  target = document.createElement("div"), // pass a html element where you want to render
+  detailedElement = document.createElement("div"), // pass a html element where you want to render the details
+  brushCoordinatesElement = document.createElement("div"), // pass a html element where you want to render the brush coordinates Input.
+  brushesControlsElement = document.createElement("div"), // pass a html element where you want to have the brushes controls.
+  showBrushesControls = true, // If false you can still use brushesControlsElement to show the control on a different element on your app
   x = (d) => d.x,
   y = (d) => d.y,
   id = (d) => d.id,
@@ -129,6 +131,7 @@ function TimeSearcher({
     .style("overflow-y", "scroll")
     .node();
   divBrushesCoordinates = d3.select(brushCoordinatesElement);
+  brushesControlsElement = brushesControlsElement || d3.create("div");
   brushesGroup = [];
   brushGroupSelected = 0;
   brushCount = 0;
@@ -146,6 +149,62 @@ function TimeSearcher({
     root: divDetailed,
     threshold: 0.1,
   });
+
+  function initBrushesControls() {
+    brushesControlsElement.innerHTML = `<h2>Brush Groups</h2>
+    <ul id="brushesList">
+      
+    </ul>
+    <button id="btnAddBrushGroup">Add Brush Group</button>
+    </div>`;
+
+    brushesControlsElement
+      .querySelector("button#btnAddBrushGroup")
+      .addEventListener("click", addBrushGroup);
+
+    if (showBrushesControls) target.appendChild(brushesControlsElement);
+  }
+
+  function renderBrushesControls() {
+    d3.select(brushesControlsElement)
+      .select("#brushesList")
+      .selectAll(".brushControl")
+      .data(brushesGroup)
+      .join("li")
+      .attr("class", "brushControl")
+      .each(function (d, i) {
+        const li = d3.select(this);
+        li.node().innerHTML = `<div style="
+            display: flex;
+            flex-wrap: nowrap;        
+            align-items: center;
+          ">
+            <style>
+              li #btnRemoveBrushGroup {
+                display: none;
+              }
+              li:hover #btnRemoveBrushGroup {
+                display: block;
+              }
+            </style>
+            <div style="
+              width: ${ts.brushGruopSize}px; 
+              height: ${ts.brushGruopSize}px;
+              background-color: ${ts.brushesColorScale(i)};
+              margin-right: 5px;
+            "></div>
+            <output style="margin-right: 5px;" contenteditable="true">Group ${i}</output>
+            <button style="display"id="btnRemoveBrushGroup">-</button>
+          </div>
+        `;
+
+        li.select("#btnRmove", () => {
+          console.log("Should remove brushesGroup " + i);
+        });
+        li.on("click", () => selectBrushGroup(i));
+        console.log("render Brushes Controls ", li, d, i);
+      });
+  }
 
   function init() {
     //CreateOverView
@@ -297,7 +356,11 @@ function TimeSearcher({
       .append("text")
       .attr("x", 0)
       .attr("y", ts.brushGruopSize / 2 + 2)
-      .text("Brush groups: ");
+      .text("Brush groups + : ")
+      .style("cursor", "pointer")
+      .on("click", addBrushGroup);
+
+    initBrushesControls();
 
     return g;
   }
@@ -993,8 +1056,8 @@ function TimeSearcher({
       .attr(
         "transform",
         `translate(${
-          100 + (brushesGroup.length - 1) * (ts.brushGruopSize + 5)
-        })`
+          135 + (brushesGroup.length - 1) * (ts.brushGruopSize + 5)
+        }, -2)`
       )
       .style("fill", ts.brushesColorScale(brushesGroup.length - 1))
       .on("click", function (event) {
@@ -1002,6 +1065,8 @@ function TimeSearcher({
         selectBrushGroup(+id);
       });
     updateStatus();
+
+    renderBrushesControls();
   }
 
   function selectBrushGroup(id) {
@@ -1010,7 +1075,7 @@ function TimeSearcher({
 
     gGroupBrushes
       .select("#colorBrush-" + id)
-      .style("stroke-width", 3)
+      .style("stroke-width", 2)
       .style("stroke", "black");
 
     drawBrushes();
@@ -1168,7 +1233,7 @@ function TimeSearcher({
             .each(function (d) {
               d3.select(this)
                 .selectAll(".selection")
-                .style("outline", "-webkit-focus-ring-color solid 2px")
+                .style("outline", "-webkit-focus-ring-color solid 1px")
                 .attr("tabindex", 0)
                 .on("mousedown", (sourceEvent) => {
                   let selection = d[1].selection;
@@ -1191,6 +1256,7 @@ function TimeSearcher({
                   );
               }
             });
+          return enter;
         },
         (update) =>
           update.each(function (d) {
@@ -1198,7 +1264,7 @@ function TimeSearcher({
               .selectAll(".selection")
               .style(
                 "outline-width",
-                d[1].group === brushGroupSelected ? " 4px" : " 2px"
+                d[1].group === brushGroupSelected ? " 2px" : " 1px"
               )
               .style("outline-style", d[1].isSelected ? "dashed" : "solid")
               .style("outline-color", ts.brushesColorScale(d[1].group))
@@ -1549,6 +1615,7 @@ function TimeSearcher({
     updateCallback(sel);
 
     divOverview.value = sel;
+    divOverview.value.brushes = brushesGroup;
     divOverview.dispatchEvent(new Event("input", { bubbles: true }));
   }
 
@@ -1688,7 +1755,7 @@ function TimeSearcher({
   divOverview.details = divDetailed;
   divOverview.brushesCoordinates = divBrushesCoordinates;
 
-  updateSelection(data);
+  if (data) returnSelection(data);
   return divOverview;
 }
 
