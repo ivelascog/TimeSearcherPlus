@@ -14,10 +14,10 @@ export default [
   {
     input: "src/index.js",
     plugins: [
-      /*babel({
-        exclude: "node_modules/**",
-        babelHelpers: "bundled",
-      }),*/
+      // babel({
+      //   exclude: "node_modules/**",
+      //   babelHelpers: "bundled",
+      // }),
       node({
         jsxnext: true,
         main: true,
@@ -30,8 +30,7 @@ export default [
       }),
       nodeResolve(),
     ],
-    external: ["d3", "@popperjs"
-      ],
+    external: ["d3", "@popperjs"],
     output: {
       extend: true,
       banner: copyright,
@@ -48,10 +47,10 @@ export default [
   {
     input: "src/index.js",
     plugins: [
-      babel({
-        exclude: "node_modules/**",
-        babelHelpers: "bundled",
-      }),
+      // babel({
+      //   exclude: "node_modules/**",
+      //   babelHelpers: "bundled",
+      // }),
       node({
         jsxnext: true,
       }),
@@ -62,8 +61,7 @@ export default [
       }),
       nodeResolve(),
     ],
-    external: ["d3", "@popperjs"
-      ],
+    external: ["d3", "@popperjs"],
     output: {
       extend: true,
       banner: copyright,
@@ -81,10 +79,10 @@ export default [
   {
     input: "src/index.js",
     plugins: [
-      babel({
-        exclude: "node_modules/**",
-        babelHelpers: "bundled",
-      }),
+      // babel({
+      //   exclude: "node_modules/**",
+      //   babelHelpers: "bundled",
+      // }),
       node({
         jsxnext: true,
         main: true,
@@ -93,8 +91,7 @@ export default [
       ascii(),
       terser({ output: { preamble: copyright } }),
     ],
-    external: ["d3", "@popperjs"
-      ],
+    external: ["d3", "@popperjs"],
     output: {
       extend: true,
       file: "dist/TimeSearcher.min.js",

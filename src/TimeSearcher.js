@@ -1,15 +1,7 @@
 ﻿import * as d3 from "d3";
 import { throttle } from "throttle-debounce";
 import { createPopper } from "@popperjs/core";
-import {
-  add,
-  sub,
-  intervalToDuration,
-} from "date-fns";
-
-// const add = (d) => d,
-//   sub = (d) => d,
-//   intervalToDuration = (d) => d;
+import { add, sub, intervalToDuration } from "date-fns";
 
 let DEBUG = true;
 let before = 0;
@@ -1040,7 +1032,7 @@ function TimeSearcher({
 
         g.append("text")
           .text(d[0])
-          .attr("transform", `translate(10, 0)`)
+          .attr("transform", "translate(10, 0)")
           .style("fill", "black")
           .style("font-size", "0.7em");
 
@@ -1119,11 +1111,11 @@ function TimeSearcher({
       .style("display", "none")
       .style("z-index", 2);
 
-    let ul = brushTooltipElement.append("ul");
+    let ul = brushTooltipElement.append("div");
 
-    ul.append("li").attr("class", "tool_x_text");
+    ul.append("div").attr("class", "tool_x_text");
 
-    ul.append("li").attr("class", "tool_y_text");
+    ul.append("div").attr("class", "tool_y_text");
 
     const ref = {
       getBoundingClientRect: () => {
@@ -1165,8 +1157,11 @@ function TimeSearcher({
     brushTooltipElement.select(".tool_x_text").text(textX);
     brushTooltipElement.select(".tool_y_text").text(textY);
 
-    tooltipCoords.x = sourceEvent.x;
-    tooltipCoords.y = sourceEvent.y;
+    // tooltipCoords.x = sourceEvent.x;
+    // tooltipCoords.y = sourceEvent.y;
+
+    tooltipCoords.x = x1;
+    tooltipCoords.y = y1;
 
     brushTooltip.update();
   }
@@ -1245,6 +1240,7 @@ function TimeSearcher({
   function drawBrushes() {
     let brushes = [];
     brushesGroup.forEach((d) => (brushes = brushes.concat(Array.from(d))));
+
     g.select("#brushes")
       .selectAll(".brush")
       .data(brushes, (d) => d[0])
@@ -1284,7 +1280,6 @@ function TimeSearcher({
                   );
               }
             });
-          return enter;
         },
         (update) =>
           update.each(function (d) {
@@ -1689,12 +1684,20 @@ function TimeSearcher({
 
   ts.data = function (_data) {
     data = _data;
-    fData = data.filter((d) => y(d) && x(d));
+    // Ignore null values. Shouldn't be y(d) && x(d) because y(d) can be 0
+    fData = data.filter(
+      (d) =>
+        y(d) !== undefined &&
+        y(d) !== null &&
+        x(d) !== undefined &&
+        x(d) !== null
+    );
     groupedData = d3.group(fData, id);
     groupedData = Array.from(groupedData);
 
     let xDataType = typeof x(fData[0]);
     if (xDataType === "object" && x(fData[0]) instanceof Date) {
+      // X is Date
       hasScaleTime = true;
       overviewX = d3
         .scaleTime()
@@ -1706,6 +1709,7 @@ function TimeSearcher({
         .domain(d3.extent(fData, (d) => x(d)))
         .range([0, detailedWidth - ts.margin.right - ts.margin.left]);
     } else if (xDataType === "number") {
+      // X is number
       overviewX = d3
         .scaleLinear()
         .domain(d3.extent(fData, (d) => x(d)))

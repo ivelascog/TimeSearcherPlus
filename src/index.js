@@ -1,3 +1,3 @@
-import TimeSearcher from "./TimeSearcher.js";
+import TimeSearcher from "./TimeSearcher";
 
 export default TimeSearcher;
