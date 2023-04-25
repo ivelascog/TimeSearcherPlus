@@ -1,15 +1,15 @@
 ﻿import * as d3 from "d3";
 import { throttle } from "throttle-debounce";
 import { createPopper } from "@popperjs/core";
-// import {
-//   add,
-//   sub,
-//   intervalToDuration,
-// } from "date-fns@2.29.3/index.js";
+import {
+  add,
+  sub,
+  intervalToDuration,
+} from "date-fns";
 
-const add = (d) => d,
-  sub = (d) => d,
-  intervalToDuration = (d) => d;
+// const add = (d) => d,
+//   sub = (d) => d,
+//   intervalToDuration = (d) => d;
 
 let DEBUG = true;
 let before = 0;

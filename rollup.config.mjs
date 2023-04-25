@@ -30,7 +30,7 @@ export default [
       }),
       nodeResolve(),
     ],
-    external: ["d3", "@popperjs", "date-fns@2.29.3/index.js"],
+    external: ["d3", "@popperjs", "date-fns"],
     output: {
       extend: true,
       banner: copyright,
@@ -41,7 +41,7 @@ export default [
       sourcemap: true,
       globals: {
         d3: "d3",
-        "date-fns@2.29.3/index.js": "dateFns"
+        "date-fns": "dateFns"
       },
     },
   },
@@ -62,7 +62,7 @@ export default [
       }),
       nodeResolve(),
     ],
-    external: ["d3", "@popperjs", "date-fns@2.29.3/index.js"],
+    external: ["d3", "@popperjs", "date-fns"],
     output: {
       extend: true,
       banner: copyright,
@@ -73,7 +73,7 @@ export default [
       name: "TimeSearcher",
       globals: {
         d3: "d3",
-        "date-fns@2.29.3/index.js": "dateFns"
+        "date-fns": "dateFns"
         
       },
     },
@@ -93,7 +93,7 @@ export default [
       ascii(),
       terser({ output: { preamble: copyright } }),
     ],
-    external: ["d3", "@popperjs", "date-fns@2.29.3/index.js"],
+    external: ["d3", "@popperjs", "date-fns"],
     output: {
       extend: true,
       file: "dist/TimeSearcher.min.js",
@@ -102,7 +102,7 @@ export default [
       name: "TimeSearcher",
       globals: {
         d3: "d3",
-        "date-fns@2.29.3/index.js": "dateFns"
+        "date-fns": "dateFns"
       },
     },
   },
