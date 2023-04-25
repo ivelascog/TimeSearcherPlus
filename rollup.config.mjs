@@ -48,10 +48,10 @@ export default [
   {
     input: "src/index.js",
     plugins: [
-      babel({
-        exclude: "node_modules/**",
-        babelHelpers: "bundled",
-      }),
+      // babel({
+      //   exclude: "node_modules/**",
+      //   babelHelpers: "bundled",
+      // }),
       node({
         jsxnext: true,
       }),
@@ -81,10 +81,10 @@ export default [
   {
     input: "src/index.js",
     plugins: [
-      babel({
-        exclude: "node_modules/**",
-        babelHelpers: "bundled",
-      }),
+      // babel({
+      //   exclude: "node_modules/**",
+      //   babelHelpers: "bundled",
+      // }),
       node({
         jsxnext: true,
         main: true,
