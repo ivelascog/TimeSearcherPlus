@@ -6,8 +6,8 @@ import { add, sub, intervalToDuration } from "date-fns";
 let DEBUG = true;
 let before = 0;
 
-function log(msg) {
-  if (DEBUG) console.log(msg, performance.now() - before);
+function log() {
+  if (DEBUG) console.log(performance.now() - before, ...arguments);
   before = performance.now();
 }
 
@@ -34,6 +34,8 @@ function TimeSearcher({
   fmtY = d3.format(".2d"), // Function, how to format x points in the tooltip
   yLabel = "",
   xLabel = "",
+  filters = [], // Array of filters to use, format [[x1, y1], [x2, y2], ...]
+  brushShadow = "drop-shadow( 2px 2px 2px rgba(0, 0, 0, .7))",
 } = {}) {
   let ts = {},
     groupedData,
@@ -121,11 +123,12 @@ function TimeSearcher({
   divOverview = d3
     .select(target)
     .style("display", "flex")
-    .style("flex-wrap","wrap")
+    .style("flex-wrap", "wrap")
     .style("background-color", ts.backgroundColor)
     .node();
 
-  divDetailed = d3.select(detailedElement)
+  divDetailed = d3
+    .select(detailedElement)
     .attr("id", "detail")
     .style("height", `${detailedContainerHeight}px`)
     .style("width", `${overviewWidth + 40}px`)
@@ -204,7 +207,6 @@ function TimeSearcher({
           console.log("Should remove brushesGroup " + i);
         });
         li.on("click", () => selectBrushGroup(i));
-        console.log("render Brushes Controls ", li, d, i);
       });
   }
 
@@ -963,8 +965,6 @@ function TimeSearcher({
 
     // Draws a group of lines with a default alpha and color
     function renderOverviewCanvasGroup(dataSubset, alpha, color) {
-      log("renderOverviewCanvas startRendering brush=0 ");
-
       context.save();
       context.globalAlpha = alpha;
       for (let d of dataSubset) {
@@ -976,8 +976,6 @@ function TimeSearcher({
         context.strokeStyle = ts.groupAttr ? ts.colorScale(path.group) : color;
         context.stroke(path.path);
       }
-
-      log("renderOverviewCanvas endRendering brush=0 ");
     }
 
     function renderDetailedCanvas(data) {
@@ -1082,11 +1080,12 @@ function TimeSearcher({
         }, -2)`
       )
       .style("fill", ts.brushesColorScale(brushesGroup.length - 1))
-      .on("click", function (event) {
+      .on("click", function () {
         let id = d3.select(this).attr("id").substr("11");
         selectBrushGroup(+id);
       });
     updateStatus();
+    triggerValueUpdate();
 
     renderBrushesControls();
   }
@@ -1182,6 +1181,7 @@ function TimeSearcher({
       //Update intersections with modified brush
       brushFilterRender();
       updateStatus();
+      triggerValueUpdate();
     }
   }
 
@@ -1239,6 +1239,11 @@ function TimeSearcher({
     brushCount++;
   }
 
+  // Returns a shadow if the brush is the current one
+  function brushShadowIfInSpinBox(d) {
+    return brushInSpinBox && d[0] === brushInSpinBox[0] ? brushShadow : "";
+  }
+
   function drawBrushes() {
     let brushes = [];
     brushesGroup.forEach((d) => (brushes = brushes.concat(Array.from(d))));
@@ -1253,10 +1258,13 @@ function TimeSearcher({
             .insert("g", ".brush")
             .attr("class", "brush")
             .attr("id", (d) => "brush-" + d[0])
+
             .each(function (d) {
               return d3.select(this).call(d[1].brush);
             })
-            .each(function (d) {
+            .style("-webkit-filter", brushShadowIfInSpinBox)
+            .style("filter", brushShadowIfInSpinBox)
+            .each(function (d, i) {
               d3.select(this)
                 .selectAll(".selection")
                 .style("outline", "-webkit-focus-ring-color solid 1px")
@@ -1264,8 +1272,16 @@ function TimeSearcher({
                 .on("mousedown", (sourceEvent) => {
                   let selection = d[1].selection;
                   updateBrushSpinBox({ selection, sourceEvent }, d);
+
+                  // Show shadow on current brush
+                  g.select("#brushes")
+                    .selectAll(".brush")
+                    .style("-webkit-filter", brushShadowIfInSpinBox)
+                    .style("filter", brushShadowIfInSpinBox);
+
                   if (sourceEvent.shiftKey) {
                     selectBrush(d);
+                    triggerValueUpdate();
                   }
                 });
               if (ts.showBrushTooltip) {
@@ -1275,26 +1291,26 @@ function TimeSearcher({
                     let selection = d[1].selection;
                     showBrushTooltip({ selection, sourceEvent });
                   })
-                  .on(
-                    "mouseout",
-                    (event) => hideTooltip(d3.select(this)),
-                    false
-                  );
+                  .on("mouseout", () => hideTooltip(d3.select(this)), false);
               }
             });
         },
         (update) =>
-          update.each(function (d) {
-            d3.select(this)
-              .selectAll(".selection")
-              .style(
-                "outline-width",
-                d[1].group === brushGroupSelected ? " 2px" : " 1px"
-              )
-              .style("outline-style", d[1].isSelected ? "dashed" : "solid")
-              .style("outline-color", ts.brushesColorScale(d[1].group))
-              .style("fill", ts.brushesColorScale(d[1].group));
-          }),
+          update
+            //  Draw a shadow on the current brush
+            .style("-webkit-filter", brushShadowIfInSpinBox)
+            .style("filter", brushShadowIfInSpinBox)
+            .each(function (d) {
+              d3.select(this)
+                .selectAll(".selection")
+                .style(
+                  "outline-width",
+                  d[1].group === brushGroupSelected ? "2px" : "0.5px"
+                )
+                .style("outline-style", d[1].isSelected ? "dashed" : "solid")
+                .style("outline-color", ts.brushesColorScale(d[1].group))
+                .style("fill", ts.brushesColorScale(d[1].group));
+            }),
         (exit) => exit.remove()
       );
 
@@ -1331,11 +1347,11 @@ function TimeSearcher({
         }
       }
 
-      returnSelection(dataSelected);
+      triggerValueUpdate(dataSelected);
 
       render(dataSelected, dataNotSelected);
     } else {
-      returnSelection([]);
+      triggerValueUpdate([]);
 
       if (ts.groupAttr) {
         dataSelected[0] = groupedData.filter((d) =>
@@ -1354,10 +1370,12 @@ function TimeSearcher({
   function removeBrush(brush) {
     brushSize--;
     brushesGroup[brush[1].group].delete(brush[0]);
+    // Clears selected brush, must be done before rendering
+    emptyBrushSpinBox();
+
     drawBrushes();
     brushFilterRender();
     hideTooltip(null, true);
-    emptyBrushSpinBox();
   }
 
   function updateBrush(brush) {
@@ -1408,6 +1426,7 @@ function TimeSearcher({
     if (someUpdate) {
       brushFilterRender();
       updateStatus();
+      triggerValueUpdate();
     }
   }
 
@@ -1636,7 +1655,11 @@ function TimeSearcher({
   }
 
   // Triggers the update of the selection calls callback and dispatches input event
-  function returnSelection(sel) {
+  function triggerValueUpdate(sel = divOverview.value) {
+    if (!sel) {
+      log("Return selection with empty selection", sel);
+      return;
+    }
     updateCallback(sel);
 
     divOverview.value = sel;
@@ -1775,7 +1798,7 @@ function TimeSearcher({
     newBrush();
     drawBrushes();
 
-    returnSelection([]);
+    triggerValueUpdate([]);
     selectBrushGroup(0);
   };
 
@@ -1789,7 +1812,7 @@ function TimeSearcher({
   divOverview.details = divDetailed;
   divOverview.brushesCoordinates = divBrushesCoordinates;
 
-  if (data) returnSelection(data);
+  if (data) triggerValueUpdate(data);
   return divOverview;
 }
 
