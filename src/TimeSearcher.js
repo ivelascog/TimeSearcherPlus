@@ -1,7 +1,7 @@
 ﻿import * as d3 from "d3";
 import { throttle } from "throttle-debounce";
 import { createPopper } from "@popperjs/core";
-// import { Duration } from "luxon";
+import {add, sub, intervalToDuration} from "date-fns"
 
 let DEBUG = true;
 let before = 0;
@@ -100,9 +100,9 @@ function TimeSearcher({
   ts.showBrushTooltip = true; // Allows to display a tooltip on the brushes containing its coordinates.
   ts.autoUpdate = true; // Allows to decide whether changes in brushes are processed while moving, or only at the end of the movement.
   ts.brushGruopSize = 15; //Controls the size of the colored rectangles used to select the different brushGroups.
-  // ts.stepX = Duration.fromObject({ days: 1 }); // Defines the pitch used, both in the spinboxes and with the arrows on the X axis.
-  ts.stepX = 1000 * 24 * 3600; // Defines the pitch used, both in the spinboxes and with the arrows on the X axis.
-  ts.stepY = 1; // // Defines the pitch used, both in the spinboxes and with the arrows on the Y axis.
+  ts.stepX = {days: 10}; // Defines the pitch used, both in the spinboxes and with the arrows on the X axis.
+  //ts.stepX = 1000 * 24 * 3600; // Defines the step used, both in the spinboxes and with the arrows on the X axis.
+  ts.stepY = 1; // // Defines the step used, both in the spinboxes and with the arrows on the Y axis.
 
   // Convert attrStrings to functions
   if (typeof x === "string") {
@@ -558,12 +558,20 @@ function TimeSearcher({
 
     let { x0, x1, y0, y1 } = getSpinBoxValues();
 
+    let maxX = overviewX.domain()[1]
+
     if (hasScaleTime) {
-      // let luxDate =
+      x1 = add(x1,ts.stepX)
+      if (x1 > maxX) {
+        x1 = sub(x1,ts.stepX)
+        let dist = intervalToDuration({start: x1, end: maxX})
+        x1 = maxX;
+        x0 = add(x0,dist)
+      } else {
+        x0 = add(x0,ts.stepX)
+      }
     } else {
       x1 += ts.stepX;
-
-      let maxX = +sx0.node().max;
 
       if (x1 > maxX) {
         let dist = maxX - x1 + ts.stepX;
@@ -574,8 +582,8 @@ function TimeSearcher({
       }
     }
 
-    sx0.node().value = x0;
-    sx1.node().value = x1;
+    sx0.node().value = fmtX(x0);
+    sx1.node().value = fmtX(x1);
 
     x0 = overviewX(x0);
     x1 = overviewX(x1);
@@ -604,19 +612,31 @@ function TimeSearcher({
 
     let { x0, x1, y0, y1 } = getSpinBoxValues();
 
-    x0 -= ts.stepX;
-    let minX = +sx0.node().min;
+    let minX = overviewX.domain()[0]
 
-    if (x0 < minX) {
-      let dist = x0 + ts.stepX - minX;
-      x0 = minX;
-      x1 -= dist;
+    if (hasScaleTime) {
+      x0 = sub(x0,ts.stepX)
+      if (x0 < minX) {
+        x0 = add(x0,ts.stepX)
+        let dist = intervalToDuration({start: minX, end: x0})
+        x0 = minX;
+        x1 = sub(x1,dist)
+      } else {
+        x1 = sub(x1,ts.stepX)
+      }
     } else {
-      x1 -= ts.stepX;
+      x0 -= ts.stepX;
+      if (x0 < minX) {
+        let dist = x0 + ts.stepX - minX;
+        x0 = minX;
+        x1 -= dist;
+      } else {
+        x1 -= ts.stepX;
+      }
     }
 
-    sx0.node().value = x0;
-    sx1.node().value = x1;
+    sx0.node().value = fmtX(x0);
+    sx1.node().value = fmtX(x1);
 
     x0 = overviewX(x0);
     x1 = overviewX(x1);
