@@ -121,10 +121,11 @@ function TimeSearcher({
   divOverview = d3
     .select(target)
     .style("display", "flex")
+    .style("flex-wrap","wrap")
     .style("background-color", ts.backgroundColor)
     .node();
-  divDetailed = d3.select(detailedElement);
-  divDetailed = divDetailed
+
+  divDetailed = d3.select(detailedElement)
     .attr("id", "detail")
     .style("height", `${detailedContainerHeight}px`)
     .style("width", `${overviewWidth + 40}px`)
@@ -151,7 +152,8 @@ function TimeSearcher({
   });
 
   function initBrushesControls() {
-    brushesControlsElement.innerHTML = `<h2>Brush Groups</h2>
+    brushesControlsElement.innerHTML = `<div id="brushesGroups" style="flex-basis:100%">
+    <h2>Brush Groups</h2>
     <ul id="brushesList">
       
     </ul>
@@ -162,7 +164,7 @@ function TimeSearcher({
       .querySelector("button#btnAddBrushGroup")
       .addEventListener("click", addBrushGroup);
 
-    if (showBrushesControls) target.appendChild(brushesControlsElement);
+    if (showBrushesControls) divOverview.appendChild(brushesControlsElement);
   }
 
   function renderBrushesControls() {
@@ -1160,8 +1162,8 @@ function TimeSearcher({
     // tooltipCoords.x = sourceEvent.x;
     // tooltipCoords.y = sourceEvent.y;
 
-    tooltipCoords.x = x1;
-    tooltipCoords.y = y1;
+    tooltipCoords.x = Math.min(x0, x1);
+    tooltipCoords.y = Math.min(y0, y1);
 
     brushTooltip.update();
   }
