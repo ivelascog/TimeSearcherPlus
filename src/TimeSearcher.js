@@ -1,7 +1,15 @@
 ﻿import * as d3 from "d3";
 import { throttle } from "throttle-debounce";
 import { createPopper } from "@popperjs/core";
-import {add, sub, intervalToDuration} from "date-fns"
+// import {
+//   add,
+//   sub,
+//   intervalToDuration,
+// } from "date-fns@2.29.3/index.js";
+
+const add = (d) => d,
+  sub = (d) => d,
+  intervalToDuration = (d) => d;
 
 let DEBUG = true;
 let before = 0;
@@ -100,7 +108,7 @@ function TimeSearcher({
   ts.showBrushTooltip = true; // Allows to display a tooltip on the brushes containing its coordinates.
   ts.autoUpdate = true; // Allows to decide whether changes in brushes are processed while moving, or only at the end of the movement.
   ts.brushGruopSize = 15; //Controls the size of the colored rectangles used to select the different brushGroups.
-  ts.stepX = {days: 10}; // Defines the pitch used, both in the spinboxes and with the arrows on the X axis.
+  ts.stepX = { days: 10 }; // Defines the pitch used, both in the spinboxes and with the arrows on the X axis.
   //ts.stepX = 1000 * 24 * 3600; // Defines the step used, both in the spinboxes and with the arrows on the X axis.
   ts.stepY = 1; // // Defines the step used, both in the spinboxes and with the arrows on the Y axis.
 
@@ -558,17 +566,17 @@ function TimeSearcher({
 
     let { x0, x1, y0, y1 } = getSpinBoxValues();
 
-    let maxX = overviewX.domain()[1]
+    let maxX = overviewX.domain()[1];
 
     if (hasScaleTime) {
-      x1 = add(x1,ts.stepX)
+      x1 = add(x1, ts.stepX);
       if (x1 > maxX) {
-        x1 = sub(x1,ts.stepX)
-        let dist = intervalToDuration({start: x1, end: maxX})
+        x1 = sub(x1, ts.stepX);
+        let dist = intervalToDuration({ start: x1, end: maxX });
         x1 = maxX;
-        x0 = add(x0,dist)
+        x0 = add(x0, dist);
       } else {
-        x0 = add(x0,ts.stepX)
+        x0 = add(x0, ts.stepX);
       }
     } else {
       x1 += ts.stepX;
@@ -612,17 +620,17 @@ function TimeSearcher({
 
     let { x0, x1, y0, y1 } = getSpinBoxValues();
 
-    let minX = overviewX.domain()[0]
+    let minX = overviewX.domain()[0];
 
     if (hasScaleTime) {
-      x0 = sub(x0,ts.stepX)
+      x0 = sub(x0, ts.stepX);
       if (x0 < minX) {
-        x0 = add(x0,ts.stepX)
-        let dist = intervalToDuration({start: minX, end: x0})
+        x0 = add(x0, ts.stepX);
+        let dist = intervalToDuration({ start: minX, end: x0 });
         x0 = minX;
-        x1 = sub(x1,dist)
+        x1 = sub(x1, dist);
       } else {
-        x1 = sub(x1,ts.stepX)
+        x1 = sub(x1, ts.stepX);
       }
     } else {
       x0 -= ts.stepX;
