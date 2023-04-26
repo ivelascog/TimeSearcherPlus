@@ -136,11 +136,11 @@ function TimeSearcher({
     .node();
   divBrushesCoordinates = d3.select(brushCoordinatesElement);
   brushesControlsElement = brushesControlsElement || d3.create("div");
-  brushesGroup = [];
+  brushesGroup = new Map();
   brushGroupSelected = 0;
   brushCount = 0;
   brushSize = 0;
-  dataSelected = [];
+  dataSelected = new Map();
   selectedGroupData = new Set();
   nGroupsData = 0;
 
@@ -174,7 +174,7 @@ function TimeSearcher({
     d3.select(brushesControlsElement)
       .select("#brushesList")
       .selectAll(".brushControl")
-      .data(brushesGroup)
+      .data(brushesGroup, d => d[0])
       .join("li")
       .attr("class", "brushControl")
       .each(function (d, i) {
@@ -195,20 +195,71 @@ function TimeSearcher({
             <div style="
               width: ${ts.brushGruopSize}px; 
               height: ${ts.brushGruopSize}px;
-              background-color: ${ts.brushesColorScale(i)};
+              background-color: ${ts.brushesColorScale(d[0])};
               margin-right: 5px;
             "></div>
-            <output style="margin-right: 5px;" contenteditable="true">Group ${i}</output>
+            <output style="margin-right: 5px;" contenteditable="true">Group ${d[0]}</output>
             <button style="display"id="btnRemoveBrushGroup">-</button>
           </div>
         `;
 
-        li.select("#btnRmove", () => {
-          console.log("Should remove brushesGroup " + i);
+        li.select("#btnRemoveBrushGroup").on("click", (event) => {
+          event.stopPropagation();
+          removeBrushGroup(d[0])
+          console.log("Should remove brushesGroup " + d[0]);
         });
-        li.on("click", () => selectBrushGroup(i));
+        li.on("click", () => selectBrushGroup(d[0]));
+      });
+
+    // Render internal brush  controls
+    gGroupBrushes
+      .selectAll(".colorBrushes")
+      .data(brushesGroup, d => d[0])
+      .join("rect")
+      .attr("class", "colorBrushes")
+      .attr("id", (d) => "colorBrush-" + (d[0]))
+      .attr("height", ts.brushGruopSize)
+      .attr("width", ts.brushGruopSize)
+      .attr(
+        "transform", (d, i) =>
+        `translate(${
+          135 + (i) * (ts.brushGruopSize + 5)
+        }, -2)`
+      )
+      .style("fill", (d) =>  ts.brushesColorScale(d[0]))
+      .on("click", function () {
+        let id = d3.select(this).attr("id").substr("11");
+        selectBrushGroup(+id);
       });
   }
+
+  function removeBrushGroup(id) {
+    if (brushesGroup.length <= 1)  return
+
+    let itKeys = brushesGroup.keys();
+    let newId =  itKeys.next().value;
+    newId = newId === id ? itKeys.next().value : newId;
+
+    let brushGroupToDelete = brushesGroup.get(id);
+
+    for (let brush of brushGroupToDelete.entries()) {
+      if (brush[1].selection !== null) {
+        removeBrush(brush);
+      } else {
+        brush[1].group = newId;
+        brushesGroup.get(newId).set(brush[0],brush[1]);
+        brushGroupToDelete.delete(brush[0]);
+      }
+    }
+
+    if (id === brushGroupSelected) {
+      selectBrushGroup(newId);
+    }
+
+    brushesGroup.delete(id);
+    renderBrushesControls();
+  }
+
 
   function init() {
     //CreateOverView
@@ -936,18 +987,11 @@ function TimeSearcher({
       if (brushSize === 0) {
         // Render all
         renderOverviewCanvasGroup(
-          dataSelected[0],
+          dataSelected.get(0),
           ts.defaultAlpha,
           ts.defaultColor
         );
       } else {
-        // Render Selected
-        renderOverviewCanvasGroup(
-          dataSelected[brushGroupSelected],
-          ts.defaultAlpha,
-          ts.selectedColor
-        );
-
         dataSelected.forEach((g, i) => {
           if (i !== brushGroupSelected) {
             dataNotSelected = dataNotSelected.concat(g);
@@ -960,6 +1004,15 @@ function TimeSearcher({
           ts.noSelectedAlpha,
           ts.noSelectedColor
         );
+
+
+        // Render selected
+        renderOverviewCanvasGroup(
+          dataSelected.get(brushGroupSelected),
+          ts.defaultAlpha,
+          ts.selectedColor
+        );
+
       }
     }
 
@@ -981,7 +1034,7 @@ function TimeSearcher({
     function renderDetailedCanvas(data) {
       let frag = document.createDocumentFragment();
 
-      data[brushGroupSelected].forEach((d) => {
+      data.get(brushGroupSelected).forEach((d) => {
         let div = document.createElement("div");
         div.className = "detailedContainer";
         div.setAttribute("group", d[0]);
@@ -1064,26 +1117,26 @@ function TimeSearcher({
 
   //------------- Brush section ---------- //
 
+
+  function getUnusedIdBrushGroup() {
+    let keys = Array.from(brushesGroup.keys()).sort();
+    let lastKey = -1
+
+    for (let key of keys)  {
+      if ((lastKey + 1) !== key){
+        break;
+      }
+      lastKey++
+    }
+
+    lastKey++
+    return lastKey;
+  }
   function addBrushGroup() {
-    dataSelected.push([]);
-    brushesGroup.push(new Map());
-    gGroupBrushes
-      .append("rect")
-      .attr("class", "colorBrushes")
-      .attr("id", "colorBrush-" + (brushesGroup.length - 1))
-      .attr("height", ts.brushGruopSize)
-      .attr("width", ts.brushGruopSize)
-      .attr(
-        "transform",
-        `translate(${
-          135 + (brushesGroup.length - 1) * (ts.brushGruopSize + 5)
-        }, -2)`
-      )
-      .style("fill", ts.brushesColorScale(brushesGroup.length - 1))
-      .on("click", function () {
-        let id = d3.select(this).attr("id").substr("11");
-        selectBrushGroup(+id);
-      });
+    let newId = getUnusedIdBrushGroup();
+    brushesGroup.set(newId, new Map());
+    dataSelected.set(newId, [])
+
     updateStatus();
     triggerValueUpdate();
 
@@ -1210,9 +1263,9 @@ function TimeSearcher({
     let brush = d3.brush().on("start", (e, brush) => {
       if (brush[0] === brushCount - 1) {
         brushSize++;
-        brushesGroup[brush[1].group].delete(brush[0]);
+        brushesGroup.get(brush[1].group).delete(brush[0]);
         brush[1].group = brushGroupSelected;
-        brushesGroup[brushGroupSelected].set(brush[0], brush[1]);
+        brushesGroup.get(brushGroupSelected).set(brush[0], brush[1]);
         drawBrushes();
       }
       if (ts.autoUpdate) {
@@ -1229,7 +1282,7 @@ function TimeSearcher({
       brush.on("brush.show", tShowTooltip);
     }
     brush.on("end", endBrush);
-    brushesGroup[brushGroupSelected].set(brushCount, {
+    brushesGroup.get(brushGroupSelected).set(brushCount, {
       brush: brush,
       intersections: new Map(),
       isSelected: false,
@@ -1328,16 +1381,16 @@ function TimeSearcher({
 
   function brushFilterRender() {
     dataNotSelected = [];
-    dataSelected = [];
-    brushesGroup.forEach(() => dataSelected.push([]));
+    dataSelected = new Map();
+    brushesGroup.forEach( (d, key) => dataSelected.set(key,[]));
 
     if (brushSize > 0) {
       for (let d of groupedData) {
         if (!ts.groupAttr || selectedGroupData.has(d[1][0][ts.groupAttr])) {
           let isSelected = false;
-          for (let i = 0; i < brushesGroup.length; ++i) {
-            if (intersectGroup(d, brushesGroup[i])) {
-              dataSelected[i].push(d);
+          for (let brushGroup of brushesGroup.entries()) {
+            if (intersectGroup(d, brushGroup[1])) {
+              dataSelected.get(brushGroup[0]).push(d);
               isSelected = true;
             }
           }
@@ -1354,12 +1407,13 @@ function TimeSearcher({
       triggerValueUpdate([]);
 
       if (ts.groupAttr) {
-        dataSelected[0] = groupedData.filter((d) =>
+        let data =  groupedData.filter((d) =>
           selectedGroupData.has(d[1][0][ts.groupAttr])
         );
+        dataSelected.set(0, data);
         render(dataSelected, dataNotSelected);
       } else {
-        dataSelected[0] = groupedData;
+        dataSelected.set(0, groupedData);
         render(dataSelected, dataNotSelected);
       }
     }
@@ -1369,7 +1423,7 @@ function TimeSearcher({
 
   function removeBrush(brush) {
     brushSize--;
-    brushesGroup[brush[1].group].delete(brush[0]);
+    brushesGroup.get(brush[1].group).delete(brush[0]);
     // Clears selected brush, must be done before rendering
     emptyBrushSpinBox();
 
@@ -1406,7 +1460,7 @@ function TimeSearcher({
     brush[1].isSelected = !brush[1].isSelected;
   }
   function deselectAllBrushes() {
-    for (let brushGroup of brushesGroup) {
+    for (let brushGroup of brushesGroup.values()) {
       for (let brush of brushGroup) {
         brush[1].isSelected = false;
       }
@@ -1415,7 +1469,7 @@ function TimeSearcher({
 
   function updateSelection() {
     let someUpdate = false;
-    for (const brushGroup of brushesGroup) {
+    for (const brushGroup of brushesGroup.values()) {
       for (const brush of brushGroup) {
         if (brush[1].isSelected) {
           let update = updateBrush(brush); //avoid lazy evaluation
@@ -1438,7 +1492,7 @@ function TimeSearcher({
     let distX = x0 - triggerBrush[1].selection[0][0];
     let distY = y0 - triggerBrush[1].selection[0][1];
     triggerBrush[1].selection = selection;
-    for (const brushGroup of brushesGroup) {
+    for (const brushGroup of brushesGroup.values()) {
       for (const brush of brushGroup) {
         if (brush[1].isSelected && !(triggerBrush[0] === brush[0])) {
           let [[x0, y0], [x1, y1]] = brush[1].selection;
@@ -1643,7 +1697,7 @@ function TimeSearcher({
     }
     //Export brushes
     let brushGroups = [];
-    brushesGroup.forEach((d, i) => {
+    brushesGroup.forEach((d,i) => {
       let brushes = [];
       d.forEach((d) => {
         if (d.selection) brushes.push(d.selection);
@@ -1662,8 +1716,8 @@ function TimeSearcher({
     }
     updateCallback(sel);
 
-    divOverview.value = sel;
-    divOverview.value.brushes = brushesGroup;
+    divOverview.value = Array.from(sel.values());
+    divOverview.value.brushes = Array.from(brushesGroup.values());
     divOverview.dispatchEvent(new Event("input", { bubbles: true }));
   }
 
@@ -1794,7 +1848,7 @@ function TimeSearcher({
     generateBrushCoordinatesDiv();
 
     addBrushGroup();
-    dataSelected[0] = groupedData;
+    dataSelected.set(0, groupedData);
     newBrush();
     drawBrushes();
 
