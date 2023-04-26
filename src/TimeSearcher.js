@@ -174,10 +174,10 @@ function TimeSearcher({
     d3.select(brushesControlsElement)
       .select("#brushesList")
       .selectAll(".brushControl")
-      .data(brushesGroup, d => d[0])
+      .data(brushesGroup, (d) => d[0])
       .join("li")
       .attr("class", "brushControl")
-      .each(function (d, i) {
+      .each(function (d) {
         const li = d3.select(this);
         li.node().innerHTML = `<div style="
             display: flex;
@@ -198,15 +198,19 @@ function TimeSearcher({
               background-color: ${ts.brushesColorScale(d[0])};
               margin-right: 5px;
             "></div>
-            <output style="margin-right: 5px;" contenteditable="true">Group ${d[0]}</output>
-            <span style="margin-right: 5px;">(${dataSelected.get(d[0]).length})</span>
+            <output style="margin-right: 5px;" contenteditable="true">Group ${
+              d[0]
+            }</output>
+            <span style="margin-right: 5px;">(${
+              dataSelected.get(d[0]).length
+            })</span>
             <button style="display"id="btnRemoveBrushGroup">-</button>
           </div>
         `;
 
         li.select("#btnRemoveBrushGroup").on("click", (event) => {
           event.stopPropagation();
-          removeBrushGroup(d[0])
+          removeBrushGroup(d[0]);
           console.log("Should remove brushesGroup " + d[0]);
         });
         li.on("click", () => selectBrushGroup(d[0]));
@@ -215,19 +219,17 @@ function TimeSearcher({
     // Render internal brush  controls
     gGroupBrushes
       .selectAll(".colorBrushes")
-      .data(brushesGroup, d => d[0])
+      .data(brushesGroup, (d) => d[0])
       .join("rect")
       .attr("class", "colorBrushes")
-      .attr("id", (d) => "colorBrush-" + (d[0]))
+      .attr("id", (d) => "colorBrush-" + d[0])
       .attr("height", ts.brushGruopSize)
       .attr("width", ts.brushGruopSize)
       .attr(
-        "transform", (d, i) =>
-        `translate(${
-          135 + (i) * (ts.brushGruopSize + 5)
-        }, -2)`
+        "transform",
+        (d, i) => `translate(${135 + i * (ts.brushGruopSize + 5)}, -2)`
       )
-      .style("fill", (d) =>  ts.brushesColorScale(d[0]))
+      .style("fill", (d) => ts.brushesColorScale(d[0]))
       .on("click", function () {
         let id = d3.select(this).attr("id").substr("11");
         selectBrushGroup(+id);
@@ -235,10 +237,10 @@ function TimeSearcher({
   }
 
   function removeBrushGroup(id) {
-    if (brushesGroup.length <= 1)  return
+    if (brushesGroup.length <= 1) return;
 
     let itKeys = brushesGroup.keys();
-    let newId =  itKeys.next().value;
+    let newId = itKeys.next().value;
     newId = newId === id ? itKeys.next().value : newId;
 
     let brushGroupToDelete = brushesGroup.get(id);
@@ -248,7 +250,7 @@ function TimeSearcher({
         removeBrush(brush);
       } else {
         brush[1].group = newId;
-        brushesGroup.get(newId).set(brush[0],brush[1]);
+        brushesGroup.get(newId).set(brush[0], brush[1]);
         brushGroupToDelete.delete(brush[0]);
       }
     }
@@ -260,7 +262,6 @@ function TimeSearcher({
     brushesGroup.delete(id);
     renderBrushesControls();
   }
-
 
   function init() {
     //CreateOverView
@@ -427,10 +428,10 @@ function TimeSearcher({
     let [[x0, y0], [x1, y1]] = selection;
     let [[sx0, sy0], [sx1, sy1]] = brushSpinBoxes;
 
-    sx0.node().value = fmtX(overviewX.invert(x0));
-    sx1.node().value = fmtX(overviewX.invert(x1));
-    sy0.node().value = fmtY(overviewY.invert(y1));
-    sy1.node().value = fmtY(overviewY.invert(y0));
+    sx0.node().value = fmtX(x0);
+    sx1.node().value = fmtX(x1);
+    sy0.node().value = fmtY(y1);
+    sy1.node().value = fmtY(y0);
   }
 
   function emptyBrushSpinBox() {
@@ -1006,14 +1007,12 @@ function TimeSearcher({
           ts.noSelectedColor
         );
 
-
         // Render selected
         renderOverviewCanvasGroup(
           dataSelected.get(brushGroupSelected),
           ts.defaultAlpha,
           ts.selectedColor
         );
-
       }
     }
 
@@ -1118,25 +1117,24 @@ function TimeSearcher({
 
   //------------- Brush section ---------- //
 
-
   function getUnusedIdBrushGroup() {
     let keys = Array.from(brushesGroup.keys()).sort();
-    let lastKey = -1
+    let lastKey = -1;
 
-    for (let key of keys)  {
-      if ((lastKey + 1) !== key){
+    for (let key of keys) {
+      if (lastKey + 1 !== key) {
         break;
       }
-      lastKey++
+      lastKey++;
     }
 
-    lastKey++
+    lastKey++;
     return lastKey;
   }
   function addBrushGroup() {
     let newId = getUnusedIdBrushGroup();
     brushesGroup.set(newId, new Map());
-    dataSelected.set(newId, [])
+    dataSelected.set(newId, []);
 
     updateStatus();
     triggerValueUpdate();
@@ -1385,7 +1383,7 @@ function TimeSearcher({
   function brushFilterRender() {
     dataNotSelected = [];
     dataSelected = new Map();
-    brushesGroup.forEach( (d, key) => dataSelected.set(key,[]));
+    brushesGroup.forEach((d, key) => dataSelected.set(key, []));
 
     if (brushSize > 0) {
       for (let d of groupedData) {
@@ -1410,7 +1408,7 @@ function TimeSearcher({
       triggerValueUpdate([]);
 
       if (ts.groupAttr) {
-        let data =  groupedData.filter((d) =>
+        let data = groupedData.filter((d) =>
           selectedGroupData.has(d[1][0][ts.groupAttr])
         );
         dataSelected.set(0, data);
@@ -1703,7 +1701,7 @@ function TimeSearcher({
     }
     //Export brushes
     let brushGroups = [];
-    brushesGroup.forEach((d,i) => {
+    brushesGroup.forEach((d, i) => {
       let brushes = [];
       d.forEach((d) => {
         if (d.selection) brushes.push(d.selection);
@@ -1723,28 +1721,44 @@ function TimeSearcher({
     updateCallback(sel);
 
     divOverview.value = Array.from(sel.values());
-    divOverview.value.brushes = Array.from(brushesToDomain(brushesGroup).values());
+    divOverview.value.brushes = Array.from(
+      brushesToDomain(brushesGroup).values()
+    );
     divOverview.dispatchEvent(new Event("input", { bubbles: true }));
   }
 
   function brushesToDomain(brushesGroup) {
     let outMap = new Map();
-    for(let brushGroup of brushesGroup.entries()) {
-      let innerMap = new Map()
+    for (let brushGroup of brushesGroup.entries()) {
+      let innerMap = new Map();
       for (let brush of brushGroup[1].entries()) {
         if (brush[1].selection !== null) {
-          let nBrush = Object.assign({},brush[1]);
-          let [[x0, y0], [x1, y1]] = brush[1].selection;
+          let nBrush = Object.assign({}, brush[1]);
 
-          x0 = fmtX(overviewX.invert(x0));
-          x1 = fmtX(overviewX.invert(x1));
-          y0 = fmtY(overviewY.invert(y0));
-          y1 = fmtY(overviewY.invert(y1));
-          nBrush.selection = [[x0, y0], [x1, y1]];
-          innerMap.set(brush[0],nBrush)
+          // pixels
+          let [[x0, y0], [x1, y1]] = brush[1].selection;
+          nBrush.selectionPixels = [
+            [x0, y0],
+            [x1, y1],
+          ];
+
+          // data domain
+          let [[xi0, yi0], [xi1, yi1]] = brush[1].selection.map(([x, y]) => [
+            overviewX.invert(x),
+            overviewY.invert(y),
+          ]);
+          nBrush.selection = [
+            [xi0, yi0],
+            [xi1, yi1],
+          ];
+
+          nBrush.isActive = !!brushInSpinBox && brushInSpinBox[0] === brush[0];
+
+
+          innerMap.set(brush[0], nBrush);
         }
       }
-      outMap.set(brushGroup[0],innerMap)
+      outMap.set(brushGroup[0], innerMap);
     }
     return outMap;
   }
