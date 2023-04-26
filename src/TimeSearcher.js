@@ -2,6 +2,7 @@
 import { throttle } from "throttle-debounce";
 import { createPopper } from "@popperjs/core";
 import { add, sub, intervalToDuration } from "date-fns";
+import * as htl from "htl";
 
 let DEBUG = true;
 let before = 0;
@@ -9,6 +10,91 @@ let before = 0;
 function log() {
   if (DEBUG) console.log(performance.now() - before, ...arguments);
   before = performance.now();
+}
+
+function BrushTooltipEditable({
+  selection = null,
+  fmtX,
+  fmtY,
+  target,
+  margin = { top: 0, left: 0 },
+  callback = () => {},
+}) {
+  const x0E = htl.html`<output class="x0" contenteditable="true"></output>`;
+  const y0E = htl.html`<output class="y0" contenteditable="true"></output>`;
+  const x1E = htl.html`<output class="x1" contenteditable="true"></output>`;
+  const y1E = htl.html`<output class="y1" contenteditable="true"></output>`;
+
+  const btnChange0E = htl.html`<button>✅</button>`;
+  const btnChange1E = htl.html`<button>✅</button>`;
+
+  const fromE = htl.html`<div style="position: absolute; top:0; left:0;">
+    <div style="display:flex; position: absolute; bottom: 0px; right: 0px;">
+      ${x0E}<strong> x </strong>${y0E} ${btnChange0E}
+    </div>
+  </div>`;
+  const toE = htl.html`<div style="position: absolute; display:flex;">${x1E}<strong> x </strong>${y1E} ${btnChange1E}</div>`;
+
+  const brushTooltip = htl.html`<div class="__ts_tooltip" style="display: none; z-index:2; position: absolute; top: ${margin.top}px; left: ${margin.left}px;">
+    <style>
+    div.__ts_tooltip { 
+      font-family: sans-serif; font-size: 10pt; 
+    }
+    div.__ts_tooltip > div > div * { 
+      margin-right: 5px;
+    }
+    div.__ts_tooltip button {
+      padding: 0px;
+    }
+    </style>
+    <div>${fromE}</div>
+    <div>${toE}</div>
+
+  </div>`;
+
+  log("brushTooltipTooltipEditable", target);
+
+  x0E.oninput = (evt) => evt.preventDefault();
+  x1E.oninput = (evt) => evt.preventDefault();
+  y0E.oninput = (evt) => evt.preventDefault();
+  y1E.oninput = (evt) => evt.preventDefault();
+
+  brushTooltip.__update = ({ selection, selectionPixels }) => {
+    brushTooltip.style.display = "block";
+    x0E.value = fmtX(selection[0][0]);
+    x1E.value = fmtX(selection[1][0]);
+    y0E.value = fmtY(selection[1][1]);
+    y1E.value = fmtY(selection[0][1]);
+
+    fromE.style.top = selectionPixels[0][1] + "px";
+    fromE.style.left = selectionPixels[0][0] + "px";
+    toE.style.top = selectionPixels[1][1] + "px";
+    toE.style.left = selectionPixels[1][0] + "px";
+  };
+
+  brushTooltip.__hide = () => (brushTooltip.style.display = "none");
+
+  brushTooltip.oninput = (evt) => evt.preventDefault();
+
+  function triggerUpdate() {
+    brushTooltip.value = [
+      [x0E.value, y0E.value],
+      [x1E.value, y1E.value],
+    ];
+    log("triggerUpdate", brushTooltip.value);
+    brushTooltip.dispatchEvent(new Event("input", { bubbles: true }));
+
+    callback(brushTooltip.value);
+  }
+
+  btnChange0E.addEventListener("click", triggerUpdate);
+  btnChange0E.addEventListener("click", triggerUpdate);
+
+  target.appendChild(brushTooltip);
+
+  triggerUpdate();
+
+  return brushTooltip;
 }
 
 function TimeSearcher({
@@ -36,6 +122,7 @@ function TimeSearcher({
   xLabel = "",
   filters = [], // Array of filters to use, format [[x1, y1], [x2, y2], ...]
   brushShadow = "drop-shadow( 2px 2px 2px rgba(0, 0, 0, .7))",
+  useNewTooltip = true, // TODO remove this option
 } = {}) {
   let ts = {},
     groupedData,
@@ -80,7 +167,8 @@ function TimeSearcher({
     gGroupData,
     selectedGroupData,
     hasScaleTime,
-    nGroupsData;
+    nGroupsData,
+    brushTooltipEditable;
 
   // Default Parameters
   ts.xPartitions = 10; // Partitions performed on the X-axis for the collision acceleration algorithm.
@@ -418,6 +506,22 @@ function TimeSearcher({
       .on("click", addBrushGroup);
 
     initBrushesControls();
+
+    if (useNewTooltip) {
+      brushTooltipEditable = BrushTooltipEditable({
+        target,
+        fmtX,
+        fmtY,
+        // TODO: this + 20 shouldn't be here...
+        margin: { top: ts.margin.top + 20, left: ts.margin.left + 20 }, 
+        callback: (newSelection) => {
+          log("tooltip new value", newSelection);
+        },
+      });
+      // brushTooltipEditable.addEventListener("input", () => {
+
+      // });
+    }
 
     return g;
   }
@@ -1156,6 +1260,8 @@ function TimeSearcher({
   }
 
   function createBrushTooltip() {
+    if (useNewTooltip) return;
+
     brushTooltipElement = d3
       .select("body")
       .append("div")
@@ -1193,36 +1299,41 @@ function TimeSearcher({
     if (!selection || sourceEvent === undefined) return;
 
     let [[x0, y0], [x1, y1]] = selection;
-    let textX =
-      "X: [" +
-      fmtX(overviewX.invert(+x0)) +
-      ", " +
-      fmtX(overviewX.invert(+x1)) +
-      "]";
-    let textY =
-      "Y: [" +
-      fmtY(overviewY.invert(y1)) +
-      ", " +
-      fmtY(overviewY.invert(y0)) +
-      "]";
 
-    brushTooltipElement.style("display", "initial");
-    brushTooltipElement.select(".tool_x_text").text(textX);
-    brushTooltipElement.select(".tool_y_text").text(textY);
+    let selectionInverted = selection.map(([x, y]) => [
+      overviewX.invert(+x),
+      overviewY.invert(+y),
+    ]);
 
+    let [[xi0, yi0], [xi1, yi1]] = selectionInverted;
+    let textX = "X: [" + fmtX(xi0) + ", " + fmtX(xi1) + "]";
+    let textY = "Y: [" + fmtY(yi1) + ", " + fmtY(yi0) + "]";
+
+    if (!useNewTooltip) {
+      brushTooltipElement.style("display", "initial");
+      brushTooltipElement.select(".tool_x_text").text(textX);
+      brushTooltipElement.select(".tool_y_text").text(textY);
+    }
     // tooltipCoords.x = sourceEvent.x;
     // tooltipCoords.y = sourceEvent.y;
 
     tooltipCoords.x = Math.min(x0, x1);
     tooltipCoords.y = Math.min(y0, y1);
 
-    brushTooltip.update();
+    if (useNewTooltip) {
+      brushTooltipEditable.__update({
+        selection: selectionInverted,
+        selectionPixels: selection,
+      });
+    }
   }
 
   function hideTooltip(element, removed) {
     if (removed || element.style("pointer-events") === "all") {
-      brushTooltipElement.style("display", "none");
+      if (!useNewTooltip) brushTooltipElement.style("display", "none");
     }
+
+    if (useNewTooltip) brushTooltipEditable.__hide();
   }
 
   function brushed({ selection, sourceEvent }, brush) {
@@ -1753,7 +1864,6 @@ function TimeSearcher({
           ];
 
           nBrush.isActive = !!brushInSpinBox && brushInSpinBox[0] === brush[0];
-
 
           innerMap.set(brush[0], nBrush);
         }
