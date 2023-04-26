@@ -1721,8 +1721,30 @@ function TimeSearcher({
     updateCallback(sel);
 
     divOverview.value = Array.from(sel.values());
-    divOverview.value.brushes = Array.from(brushesGroup.values());
+    divOverview.value.brushes = Array.from(brushesToDomain(brushesGroup).values());
     divOverview.dispatchEvent(new Event("input", { bubbles: true }));
+  }
+
+  function brushesToDomain(brushesGroup) {
+    let outMap = new Map();
+    for(let brushGroup of brushesGroup.entries()) {
+      let innerMap = new Map()
+      for (let brush of brushGroup[1].entries()) {
+        if (brush[1].selection !== null) {
+          let nBrush = Object.assign({},brush[1]);
+          let [[x0, y0], [x1, y1]] = brush[1].selection;
+
+          x0 = fmtX(overviewX.invert(x0));
+          x1 = fmtX(overviewX.invert(x1));
+          y0 = fmtY(overviewY.invert(y0));
+          y1 = fmtY(overviewY.invert(y1));
+          nBrush.selection = [[x0, y0], [x1, y1]];
+          innerMap.set(brush[0],nBrush)
+        }
+      }
+      outMap.set(brushGroup[0],innerMap)
+    }
+    return outMap;
   }
 
   ts.addReferenceCurves = function (curves) {
