@@ -561,7 +561,7 @@ function TimeSearcher({
         fmtX,
         fmtY,
         // TODO: this + 20 shouldn't be here...
-        margin: { top: ts.margin.top - 20, left: ts.margin.left + 20 },
+        margin: { top: ts.margin.top , left: ts.margin.left },
         callback: (newSelection) => {
           log("tooltip new value", newSelection);
         },
