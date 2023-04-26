@@ -130,6 +130,7 @@ function TimeSearcher({
   filters = [], // Array of filters to use, format [[x1, y1], [x2, y2], ...]
   brushShadow = "drop-shadow( 2px 2px 2px rgba(0, 0, 0, .7))",
   useNewTooltip = true, // TODO remove this option
+  maxDetailedRecords = 100, // How many results to show in the detail view
 } = {}) {
   let ts = {},
     groupedData,
@@ -530,7 +531,7 @@ function TimeSearcher({
         fmtX,
         fmtY,
         // TODO: this + 20 shouldn't be here...
-        margin: { top: ts.margin.top - 20, left: ts.margin.left + 20 }, 
+        margin: { top: ts.margin.top - 20, left: ts.margin.left + 20 },
         callback: (newSelection) => {
           log("tooltip new value", newSelection);
         },
@@ -1036,9 +1037,13 @@ function TimeSearcher({
     function renderDetailedSVG(data) {
       const div = d3.select(divDetailed);
 
+      let slicedData = maxDetailedRecords
+        ? data.slice(0, maxDetailedRecords)
+        : data;
+
       div
         .selectAll(".detailed")
-        .data(data, (d) => d[0])
+        .data(slicedData, (d) => d[0])
         .join(
           (enter) => {
             enter.each(function (d) {
@@ -1071,7 +1076,7 @@ function TimeSearcher({
 
               g.append("text")
                 .text(d[0])
-                .attr("transform", `translate(10, 0)`)
+                .attr("transform", "translate(10, 0)")
                 .style("fill", "black")
                 .style("font-size", "0.7em");
 
@@ -1188,13 +1193,17 @@ function TimeSearcher({
     function renderDetailedCanvas(data) {
       let frag = document.createDocumentFragment();
 
-      data.get(brushGroupSelected).forEach((d) => {
+      let slicedData = maxDetailedRecords
+        ? data.get(brushGroupSelected).slice(0, maxDetailedRecords)
+        : data;
+
+      for (let d of slicedData) {
         let div = document.createElement("div");
         div.className = "detailedContainer";
         div.setAttribute("group", d[0]);
         div.style.height = `${detailedHeight}px`;
         frag.appendChild(div);
-      });
+      }
 
       // removed to reduce flickering
       // divDetailed.innerHTML = "";
@@ -1504,9 +1513,13 @@ function TimeSearcher({
                     let selection = d[1].selection;
                     showBrushTooltip({ selection, sourceEvent });
                   })
-                  .on("mouseout", () => {
-                    if (!useNewTooltip) hideTooltip(d3.select(this));
-                  }, false);
+                  .on(
+                    "mouseout",
+                    () => {
+                      if (!useNewTooltip) hideTooltip(d3.select(this));
+                    },
+                    false
+                  );
               }
             });
         },
