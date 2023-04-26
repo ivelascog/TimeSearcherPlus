@@ -155,6 +155,8 @@ function TimeSearcher({
   useNewTooltip = true, // TODO remove this option
   maxDetailedRecords = 100, // How many results to show in the detail view
 } = {}) {
+
+
   let ts = {},
     groupedData,
     fData,
@@ -239,11 +241,15 @@ function TimeSearcher({
     id = (d) => d[_id];
   }
 
+
+
   divOverview = d3
     .select(target)
     .style("display", "flex")
     .style("flex-wrap", "wrap")
-    .style("position", "absolute")
+    .style("position", "relative")
+    .style("top", "0px")
+    .style("left", "0px")
     .style("background-color", ts.backgroundColor)
     .node();
 
@@ -592,6 +598,7 @@ function TimeSearcher({
   }
 
   function generateBrushCoordinatesDiv() {
+    divBrushesCoordinates.innerHTML = "";
     divBrushesCoordinates.append("span").text("Brush Coordinates: ");
     let divX = divBrushesCoordinates.append("div");
 
