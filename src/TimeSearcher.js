@@ -1358,10 +1358,12 @@ function TimeSearcher({
               d3.select(this)
                 .selectAll(".selection")
                 .style(
-                  "outline-width",
+                  "stroke-width",
                   d[1].group === brushGroupSelected ? "2px" : "0.5px"
                 )
-                .style("outline-style", d[1].isSelected ? "dashed" : "solid")
+                // .style("outline-style", d[1].isSelected ? "dashed" : "solid")
+                .style("stroke-dasharray", d[1].isSelected ? "4" : "")
+                .style("stroke", ts.brushesColorScale(d[1].group))
                 .style("outline-color", ts.brushesColorScale(d[1].group))
                 .style("fill", ts.brushesColorScale(d[1].group));
             }),
