@@ -549,10 +549,10 @@ function TimeSearcher({
     let [[x0, y0], [x1, y1]] = selection;
     let [[sx0, sy0], [sx1, sy1]] = brushSpinBoxes;
 
-    sx0.node().value = fmtX(x0);
-    sx1.node().value = fmtX(x1);
-    sy0.node().value = fmtY(y1);
-    sy1.node().value = fmtY(y0);
+    sx0.node().value = fmtX(overviewX.invert(x0));
+    sx1.node().value = fmtX(overviewX.invert(x1));
+    sy0.node().value = fmtY(overviewY.invert(y1));
+    sy1.node().value = fmtY(overviewY.invert(y0));
   }
 
   function emptyBrushSpinBox() {
@@ -730,6 +730,7 @@ function TimeSearcher({
   }
 
   function onArrowRigth(sourceEvent) {
+    // TODO avoid using spinbox to get the actual selection and use the selectedBrush.
     if (brushInSpinBox === null) return;
 
     let [[sx0, sy0], [sx1, sy1]] = brushSpinBoxes;
@@ -781,6 +782,38 @@ function TimeSearcher({
     ];
 
     brushed({ selection, sourceEvent }, brushInSpinBox);
+  }
+
+  function updateBrushSelection (nx0, nx1, ny0, ny1, brush) {
+    let [[x0, y0], [x1, y1]] = brush[1].selection;
+
+    let minX = overviewX.domain()[0];
+    let maxX = overviewX.domain()[1]
+
+    if (nx0) {
+      if (nx0 > maxX) nx0 = maxX - ts.stepX;
+      if (nx1 < minX) nx0 = minX;
+
+      x0 = nx0;
+      if (x0 > x1) x1 = x0 + ts.stepX;
+    }
+
+    if (nx1) {
+      if (nx1 > maxX) nx1 = maxX;
+      if (nx1 < minX) nx1 = minX + ts.stepX
+
+      x1 = nx1;
+      if (x1 < x0) x0 = x1 - ts.stepX;
+    }
+
+    let miny = overviewY.domain()[0];
+    let maxy = overviewY.domain()[1]
+
+    if (ny0) {
+      if (n) {
+
+      }
+    }
   }
 
   function onArrowLeft(sourceEvent) {
