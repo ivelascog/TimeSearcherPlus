@@ -20,10 +20,22 @@ function BrushTooltipEditable({
   margin = { top: 0, left: 0 },
   callback = () => {},
 }) {
-  const x0E = htl.html`<output class="x0" contenteditable="true"></output>`;
-  const y0E = htl.html`<output class="y0" contenteditable="true"></output>`;
-  const x1E = htl.html`<output class="x1" contenteditable="true"></output>`;
-  const y1E = htl.html`<output class="y1" contenteditable="true"></output>`;
+  const x0E = htl.html`<input class="x0" contenteditable="true"></input>`;
+  const y0E = htl.html`<input class="y0" contenteditable="true"></input>`;
+  const x1E = htl.html`<input class="x1" contenteditable="true"></input>`;
+  const y1E = htl.html`<input class="y1" contenteditable="true"></input>`;
+
+  // https://stackoverflow.com/questions/3392493/adjust-width-of-input-field-to-its-input
+  const adjustInputWidth = (input) => {
+    input.addEventListener("input", resizeInput); // bind the "resizeInput" callback on "input" event
+    resizeInput.call(input); // immediately call the function
+
+    function resizeInput() {
+      this.style.width = this.value.length + 1 + "ch";
+    }
+  };
+
+  const resizeInputs = () => [x0E, y0E, x1E, y1E].map(adjustInputWidth);
 
   const btnChange0E = htl.html`<button>✅</button>`;
   const btnChange1E = htl.html`<button>✅</button>`;
@@ -51,6 +63,14 @@ function BrushTooltipEditable({
       padding: 0px;
       display: block;
     }
+    div.__ts_tooltip input {
+      background-color:rgba(255, 255, 255, 0);    
+      border: none;
+      outline: none;
+    }
+    div.__ts_tooltip input:focus {
+        border: solid #aaa;
+    }
 
 
     </style>
@@ -61,10 +81,10 @@ function BrushTooltipEditable({
 
   log("brushTooltipTooltipEditable", target);
 
-  x0E.oninput = (evt) => evt.preventDefault();
-  x1E.oninput = (evt) => evt.preventDefault();
-  y0E.oninput = (evt) => evt.preventDefault();
-  y1E.oninput = (evt) => evt.preventDefault();
+  // x0E.oninput = (evt) => evt.preventDefault();
+  // x1E.oninput = (evt) => evt.preventDefault();
+  // y0E.oninput = (evt) => evt.preventDefault();
+  // y1E.oninput = (evt) => evt.preventDefault();
 
   brushTooltip.__update = ({ selection, selectionPixels }) => {
     brushTooltip.style.display = "block";
@@ -72,6 +92,8 @@ function BrushTooltipEditable({
     x1E.value = fmtX(selection[1][0]);
     y0E.value = fmtY(selection[0][1]);
     y1E.value = fmtY(selection[1][1]);
+
+    resizeInputs();
 
     fromE.style.top = selectionPixels[0][1] + "px";
     fromE.style.left = selectionPixels[0][0] + "px";
@@ -81,7 +103,7 @@ function BrushTooltipEditable({
 
   brushTooltip.__hide = () => (brushTooltip.style.display = "none");
 
-  brushTooltip.oninput = (evt) => evt.preventDefault();
+  // brushTooltip.oninput = (evt) => evt.preventDefault();
 
   function triggerUpdate() {
     brushTooltip.value = [
@@ -100,6 +122,7 @@ function BrushTooltipEditable({
   target.appendChild(brushTooltip);
 
   triggerUpdate();
+  resizeInputs();
 
   return brushTooltip;
 }
@@ -220,6 +243,7 @@ function TimeSearcher({
     .select(target)
     .style("display", "flex")
     .style("flex-wrap", "wrap")
+    .style("position", "absolute")
     .style("background-color", ts.backgroundColor)
     .node();
 
@@ -785,11 +809,11 @@ function TimeSearcher({
     brushed({ selection, sourceEvent }, brushInSpinBox);
   }
 
-  function updateBrushSelection (nx0, nx1, ny0, ny1, brush) {
+  function updateBrushSelection(nx0, nx1, ny0, ny1, brush) {
     let [[x0, y0], [x1, y1]] = brush[1].selection;
 
     let minX = overviewX.domain()[0];
-    let maxX = overviewX.domain()[1]
+    let maxX = overviewX.domain()[1];
 
     if (nx0) {
       if (nx0 > maxX) nx0 = maxX - ts.stepX;
@@ -801,18 +825,17 @@ function TimeSearcher({
 
     if (nx1) {
       if (nx1 > maxX) nx1 = maxX;
-      if (nx1 < minX) nx1 = minX + ts.stepX
+      if (nx1 < minX) nx1 = minX + ts.stepX;
 
       x1 = nx1;
       if (x1 < x0) x0 = x1 - ts.stepX;
     }
 
     let miny = overviewY.domain()[0];
-    let maxy = overviewY.domain()[1]
+    let maxy = overviewY.domain()[1];
 
     if (ny0) {
       if (n) {
-
       }
     }
   }
