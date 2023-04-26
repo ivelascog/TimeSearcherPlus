@@ -199,6 +199,7 @@ function TimeSearcher({
               margin-right: 5px;
             "></div>
             <output style="margin-right: 5px;" contenteditable="true">Group ${d[0]}</output>
+            <span style="margin-right: 5px;">(${dataSelected.get(d[0]).length})</span>
             <button style="display"id="btnRemoveBrushGroup">-</button>
           </div>
         `;
@@ -1418,6 +1419,8 @@ function TimeSearcher({
       }
     }
 
+    renderBrushesControls();
+
     return [dataSelected, dataNotSelected];
   }
 
@@ -1478,6 +1481,7 @@ function TimeSearcher({
       }
     }
     if (someUpdate) {
+      renderBrushesControls();
       brushFilterRender();
       updateStatus();
       triggerValueUpdate();
