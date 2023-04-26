@@ -348,6 +348,7 @@ function TimeSearcher({
     }
 
     brushesGroup.delete(id);
+    triggerValueUpdate();
     renderBrushesControls();
   }
 
@@ -1925,6 +1926,11 @@ function TimeSearcher({
     );
     groupedData = d3.group(fData, id);
     groupedData = Array.from(groupedData);
+
+    groupedData.map((d) => [
+      d[0],
+      d[1].sort((a, b) => d3.ascending(x(a), x(b))),
+    ]);
 
     let xDataType = typeof x(fData[0]);
     if (xDataType === "object" && x(fData[0]) instanceof Date) {
