@@ -70,8 +70,8 @@ function BrushTooltipEditable({
     brushTooltip.style.display = "block";
     x0E.value = fmtX(selection[0][0]);
     x1E.value = fmtX(selection[1][0]);
-    y0E.value = fmtY(selection[1][1]);
-    y1E.value = fmtY(selection[0][1]);
+    y0E.value = fmtY(selection[0][1]);
+    y1E.value = fmtY(selection[1][1]);
 
     fromE.style.top = selectionPixels[0][1] + "px";
     fromE.style.left = selectionPixels[0][0] + "px";
@@ -416,6 +416,15 @@ function TimeSearcher({
       .append("g")
       .attr("class", "mainYAxis")
       .call(d3.axisLeft(overviewY))
+      .call((axis) =>
+        axis
+          .append("text")
+          .text(yLabel)
+          .attr("dy", -15)
+          .style("fill", "black")
+          .style("text-anchor", "end")
+          .style("pointer-events", "none")
+      )
       .style("pointer-events", "none");
 
     if (ts.doubleYlegend) {
@@ -521,7 +530,7 @@ function TimeSearcher({
         fmtX,
         fmtY,
         // TODO: this + 20 shouldn't be here...
-        margin: { top: ts.margin.top + 20, left: ts.margin.left + 20 }, 
+        margin: { top: ts.margin.top - 20, left: ts.margin.left + 20 }, 
         callback: (newSelection) => {
           log("tooltip new value", newSelection);
         },
