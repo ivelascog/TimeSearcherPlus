@@ -43,9 +43,16 @@ function BrushTooltipEditable({
     div.__ts_tooltip > div > div * { 
       margin-right: 5px;
     }
-    div.__ts_tooltip button {
+    div.__ts_tooltip div > button {
       padding: 0px;
+      display: none;
     }
+    div.__ts_tooltip div:hover > button {
+      padding: 0px;
+      display: block;
+    }
+
+
     </style>
     <div>${fromE}</div>
     <div>${toE}</div>
@@ -1455,7 +1462,9 @@ function TimeSearcher({
                     let selection = d[1].selection;
                     showBrushTooltip({ selection, sourceEvent });
                   })
-                  .on("mouseout", () => hideTooltip(d3.select(this)), false);
+                  .on("mouseout", () => {
+                    if (!useNewTooltip) hideTooltip(d3.select(this));
+                  }, false);
               }
             });
         },
