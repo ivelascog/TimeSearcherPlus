@@ -255,7 +255,7 @@ function TimeSearcher({
     .select(detailedElement)
     .attr("id", "detail")
     .style("height", `${detailedContainerHeight}px`)
-    .style("width", `${overviewWidth + 40}px`)
+    .style("width", `${detailedWidth + 40}px`)
     .style("overflow-y", "scroll")
     .node();
   divBrushesCoordinates = d3.select(brushCoordinatesElement);
@@ -2031,6 +2031,8 @@ function TimeSearcher({
     
     // Adjust the alpha based on the number of lines
     ts.alphaScale.domain([0, data.length]);
+
+    groupedData = groupedData.slice(0,1000)
 
     groupedData.map((d) => [
       d[0],

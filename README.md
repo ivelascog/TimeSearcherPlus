@@ -7,14 +7,13 @@
 You can use it to visualize thousands of time series, and select multiple groups by direct manipulation. In addition, it
 works as a reactive widget that can be added to other applications, returning the selected groups in real time.
 
-| Group Selection | Detailed View | Reference Lines |
-|-----------------|---------------|-----------------|
-| TODO GIF| TODO GIF | TODO GIF |
-
+| Group Selection                                   | Detailed View                                   | Reference Lines                                   |
+|---------------------------------------------------|-------------------------------------------------|---------------------------------------------------|
+| <img src="imgs/timeSearcher_groupSelection.gif"/> | <img src="imgs/timeSearcher_detailedView.gif"/> | <img src="img/timesearcher_referencesLines.png/"> |
 
 ## Try it!
 
-You can test Navio right now with your **own CSV data** (less than 200MB), using:
+You can test timeSearcher+ right now with your **own CSV data** (less than 200MB), using:
 | Obervable Notebook |
 | --- |
 |TODO GIF and noteBook |
