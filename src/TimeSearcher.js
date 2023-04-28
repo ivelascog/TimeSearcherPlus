@@ -210,7 +210,7 @@ function TimeSearcher({
   ts.backgroundColor = "#ffffff";
   ts.defaultColor = "#aaa"; // Default color (when no selection is active) of the drawn lines. It only has effect when "groupAttr" is not defined.
   ts.selectedColor = "#aaa"; // Color of selected lines. It only has effect when "groupAttr" is not defined.
-  ts.noSelectedColor = "#ddd"; // Color of unselected lines. It only has effect when "groupAttr" is not defined.
+  ts.noSelectedColor = "#dce0e5"; // Color of unselected lines. It only has effect when "groupAttr" is not defined.
   ts.hasDetailed = true; // Determines whether detail data will be displayed or not. Disabling it saves preprocessing time if detail data is not to be displayed.
   ts.margin = { left: 50, top: 30, bottom: 50, right: 20 };
   ts.colorScale = d3.scaleOrdinal(d3.schemeCategory10); // The color scale to be used to display the different groups defined by the "groupAttr" attribute.
