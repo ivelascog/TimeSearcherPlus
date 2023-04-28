@@ -53,7 +53,7 @@ function BrushTooltipEditable({
       font-family: sans-serif; font-size: 10pt; 
     }
     div.__ts_tooltip > div > div * { 
-      margin-right: 5px;
+      margin-right: 1px;
     }
     div.__ts_tooltip div > button {
       padding: 0px;
@@ -155,8 +155,6 @@ function TimeSearcher({
   useNewTooltip = true, // TODO remove this option
   maxDetailedRecords = 100, // How many results to show in the detail view
 } = {}) {
-
-
   let ts = {},
     groupedData,
     fData,
@@ -227,6 +225,9 @@ function TimeSearcher({
   //ts.stepX = 1000 * 24 * 3600; // Defines the step used, both in the spinboxes and with the arrows on the X axis.
   ts.stepY = 1; // // Defines the step used, both in the spinboxes and with the arrows on the Y axis.
 
+  // A scale to adjust the alpha
+  ts.alphaScale = d3.scalePow().exponent(0.15).range([1, 0.01]);
+
   // Convert attrStrings to functions
   if (typeof x === "string") {
     let _x = x;
@@ -240,8 +241,6 @@ function TimeSearcher({
     let _id = id;
     id = (d) => d[_id];
   }
-
-
 
   divOverview = d3
     .select(target)
@@ -561,7 +560,7 @@ function TimeSearcher({
         fmtX,
         fmtY,
         // TODO: this + 20 shouldn't be here...
-        margin: { top: ts.margin.top , left: ts.margin.left },
+        margin: { top: ts.margin.top, left: ts.margin.left },
         callback: (newSelection) => {
           log("tooltip new value", newSelection);
         },
@@ -1177,7 +1176,7 @@ function TimeSearcher({
       context.clearRect(0, 0, canvas.node().width, canvas.node().height);
       if (brushSize === 0) {
         // Render all
-        renderOverviewCanvasGroup(
+        renderOverviewCanvasSubset(
           dataSelected.get(0),
           ts.defaultAlpha,
           ts.defaultColor
@@ -1190,29 +1189,40 @@ function TimeSearcher({
         });
 
         // Render Non selected
-        renderOverviewCanvasGroup(
+        renderOverviewCanvasSubset(
           dataNotSelected,
           ts.noSelectedAlpha,
           ts.noSelectedColor
         );
 
         // Render selected
-        renderOverviewCanvasGroup(
+        renderOverviewCanvasSubset(
           dataSelected.get(brushGroupSelected),
-          ts.defaultAlpha,
+          ts.selectedAlpha,
           ts.selectedColor
         );
       }
     }
 
-    // Draws a group of lines with a default alpha and color
-    function renderOverviewCanvasGroup(dataSubset, alpha, color) {
+    // Draws a subset of lines with a default alpha and color
+    function renderOverviewCanvasSubset(dataSubset, alpha, color) {
       context.save();
-      context.globalAlpha = alpha;
+      // Compute the transparency with respect to the number of lines drawn
+      // Min 0.05, then adjust by the expected alpha divided by 10% of the number of lines
+      // context.globalAlpha = 0.05 + alpha / (dataSubset.length * 0.1);
+      context.globalAlpha = alpha * ts.alphaScale(dataSubset.length);
+
+      log(
+        "computed alpha",
+        ts.alphaScale(dataSubset.length),
+        alpha / dataSubset.length,
+        alpha,
+        dataSubset.length
+      );
       for (let d of dataSubset) {
         let path = paths.get(d[0]);
         if (!path) {
-          console.log("renderOverviewCanvasGroup error finding path", d[0], d);
+          console.log("renderOverviewCanvasSubset error finding path", d[0], d);
           return;
         }
         context.strokeStyle = ts.groupAttr ? ts.colorScale(path.group) : color;
@@ -1519,7 +1529,7 @@ function TimeSearcher({
             .each(function (d, i) {
               d3.select(this)
                 .selectAll(".selection")
-                .style("outline", "-webkit-focus-ring-color solid 1px")
+                .style("outline", "-webkit-focus-ring-color solid 0px")
                 .attr("tabindex", 0)
                 .on("mousedown", (sourceEvent) => {
                   let selection = d[1].selection;
@@ -2018,8 +2028,10 @@ function TimeSearcher({
         x(d) !== undefined &&
         x(d) !== null
     );
-    groupedData = d3.group(fData, id);
-    groupedData = Array.from(groupedData);
+    groupedData = d3.groups(fData, id);
+    
+    // Adjust the alpha based on the number of lines
+    ts.alphaScale.domain([0, data.length]);
 
     groupedData.map((d) => [
       d[0],
@@ -2096,6 +2108,8 @@ function TimeSearcher({
       prerenderDetailed = renderObject.preRender;
     }
 
+    
+
     generateDataSelectionDiv();
     generateBrushCoordinatesDiv();
 
@@ -2108,10 +2122,15 @@ function TimeSearcher({
     selectBrushGroup(0);
   };
 
+
+
   // If we receive the data on initialization call ts.Data
   if (data) {
     ts.data(data);
   }
+
+  // To allow a message from the outside to rerender
+  ts.render = () => render(dataSelected, dataNotSelected);
 
   // Make the ts object accesible
   divOverview.ts = ts;
