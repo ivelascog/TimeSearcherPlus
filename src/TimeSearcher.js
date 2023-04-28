@@ -135,14 +135,14 @@ function TimeSearcher({
   brushCoordinatesElement = document.createElement("div"), // pass a html element where you want to render the brush coordinates Input.
   brushesControlsElement = document.createElement("div"), // pass a html element where you want to have the brushes controls.
   showBrushesControls = true, // If false you can still use brushesControlsElement to show the control on a different element on your app
-  x = (d) => d.x,
-  y = (d) => d.y,
-  id = (d) => d.id,
+  x = (d) => d.x, // Atribute to show in the X axis (Note that it also supports functions)
+  y = (d) => d.y, // Atribute to show in the Y axis (Note that it also supports functions)
+  id = (d) => d.id, // Atribute to group the input data (Note that it also supports functions)
   renderer = "canvas",
-  overviewWidth = 1200,
-  detailedWidth = 1200 - 20,
-  overviewHeight = 600,
-  detailedHeight = 300,
+  overviewWidth = 1200, // Set the desired width of the overview Widget
+  detailedWidth = 1200 - 20, // Set the desired width of the detailed Widget
+  overviewHeight = 600, // Set the desired height of the overview Widget
+  detailedHeight = 300, // Set the desired height of the overview Widget
   detailedContainerHeight = 400,
   updateCallback = (data) => {},
   statusCallback = (status) => {},
@@ -223,8 +223,7 @@ function TimeSearcher({
   ts.showBrushTooltip = true; // Allows to display a tooltip on the brushes containing its coordinates.
   ts.autoUpdate = true; // Allows to decide whether changes in brushes are processed while moving, or only at the end of the movement.
   ts.brushGruopSize = 15; //Controls the size of the colored rectangles used to select the different brushGroups.
-  ts.stepX = { days: 10 }; // Defines the pitch used, both in the spinboxes and with the arrows on the X axis.
-  //ts.stepX = 1000 * 24 * 3600; // Defines the step used, both in the spinboxes and with the arrows on the X axis.
+  ts.stepX = { days: 10 }; // Defines the step used, both in the spinboxes and with the arrows on the X axis.
   ts.stepY = 1; // // Defines the step used, both in the spinboxes and with the arrows on the Y axis.
 
   // Convert attrStrings to functions
