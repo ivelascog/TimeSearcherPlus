@@ -5,9 +5,9 @@
     <title>Example</title>
 </head>
 <body>
-<div id="target"></div>
+<div id="target" style="float: left"></div>
+<div id="targetDetailed" style="float: left"></div>
 <div id="targetCoordinates"></div>
-<div id="targetDetailed"></div>
 <script src="https://d3js.org/d3.v7.js"></script>
 <script src="https://unpkg.com/@popperjs/core@2"></script>
 <script src="https://unpkg.com/htl@0.3.1/dist/htl.min.js"></script>
@@ -17,7 +17,11 @@
   let target = TimeSearcher({
     target: d3.select("#target").node(),
     detailedElement: d3.select("#targetDetailed").node(),
-    brushCoordinatesElement: d3.select("#targetCoordinates").node(),
+    showBrushesControls: false,
+    //brushCoordinatesElement: d3.select("#targetCoordinates").node(),
+    detailedContainerHeight: 600,
+    overviewWidth: 800,
+    detailedWidth: 400,
     x: "__time",
     y: "peso",
     id: "Code",
@@ -28,18 +32,13 @@
   //nn.updateCallback(selected => console.log(selected));
   //      nn.statusCallback(status => console.log(status))
   target.ts.doubleYlegend = true;
-  target.ts.hasDetailed = false;
-  target.ts.defaultColor = "black";
-  target.ts.defaultAlpha = 0.1;
-  target.ts.noSelectedAlpha = 0.1;
-  target.ts.selectedAlpha = 0.3;
-  target.ts.selectedColor = "blue";
   target.ts.margin.right = 40;
-  target.ts.groupAttr = "ERN_Sexo";
+  //target.ts.groupAttr = "ERN_Sexo";
   target.ts.showGrid = true;
   target.ts.autoUpdate = true;
   target.ts.stepX = 1;
   target.ts.stepY = 100;
+  target.ts.hasDetailed = true;
 
 
   target.ts.brushGruopSize = 20;
@@ -48,7 +47,7 @@
     //data = data.filter(d => ["1-0000001","1-0000002"].includes(d["Code"]))
     target.ts.data(data);
     d3.json("./curvas.json").then(curves => {
-      target.ts.addReferenceCurves(curves);
+     target.ts.addReferenceCurves(curves);
     });
   });
 

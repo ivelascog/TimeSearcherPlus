@@ -7,14 +7,13 @@
 You can use it to visualize thousands of time series, and select multiple groups by direct manipulation. In addition, it
 works as a reactive widget that can be added to other applications, returning the selected groups in real time.
 
-| Group Selection | Detailed View | Reference Lines |
-|-----------------|---------------|-----------------|
-| TODO GIF| TODO GIF | TODO GIF |
-
+| Group Selection                                   | Detailed View                                   | Reference Lines                                                |
+|---------------------------------------------------|-------------------------------------------------|----------------------------------------------------------------|
+| <img src="imgs/timeSearcher_groupSelection.gif"/> | <img src="imgs/timeSearcher_detailedView.gif"/> | <img src="imgs/timesearcher_referencesLines.png/" width="300"> |
 
 ## Try it!
 
-You can test Navio right now with your **own CSV data** (less than 200MB), using:
+You can test timeSearcher+ right now with your **own CSV data** (less than 200MB), using:
 | Obervable Notebook |
 | --- |
 |TODO GIF and noteBook |
@@ -22,7 +21,7 @@ You can test Navio right now with your **own CSV data** (less than 200MB), using
 ## Install
 
 ```js
-npm install timeSearcher+
+npm install time-searcher-plus
 ```
 Requires [^popper.js@2.11.6](https://github.com/FezVrasta/popper.js/), [^d3@7.8.2](http://d3js.org) and [^htl@0.3.1](https://github.com/observablehq/htl).
 
@@ -149,6 +148,29 @@ or right in the html like in the example below.
 ```js
    target.ts.data(myData);
 ```
+6. **[Optional] Add the references lines
+```js
+    target.ts.addReferenceCurves(myReferenceCurves)
+ ```
+The file containing the reference lines will be a json file with the following definition:
+```js
+[
+  {
+    "name": "Line1",
+    "color": "yellow", // Color in css format
+    "opacity": 1, // opacity level of the line
+    "data": [[p1x,p1y],[p2x,p2y],...]
+  },
+  {
+    "name": "Line2",
+    "color": "red", // Color in css format
+    "opacity": 0.5, // opacity level of the line
+    "data": [[p1x,p1y],[p2x,p2y],...]
+  }
+]  
+ ```
+
+
 
 ## License
 
