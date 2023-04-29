@@ -279,8 +279,8 @@ function TimeSearcher({
   });
 
   function initBrushesControls() {
-    brushesControlsElement.innerHTML = `<div id="brushesGroups" style="flex-basis:100%">
-    <h2>Brush Groups</h2>
+    brushesControlsElement.innerHTML = `<div id="brushesGroups" style="flex-basis:100%;">
+    <h3>Brush Groups</h3>
     <ul id="brushesList">
       
     </ul>
@@ -597,10 +597,10 @@ function TimeSearcher({
 
   function generateBrushCoordinatesDiv() {
     divBrushesCoordinates.innerHTML = "";
-    divBrushesCoordinates.append("span").text("Brush Coordinates: ");
+    divBrushesCoordinates.append("h3").text("Brush Coordinates: ");
     let divX = divBrushesCoordinates.append("div");
 
-    divX.append("span").text("X:");
+    divX.append("span").text(xLabel);
 
     let divInputX = divX.append("div");
 
@@ -611,7 +611,8 @@ function TimeSearcher({
       .attr("min", domainX[0])
       .attr("max", domainX[1])
       .attr("step", ts.stepX)
-      .style("background-color", ts.backgroundColor)
+      .attr("width", "50%")
+      // .style("background-color", ts.backgroundColor)
       .on("change", onSpinboxChange);
 
     let x1 = divInputX
@@ -619,13 +620,14 @@ function TimeSearcher({
       // .attr("type", "number")
       .attr("min", domainX[0])
       .attr("max", domainX[1])
+      .attr("width", "50%")
       .attr("step", ts.stepX)
-      .style("background-color", ts.backgroundColor)
+      // .style("background-color", ts.backgroundColor)
       .on("change", onSpinboxChange);
 
     let divY = divBrushesCoordinates.append("div");
 
-    divY.append("span").text("Y:");
+    divY.append("span").text(yLabel);
 
     let divInputY = divY.append("div");
 
@@ -636,8 +638,9 @@ function TimeSearcher({
       .attr("type", "number")
       .attr("min", domainY[0])
       .attr("max", domainY[1])
+      .attr("width", "50%")
       .attr("step", ts.stepY)
-      .style("background-color", ts.backgroundColor)
+      // .style("background-color", ts.backgroundColor)
       .on("change", onSpinboxChange);
 
     let y1 = divInputY
@@ -645,8 +648,9 @@ function TimeSearcher({
       .attr("type", "number")
       .attr("min", domainY[0])
       .attr("max", domainY[1])
+      .attr("width", "50%")
       .attr("step", ts.stepY)
-      .style("background-color", ts.backgroundColor)
+      // .style("background-color", ts.backgroundColor)
       .on("change", onSpinboxChange);
 
     brushSpinBoxes = [
