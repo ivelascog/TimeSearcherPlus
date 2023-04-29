@@ -31,7 +31,7 @@ function BrushTooltipEditable({
     resizeInput.call(input); // immediately call the function
 
     function resizeInput() {
-      this.style.width = this.value.length + 1 + "ch";
+      this.style.width = this.value.length  + "ch";
     }
   };
 
@@ -154,6 +154,7 @@ function TimeSearcher({
   brushShadow = "drop-shadow( 2px 2px 2px rgba(0, 0, 0, .7))",
   useNewTooltip = true, // TODO remove this option
   maxDetailedRecords = 100, // How many results to show in the detail view
+  maxTimelines = null, // Set to a value to limit the number of distinct timelines to show
 } = {}) {
   let ts = {},
     groupedData,
@@ -206,7 +207,8 @@ function TimeSearcher({
   ts.yPartitions = 10; // Partitions performed on the Y-axis for the collision acceleration algorithm.
   ts.defaultAlpha = 0.8; // Default transparency (when no selection is active) of drawn lines
   ts.selectedAlpha = 1; // Transparency of selected lines
-  ts.noSelectedAlpha = 0.4; // Transparency of unselected lines
+  ts.noSelectedAlpha = 0.6
+  ; // Transparency of unselected lines
   ts.backgroundColor = "#ffffff";
   ts.defaultColor = "#aaa"; // Default color (when no selection is active) of the drawn lines. It only has effect when "groupAttr" is not defined.
   ts.selectedColor = "#aaa"; // Color of selected lines. It only has effect when "groupAttr" is not defined.
@@ -2032,11 +2034,12 @@ function TimeSearcher({
         x(d) !== null
     );
     groupedData = d3.groups(fData, id);
-    
-    // Adjust the alpha based on the number of lines
-    ts.alphaScale.domain([0, data.length]);
 
-    groupedData = groupedData.slice(0,1000)
+    // Limit the number of timelines
+    if (maxTimelines) groupedData = groupedData.slice(0, maxTimelines);
+
+    // Adjust the alpha based on the number of lines
+    ts.alphaScale.domain([0, groupedData.length]);
 
     groupedData.map((d) => [
       d[0],
@@ -2113,8 +2116,6 @@ function TimeSearcher({
       prerenderDetailed = renderObject.preRender;
     }
 
-    
-
     generateDataSelectionDiv();
     generateBrushCoordinatesDiv();
 
@@ -2126,8 +2127,6 @@ function TimeSearcher({
     triggerValueUpdate([]);
     selectBrushGroup(0);
   };
-
-
 
   // If we receive the data on initialization call ts.Data
   if (data) {
