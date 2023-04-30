@@ -365,7 +365,7 @@ function TimeSearcher({
       .attr("width", ts.brushGruopSize)
       .attr(
         "transform",
-        (d, i) => `translate(${170 + i * (ts.brushGruopSize + 5)}, -2)`
+        (d, i) => `translate(${90 + i * (ts.brushGruopSize + 5)}, -2)`
       )
       .style("stroke-width", (d) => d[0] === brushGroupSelected ? 2 : 0)
       .style("stroke", "black")
@@ -377,7 +377,12 @@ function TimeSearcher({
   }
 
   function changeBrushGroupState(id, newState) {
-    if (enableBrushGroups.has(id) === newState) return //same state so no update needed
+    if (enableBrushGroups.has(id) === newState) return; //same state so no update needed
+
+    if (!newState && brushGroupSelected === id) { // Not Allowed to disable active brushGroup
+      renderBrushesControls();
+      return;
+    }
 
     if (newState)
       enableBrushGroups.add(id)
@@ -388,6 +393,7 @@ function TimeSearcher({
       }
     }
 
+    renderBrushesControls();
     drawBrushes()
     render(dataSelected,dataNotSelected)
   }
@@ -1217,8 +1223,12 @@ function TimeSearcher({
           ts.defaultColor
         );
       } else {
+        let mDataSelected = []
+
         dataSelected.forEach((g, i) => {
-          if (i !== brushGroupSelected) {
+          if (enableBrushGroups.has(i)) {
+            mDataSelected = mDataSelected.concat(g)
+          } else {
             dataNotSelected = dataNotSelected.concat(g);
           }
         });
@@ -1232,7 +1242,7 @@ function TimeSearcher({
 
         // Render selected
         renderOverviewCanvasSubset(
-          dataSelected.get(brushGroupSelected),
+          mDataSelected,
           ts.selectedAlpha,
           ts.selectedColor
         );
@@ -1385,6 +1395,7 @@ function TimeSearcher({
 
   function selectBrushGroup(id) {
     brushGroupSelected = id;
+    changeBrushGroupState(id, true); // Auto enable active BrushGroup
     renderBrushesControls();
     drawBrushes();
     render(dataSelected, dataNotSelected);
