@@ -116,6 +116,8 @@ or right in the html like in the example below.
       filters: [], // Array of filters to use, format [[x1, y1], [x2, y2], ...]
       brushShadow: "drop-shadow( 2px 2px 2px rgba(0, 0, 0, .7))", // How to show a shadow on the selected brush
       maxDetailedRecords: 100, // How many results to show in the detail view
+      showGroupMedian: true, // If active show a line with the median of the enabled groups
+      binWidth: 1, // Sets the width of the bins used to calculate the group average. Note that this value may vary slightly to achieve a integer number of bins.
    })
 ```
 

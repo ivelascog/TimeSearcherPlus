@@ -155,8 +155,8 @@ function TimeSearcher({
   useNewTooltip = true, // TODO remove this option
   maxDetailedRecords = 100, // How many results to show in the detail view
   maxTimelines = null, // Set to a value to limit the number of distinct timelines to show
-  showGroupMean = true, // If active show a line with the mean of the enabled groups
-  binWidth = 1, // Sets the width of the bins used to calculate the group average.
+  showGroupMedian = true, // If active show a line with the median of the enabled groups.
+  binWidth = 1, // Sets the width of the bins used to calculate the group average. Note that this value may vary slightly to achieve a integer number of bins.
 } = {}) {
   let ts = {},
     groupedData,
@@ -1254,7 +1254,7 @@ function TimeSearcher({
 
 
         // Render Group Means
-        if (showGroupMean) {
+        if (showGroupMedian) {
           let line2m = d3.line()
             .x(d => overviewX(d[0]))
             .y(d => overviewY(d[1]));
@@ -1664,7 +1664,7 @@ function TimeSearcher({
       });
   }
 
-  function getBrushGroupsMeans(data) {
+  function getBrushGroupsMedians(data) {
     let minX = overviewX.domain()[0];
     let maxX = overviewX.domain()[1];
 
@@ -1725,7 +1725,7 @@ function TimeSearcher({
         }
       }
 
-      if (showGroupMean) getBrushGroupsMeans(dataSelected)
+      if (showGroupMedian) getBrushGroupsMedians(dataSelected)
 
       triggerValueUpdate(dataSelected);
 
