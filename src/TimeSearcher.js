@@ -384,12 +384,11 @@ function TimeSearcher({
             event.target.checked
           );
         });
-<<<<<<< HEAD
-        li.select("div#groupColor").on("click", () => selectBrushGroup(d[0]));
-        li.select("span#groupSize").on("click", () => selectBrushGroup(d[0]));
-=======
-        li.on("click", () => { if(d[0] !== brushGroupSelected) selectBrushGroup(d[0]); });
->>>>>>> 0aefb3c4f388118d19cd893bae8b6c9f49ee6215
+        li.on("click", () => selectBrushGroup(d[0]));
+
+        // Alternative, select only on the box and size        
+        // li.select("div#groupColor").on("click", () => selectBrushGroup(d[0]));
+        // li.select("span#groupSize").on("click", () => selectBrushGroup(d[0]));
       });
 
     // Render internal brush  controls
