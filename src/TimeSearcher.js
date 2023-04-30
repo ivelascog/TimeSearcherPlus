@@ -312,7 +312,7 @@ function TimeSearcher({
       .attr("class", "brushControl")
       .each(function (d) {
         const li = d3.select(this);
-        let outGroup = htl.html``;
+        let groupName = `Group ${d[0]}`;
         li.node().innerHTML = `<div style="
             display: flex;
             flex-wrap: nowrap;        
@@ -326,6 +326,9 @@ function TimeSearcher({
                 display: block;
               }
             </style>
+            <input type="checkbox" id="checkBoxShowBrushGroup" ${
+              enableBrushGroups.has(d[0]) ? "checked" : ""
+            }>                        
             <div style="
               width: ${ts.brushGruopSize}px; 
               height: ${ts.brushGruopSize}px;
@@ -333,27 +336,23 @@ function TimeSearcher({
               margin-right: 5px;
             "></div>
             <input 
-              style="margin-right: 5px; border: none;outline: none;" 
-              contenteditable="true">Group ${d[0]}</input>
+              style="margin-right: 5px; border: none;outline: none; width: ${
+                groupName.length
+              }ch;" 
+              contenteditable="true" 
+              value="${groupName}"></input>
             <span style="margin-right: 5px;">(${
               dataSelected.get(d[0]).length
             })</span>
-            <input type="checkbox" id="checkBoxShowBrushGroup" ${
-              enableBrushGroups.has(d[0]) ? "checked" : ""
-            }>
             <button style="display" id="btnRemoveBrushGroup">-</button>
           </div>
         `;
 
-        li.select("input")
-          .on("input", function (evt) {
-            evt.target.style.width = evt.target.value.length + "ch";
-            d3.select(this).style("width", evt.target.value.length + "ch");
-            log("on change group name", evt.target.value);
-          })
-          .call(function (input) {
-            input.style("width", this.value.length + "ch");
-          });
+        li.select("input").on("input", function (evt) {
+          evt.target.style.width = evt.target.value.length + "ch";
+          d3.select(this).style("width", evt.target.value.length + "ch");
+          log("on change group name", evt.target.value);
+        });
 
         li.select("#btnRemoveBrushGroup").on("click", (event) => {
           event.stopPropagation();
@@ -1269,8 +1268,8 @@ function TimeSearcher({
         );
 
         context.save();
-        // Render Group Means
-        if (showGroupMean) {
+        // Render Group Median
+        if (showGroupMedian) {
           let line2m = d3
             .line()
             .x((d) => overviewX(d[0]))
