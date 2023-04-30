@@ -328,27 +328,36 @@ function TimeSearcher({
             </style>
             <input type="checkbox" id="checkBoxShowBrushGroup" ${
               enableBrushGroups.has(d[0]) ? "checked" : ""
-            }>                        
-            <div style="
+            } ></input>                        
+            <div 
+              id="groupColor"
+              style="
               width: ${ts.brushGruopSize}px; 
               height: ${ts.brushGruopSize}px;
               background-color: ${ts.brushesColorScale(d[0])};
+              border-width: ${d[0] === brushGroupSelected ? 2 : 0}px;
+              border-color: black;
+              border-style: solid;
               margin-right: 5px;
+              cursor: pointer;
             "></div>
             <input 
+              id="groupName"
               style="margin-right: 5px; border: none;outline: none; width: ${
                 groupName.length
               }ch;" 
               contenteditable="true" 
               value="${groupName}"></input>
-            <span style="margin-right: 5px;">(${
+            <span id="groupSize" style="margin-right: 5px;">(${
               dataSelected.get(d[0]).length
             })</span>
             <button style="display" id="btnRemoveBrushGroup">-</button>
           </div>
         `;
+        log("render Brush Controls", d[0], brushGroupSelected);
 
-        li.select("input").on("input", function (evt) {
+        
+        li.select("input#groupName").on("input", function (evt) {
           evt.target.style.width = evt.target.value.length + "ch";
           d3.select(this).style("width", evt.target.value.length + "ch");
           log("on change group name", evt.target.value);
@@ -370,7 +379,8 @@ function TimeSearcher({
             event.target.checked
           );
         });
-        li.on("click", () => selectBrushGroup(d[0]));
+        li.select("div#groupColor").on("click", () => selectBrushGroup(d[0]));
+        li.select("span#groupSize").on("click", () => selectBrushGroup(d[0]));
       });
 
     // Render internal brush  controls
@@ -1692,6 +1702,8 @@ function TimeSearcher({
     let nBins = Math.floor((maxX - minX) / binWidth);
     let binW = (maxX - minX) / nBins;
 
+    log("number of bins", nBins, minX, maxX);
+
     for (let g of data.entries()) {
       let id = g[0];
 
@@ -1723,6 +1735,8 @@ function TimeSearcher({
       }
       medianBrushGroups.set(id, median);
     }
+
+    log(" Bins computed", medianBrushGroups);
   }
 
   function brushFilterRender() {
