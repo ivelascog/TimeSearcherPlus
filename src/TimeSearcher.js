@@ -147,7 +147,7 @@ function TimeSearcher({
   updateCallback = (data) => {},
   statusCallback = (status) => {},
   fmtX = d3.timeFormat("%d/%m/%y"), // Function, how to format x points in the tooltip
-  fmtY = d3.format(".2d"), // Function, how to format x points in the tooltip
+  fmtY = d3.format(".1d"), // Function, how to format x points in the tooltip
   yLabel = "",
   xLabel = "",
   filters = [], // Array of filters to use, format [[x1, y1], [x2, y2], ...]
