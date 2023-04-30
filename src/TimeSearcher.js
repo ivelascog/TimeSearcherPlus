@@ -183,8 +183,9 @@ function TimeSearcher({
     gEditbrushes,
     gReferences,
     brushesGroup,
-    enableBrushGroups, // TODO refactor to include an atribute of enabled/disabled in brushGroups
+    enableBrushGroups, // TODO refactor to include this inside of brushGroups
     medianBrushGroups, // TODO refactor to include this inside of brushGroups
+    nameBrushGroups, // // TODO refactor to include this inside of brushGroups
     brushGroupSelected,
     brushCount,
     brushSize,
@@ -270,6 +271,7 @@ function TimeSearcher({
   brushesGroup = new Map();
   enableBrushGroups = new Set();
   medianBrushGroups = new Map();
+  nameBrushGroups = new Map ();
   brushGroupSelected = 0;
   brushCount = 0;
   brushSize = 0;
@@ -312,7 +314,7 @@ function TimeSearcher({
       .attr("class", "brushControl")
       .each(function (d) {
         const li = d3.select(this);
-        let groupName = `Group ${d[0]}`;
+        let groupName =  nameBrushGroups.get(d[0]);
         li.node().innerHTML = `<div style="
             display: flex;
             flex-wrap: nowrap;        
@@ -338,7 +340,8 @@ function TimeSearcher({
             <input 
               style="margin-right: 5px; border: none;outline: none; width: ${
                 groupName.length
-              }ch;" 
+              }ch;"
+              id = "inputBrushName" 
               contenteditable="true" 
               value="${groupName}"></input>
             <span style="margin-right: 5px;">(${
@@ -348,12 +351,14 @@ function TimeSearcher({
           </div>
         `;
 
-        li.select("input").on("input", function (evt) {
+        li.select("#inputBrushName").on("input", function (evt) {
           evt.target.style.width = evt.target.value.length + "ch";
           d3.select(this).style("width", evt.target.value.length + "ch");
           log("on change group name", evt.target.value);
         });
-
+        li.select("#inputBrushName").on("change", (event) => {
+          updateBrushGroupName(d[0], event.target.value)
+        })
         li.select("#btnRemoveBrushGroup").on("click", (event) => {
           event.stopPropagation();
           removeBrushGroup(d[0]);
@@ -370,7 +375,7 @@ function TimeSearcher({
             event.target.checked
           );
         });
-        li.on("click", () => selectBrushGroup(d[0]));
+        li.on("click", () => { if(d[0] !== brushGroupSelected) selectBrushGroup(d[0]); });
       });
 
     // Render internal brush  controls
@@ -393,6 +398,11 @@ function TimeSearcher({
         let id = d3.select(this).attr("id").substr("11");
         selectBrushGroup(+id);
       });
+  }
+
+  function updateBrushGroupName(id, name) {
+    nameBrushGroups.set(id, name);
+    renderBrushesControls();
   }
 
   function changeBrushGroupState(id, newState) {
@@ -1423,6 +1433,7 @@ function TimeSearcher({
   function addBrushGroup() {
     let newId = getUnusedIdBrushGroup();
     enableBrushGroups.add(newId);
+    nameBrushGroups.set(newId, "Group " + newId)
     brushesGroup.set(newId, new Map());
     dataSelected.set(newId, []);
     selectBrushGroup(newId);
@@ -1686,6 +1697,7 @@ function TimeSearcher({
   }
 
   function getBrushGroupsMedians(data) {
+    // TODO use d3.bin()
     let minX = overviewX.domain()[0];
     let maxX = overviewX.domain()[1];
 
