@@ -220,13 +220,13 @@ function TimeSearcher({
   ts.hasDetailed = true; // Determines whether detail data will be displayed or not. Disabling it saves preprocessing time if detail data is not to be displayed.
   ts.margin = { left: 50, top: 30, bottom: 50, right: 20 };
   ts.colorScale = d3.scaleOrdinal(d3.schemeCategory10); // The color scale to be used to display the different groups defined by the "groupAttr" attribute.
-  ts.brushesColorScale = d3.scaleOrdinal(d3.schemeCategory10); // The color scale to be used to display the brushes
+  ts.brushesColorScale = d3.scaleOrdinal(d3.schemeAccent); // The color scale to be used to display the brushes
   ts.groupAttr = null; // Specifies the attribute to be used to discriminate the groups.
   ts.doubleYlegend = false; // Allows the y-axis legend to be displayed on both sides of the chart.
   ts.showGrid = false; // If active, a reference grid is displayed.
   ts.showBrushTooltip = true; // Allows to display a tooltip on the brushes containing its coordinates.
   ts.autoUpdate = true; // Allows to decide whether changes in brushes are processed while moving, or only at the end of the movement.
-  ts.brushGruopSize = 15; //Controls the size of the colored rectangles used to select the different brushGroups.
+  ts.brushGroupSize = 15; //Controls the size of the colored rectangles used to select the different brushGroups.
   ts.stepX = { days: 10 }; // Defines the step used, both in the spinboxes and with the arrows on the X axis.
   ts.stepY = 1; // // Defines the step used, both in the spinboxes and with the arrows on the Y axis.
 
@@ -271,7 +271,7 @@ function TimeSearcher({
   brushesGroup = new Map();
   enableBrushGroups = new Set();
   medianBrushGroups = new Map();
-  nameBrushGroups = new Map ();
+  nameBrushGroups = new Map();
   brushGroupSelected = 0;
   brushCount = 0;
   brushSize = 0;
@@ -314,7 +314,7 @@ function TimeSearcher({
       .attr("class", "brushControl")
       .each(function (d) {
         const li = d3.select(this);
-        let groupName =  nameBrushGroups.get(d[0]);
+        let groupName = nameBrushGroups.get(d[0]);
         li.node().innerHTML = `<div style="
             display: flex;
             flex-wrap: nowrap;        
@@ -334,8 +334,8 @@ function TimeSearcher({
             <div 
               id="groupColor"
               style="
-              width: ${ts.brushGruopSize}px; 
-              height: ${ts.brushGruopSize}px;
+              min-width: ${ts.brushGroupSize}px; 
+              height: ${ts.brushGroupSize}px;
               background-color: ${ts.brushesColorScale(d[0])};
               border-width: ${d[0] === brushGroupSelected ? 2 : 0}px;
               border-color: black;
@@ -359,15 +359,16 @@ function TimeSearcher({
         log("render Brush Controls", d[0], brushGroupSelected);
 
         li.select("input#groupName").on("input", function (evt) {
-          evt.target.style.width = evt.target.value.length + "ch";
-          
-          updateBrushGroupName(d[0], event.target.value)
-        });
-        li.select("input#groupName").on("change", (event) => {
+          // Only update the name on change
+
           // make the input fit the content
           d3.select(this).style("width", evt.target.value.length + "ch");
-          updateBrushGroupName(d[0], event.target.value)
-        })
+        });
+        li.select("input#groupName").on("change", (evt) => {
+          // make the input fit the content
+          d3.select(this).style("width", evt.target.value.length + "ch");
+          updateBrushGroupName(d[0], evt.target.value);
+        });
         li.select("#btnRemoveBrushGroup").on("click", (event) => {
           event.stopPropagation();
           removeBrushGroup(d[0]);
@@ -384,11 +385,10 @@ function TimeSearcher({
             event.target.checked
           );
         });
-        li.on("click", () => selectBrushGroup(d[0]));
 
-        // Alternative, select only on the box and size        
-        // li.select("div#groupColor").on("click", () => selectBrushGroup(d[0]));
-        // li.select("span#groupSize").on("click", () => selectBrushGroup(d[0]));
+        // Select only on the box and size
+        li.select("div#groupColor").on("click", () => selectBrushGroup(d[0]));
+        li.select("span#groupSize").on("click", () => selectBrushGroup(d[0]));
       });
 
     // Render internal brush  controls
@@ -398,11 +398,11 @@ function TimeSearcher({
       .join("rect")
       .attr("class", "colorBrushes")
       .attr("id", (d) => "colorBrush-" + d[0])
-      .attr("height", ts.brushGruopSize)
-      .attr("width", ts.brushGruopSize)
+      .attr("height", ts.brushGroupSize)
+      .attr("min-width", ts.brushGroupSize)
       .attr(
         "transform",
-        (d, i) => `translate(${90 + i * (ts.brushGruopSize + 5)}, -2)`
+        (d, i) => `translate(${90 + i * (ts.brushGroupSize + 5)}, -2)`
       )
       .style("stroke-width", (d) => (d[0] === brushGroupSelected ? 2 : 0))
       .style("stroke", "black")
@@ -619,14 +619,14 @@ function TimeSearcher({
       .attr(
         "transform",
         `translate(${ts.margin.left + 10},${
-          ts.margin.top - ts.brushGruopSize - 5
+          ts.margin.top - ts.brushGroupSize - 5
         } )`
       );
 
     gGroupBrushes
       .append("text")
       .attr("x", 0)
-      .attr("y", ts.brushGruopSize / 2 + 2)
+      .attr("y", ts.brushGroupSize / 2 + 2)
       .text("Groups + : ")
       .style("cursor", "pointer")
       .on("click", addBrushGroup);
@@ -752,14 +752,14 @@ function TimeSearcher({
         .attr("class", "groupData");
       divButtons
         .append("button")
-        .style("font-size", `${ts.brushGruopSize}px`)
+        .style("font-size", `${ts.brushGroupSize}px`)
         .style("stroke", "black")
         .style("margin", "2px")
         .style("margin-right", "10px")
         .style("border-width", "3px")
         .style("border", "solid black")
-        .style("width", `${ts.brushGruopSize}px`)
-        .style("height", `${ts.brushGruopSize}px`)
+        .style("width", `${ts.brushGroupSize}px`)
+        .style("height", `${ts.brushGroupSize}px`)
         .style("background-color", (d) => ts.colorScale(d))
         .on("click", function (event, d) {
           if (selectedGroupData.has(d)) {
@@ -1446,7 +1446,7 @@ function TimeSearcher({
   function addBrushGroup() {
     let newId = getUnusedIdBrushGroup();
     enableBrushGroups.add(newId);
-    nameBrushGroups.set(newId, "Group " + newId)
+    nameBrushGroups.set(newId, "Group " + newId);
     brushesGroup.set(newId, new Map());
     dataSelected.set(newId, []);
     selectBrushGroup(newId);
