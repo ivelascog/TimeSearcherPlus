@@ -155,6 +155,8 @@ function TimeSearcher({
   useNewTooltip = true, // TODO remove this option
   maxDetailedRecords = 100, // How many results to show in the detail view
   maxTimelines = null, // Set to a value to limit the number of distinct timelines to show
+  showGroupMean = true, // If active show a line with the mean of the enabled groups
+  binWidth = 1, // Sets the width of the bins used to calculate the group average.
 } = {}) {
   let ts = {},
     groupedData,
@@ -182,6 +184,7 @@ function TimeSearcher({
     gReferences,
     brushesGroup,
     enableBrushGroups, // TODO refactor to include an atribute of enabled/disabled in brushGroups
+    medianBrushGroups, // TODO refactor to include this inside of brushGroups
     brushGroupSelected,
     brushCount,
     brushSize,
@@ -267,6 +270,7 @@ function TimeSearcher({
   brushesControlsElement = brushesControlsElement || d3.create("div");
   brushesGroup = new Map();
   enableBrushGroups = new Set();
+  medianBrushGroups = new Map();
   brushGroupSelected = 0;
   brushCount = 0;
   brushSize = 0;
@@ -1232,6 +1236,7 @@ function TimeSearcher({
             dataNotSelected = dataNotSelected.concat(g);
           }
         });
+        context.lineWidth = 1;
 
         // Render Non selected
         renderOverviewCanvasSubset(
@@ -1246,6 +1251,24 @@ function TimeSearcher({
           ts.selectedAlpha,
           ts.selectedColor
         );
+
+
+        // Render Group Means
+        if (showGroupMean) {
+          let line2m = d3.line()
+            .x(d => overviewX(d[0]))
+            .y(d => overviewY(d[1]));
+          context.lineWidth = 3;
+          context.globalAlpha = 1;
+
+          medianBrushGroups.forEach((d, i) => {
+            if (enableBrushGroups.has(i)) {
+              let path = new Path2D(line2m(d));
+              context.strokeStyle = ts.brushesColorScale(i);
+              context.stroke(path)
+            }
+          });
+        }
       }
     }
 
@@ -1641,6 +1664,46 @@ function TimeSearcher({
       });
   }
 
+  function getBrushGroupsMeans(data) {
+    let minX = overviewX.domain()[0];
+    let maxX = overviewX.domain()[1];
+
+    let nBins = Math.floor((maxX - minX) / binWidth);
+    let binW = (maxX - minX) / nBins;
+
+    for (let g of data.entries()) {
+      let id = g[0];
+
+      let bins = [];
+      let cx = minX;
+      for (let i = 0; i < nBins; ++i) {
+        bins.push({
+          x0: cx,
+          x1: cx + binW,
+          data: []
+        });
+        cx += binW
+      }
+      for (let line of g[1]) {
+        for (let point of line[1]) {
+          let i = Math.floor((x(point) - minX) / binW);
+          i = i > nBins - 1 ? i - 1 : i
+          bins[i].data.push(y(point));
+        }
+      }
+
+      let median = [];
+      for (let bin of bins) {
+        if (bin.data.length > 5) {
+          let x = bin.x0 + (bin.x1 - bin.x0) / 2;
+          let y = d3.median(bin.data);
+          median.push([x, y]);
+        }
+      }
+      medianBrushGroups.set(id,median);
+    }
+  }
+
   function brushFilterRender() {
     dataNotSelected = [];
     dataSelected = new Map();
@@ -1661,6 +1724,8 @@ function TimeSearcher({
           }
         }
       }
+
+      if (showGroupMean) getBrushGroupsMeans(dataSelected)
 
       triggerValueUpdate(dataSelected);
 
