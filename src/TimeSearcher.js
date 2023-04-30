@@ -79,8 +79,6 @@ function BrushTooltipEditable({
 
   </div>`;
 
-  log("brushTooltipTooltipEditable", target);
-
   // x0E.oninput = (evt) => evt.preventDefault();
   // x1E.oninput = (evt) => evt.preventDefault();
   // y0E.oninput = (evt) => evt.preventDefault();
@@ -157,6 +155,9 @@ function TimeSearcher({
   maxTimelines = null, // Set to a value to limit the number of distinct timelines to show
   showGroupMedian = true, // If active show a line with the median of the enabled groups.
   binWidth = 1, // Sets the width of the bins used to calculate the group average. Note that this value may vary slightly to achieve a integer number of bins.
+  medianLineDash = [7], // Selected group median line dash pattern canvas style
+  medianLineAlpha = 1, // Selected group median line opacity
+  medianLineWidth = 2, // Selected group median line width
 } = {}) {
   let ts = {},
     groupedData,
@@ -219,8 +220,8 @@ function TimeSearcher({
   ts.noSelectedColor = "#dce0e5"; // Color of unselected lines. It only has effect when "groupAttr" is not defined.
   ts.hasDetailed = true; // Determines whether detail data will be displayed or not. Disabling it saves preprocessing time if detail data is not to be displayed.
   ts.margin = { left: 50, top: 30, bottom: 50, right: 20 };
-  ts.colorScale = d3.scaleOrdinal(d3.schemeCategory10); // The color scale to be used to display the different groups defined by the "groupAttr" attribute.
-  ts.brushesColorScale = d3.scaleOrdinal(d3.schemeAccent); // The color scale to be used to display the brushes
+  ts.colorScale = d3.scaleOrdinal(d3.schemeAccent); // The color scale to be used to display the different groups defined by the "groupAttr" attribute.
+  ts.brushesColorScale = d3.scaleOrdinal(d3.schemeCategory10); // The color scale to be used to display the brushes
   ts.groupAttr = null; // Specifies the attribute to be used to discriminate the groups.
   ts.doubleYlegend = false; // Allows the y-axis legend to be displayed on both sides of the chart.
   ts.showGrid = false; // If active, a reference grid is displayed.
@@ -229,6 +230,9 @@ function TimeSearcher({
   ts.brushGroupSize = 15; //Controls the size of the colored rectangles used to select the different brushGroups.
   ts.stepX = { days: 10 }; // Defines the step used, both in the spinboxes and with the arrows on the X axis.
   ts.stepY = 1; // // Defines the step used, both in the spinboxes and with the arrows on the Y axis.
+  ts.medianLineAlpha = medianLineAlpha;
+  ts.medianLineWidth = medianLineWidth;
+  ts.medianLineDash = medianLineDash;
 
   // A scale to adjust the alpha
   ts.alphaScale = d3.scalePow().exponent(0.15).range([1, 0.01]);
@@ -356,7 +360,6 @@ function TimeSearcher({
             <button style="display" id="btnRemoveBrushGroup">-</button>
           </div>
         `;
-        log("render Brush Controls", d[0], brushGroupSelected);
 
         li.select("input#groupName").on("input", function (evt) {
           // Only update the name on change
@@ -1297,13 +1300,13 @@ function TimeSearcher({
             .line()
             .x((d) => overviewX(d[0]))
             .y((d) => overviewY(d[1]));
-          context.lineWidth = 2;
-          context.globalAlpha = 1;
+          context.lineWidth = ts.medianLineWidth;
+          context.globalAlpha = ts.medianLineAlpha;
 
           medianBrushGroups.forEach((d, i) => {
             if (enableBrushGroups.has(i)) {
               let path = new Path2D(line2m(d));
-              context.setLineDash([5]);
+              context.setLineDash(ts.medianLineDash);
               context.strokeStyle = ts.brushesColorScale(i);
               context.stroke(path);
             }
@@ -1321,13 +1324,6 @@ function TimeSearcher({
       // context.globalAlpha = 0.05 + alpha / (dataSubset.length * 0.1);
       context.globalAlpha = alpha * ts.alphaScale(dataSubset.length);
 
-      log(
-        "computed alpha",
-        ts.alphaScale(dataSubset.length),
-        alpha / dataSubset.length,
-        alpha,
-        dataSubset.length
-      );
       for (let d of dataSubset) {
         let path = paths.get(d[0]);
         if (!path) {
