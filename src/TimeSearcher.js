@@ -181,6 +181,7 @@ function TimeSearcher({
     gEditbrushes,
     gReferences,
     brushesGroup,
+    enableBrushGroups, // TODO refactor to include an atribute of enabled/disabled in brushGroups
     brushGroupSelected,
     brushCount,
     brushSize,
@@ -265,6 +266,7 @@ function TimeSearcher({
   divBrushesCoordinates = d3.select(brushCoordinatesElement);
   brushesControlsElement = brushesControlsElement || d3.create("div");
   brushesGroup = new Map();
+  enableBrushGroups = new Set();
   brushGroupSelected = 0;
   brushCount = 0;
   brushSize = 0;
@@ -284,7 +286,7 @@ function TimeSearcher({
 
   function initBrushesControls() {
     brushesControlsElement.innerHTML = `<div id="brushesGroups" style="flex-basis:100%;">
-    <h3>Brush Groups</h3>
+    <h3>TimeBoxes Groups</h3>
     <ul id="brushesList">
       
     </ul>
@@ -332,15 +334,23 @@ function TimeSearcher({
             <span style="margin-right: 5px;">(${
               dataSelected.get(d[0]).length
             })</span>
-            <button style="display"id="btnRemoveBrushGroup">-</button>
+            <input type="checkbox" id="checkBoxShowBrushGroup" ${enableBrushGroups.has(d[0]) ? "checked" : ""}>
+            <button style="display" id="btnRemoveBrushGroup">-</button>
           </div>
         `;
 
         li.select("#btnRemoveBrushGroup").on("click", (event) => {
           event.stopPropagation();
           removeBrushGroup(d[0]);
-          console.log("Should remove brushesGroup " + d[0]);
         });
+        li.select("#checkBoxShowBrushGroup").on("click", (event) => { //Prevent the event from reaching the element li
+          event.stopPropagation();
+        });
+        li.select("#checkBoxShowBrushGroup").on("change", (event) => {
+          event.stopPropagation();
+          changeBrushGroupState(d[0],event.target.checked)
+          console.log("Should change state of brushesGroup " + d[0], event.target.checked);
+        })
         li.on("click", () => selectBrushGroup(d[0]));
       });
 
@@ -366,6 +376,21 @@ function TimeSearcher({
       });
   }
 
+  function changeBrushGroupState(id, newState) {
+    if (enableBrushGroups.has(id) === newState) return //same state so no update needed
+
+    if (newState)
+      enableBrushGroups.add(id)
+    else {
+      enableBrushGroups.delete(id)
+      if (brushInSpinBox[1].group === id) {
+        hideTooltip(null, true)
+      }
+    }
+
+    drawBrushes()
+    render(dataSelected,dataNotSelected)
+  }
   function removeBrushGroup(id) {
     if (brushesGroup.length <= 1) return;
 
@@ -389,6 +414,7 @@ function TimeSearcher({
       selectBrushGroup(newId);
     }
 
+    enableBrushGroups.delete(id);
     brushesGroup.delete(id);
     triggerValueUpdate();
     renderBrushesControls();
@@ -520,7 +546,7 @@ function TimeSearcher({
         .append("line")
         .attr("class", "gridline")
         .attr("x1", 0)
-        .attr("y1", overviewHeight - ts.margin.top - ts.margin.bottom)
+        .attr("y1", -overviewHeight + ts.margin.top + ts.margin.bottom)
         .attr("x2", 0)
         .attr("y2", 0)
         .attr("stroke", "#9ca5aecf") // line color
@@ -1345,10 +1371,11 @@ function TimeSearcher({
   }
   function addBrushGroup() {
     let newId = getUnusedIdBrushGroup();
+    enableBrushGroups.add(newId);
     brushesGroup.set(newId, new Map());
     dataSelected.set(newId, []);
-
     selectBrushGroup(newId)
+
 
     updateStatus();
     triggerValueUpdate();
@@ -1573,6 +1600,8 @@ function TimeSearcher({
             //  Draw a shadow on the current brush
             .style("-webkit-filter", brushShadowIfInSpinBox)
             .style("filter", brushShadowIfInSpinBox)
+            .style("display", (d) => enableBrushGroups.has(d[1].group) ? "" : "none" ) // Hide brushes when their group is not enabled
+            .style("pointer-events", (d) => d[1].group === brushGroupSelected ? "all" : "none") // disable interaction with not active brushes.
             .each(function (d) {
               d3.select(this)
                 .selectAll(".selection")
