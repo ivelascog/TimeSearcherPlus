@@ -147,7 +147,7 @@ function TimeSearcher({
   updateCallback = (data) => {},
   statusCallback = (status) => {},
   fmtX = d3.timeFormat("%d/%m/%y"), // Function, how to format x points in the tooltip
-  fmtY = d3.format(".1d"), // Function, how to format x points in the tooltip
+  fmtY = d3.format(".1f"), // Function, how to format x points in the tooltip
   yLabel = "",
   xLabel = "",
   filters = [], // Array of filters to use, format [[x1, y1], [x2, y2], ...]
@@ -286,7 +286,7 @@ function TimeSearcher({
 
   function initBrushesControls() {
     brushesControlsElement.innerHTML = `<div id="brushesGroups" style="flex-basis:100%;">
-    <h3>TimeBoxes Groups</h3>
+    <h3>Groups</h3>
     <ul id="brushesList">
       
     </ul>
@@ -579,7 +579,7 @@ function TimeSearcher({
       .append("text")
       .attr("x", 0)
       .attr("y", ts.brushGruopSize / 2 + 2)
-      .text("TimeBoxes Groups + : ")
+      .text("Groups + : ")
       .style("cursor", "pointer")
       .on("click", addBrushGroup);
 
@@ -629,7 +629,7 @@ function TimeSearcher({
 
   function generateBrushCoordinatesDiv() {
     divBrushesCoordinates.innerHTML = "";
-    divBrushesCoordinates.append("h3").text("TimeBox Coordinates: ");
+    divBrushesCoordinates.append("h3").text("Current TimeBox Coordinates: ");
     let divX = divBrushesCoordinates.append("div");
 
     divX.append("span").text(xLabel);
