@@ -31,7 +31,7 @@ function BrushTooltipEditable({
     resizeInput.call(input); // immediately call the function
 
     function resizeInput() {
-      this.style.width = this.value.length  + "ch";
+      this.style.width = this.value.length + "ch";
     }
   };
 
@@ -211,8 +211,7 @@ function TimeSearcher({
   ts.yPartitions = 10; // Partitions performed on the Y-axis for the collision acceleration algorithm.
   ts.defaultAlpha = 0.8; // Default transparency (when no selection is active) of drawn lines
   ts.selectedAlpha = 1; // Transparency of selected lines
-  ts.noSelectedAlpha = 0.6
-  ; // Transparency of unselected lines
+  ts.noSelectedAlpha = 0.6; // Transparency of unselected lines
   ts.backgroundColor = "#ffffff";
   ts.defaultColor = "#aaa"; // Default color (when no selection is active) of the drawn lines. It only has effect when "groupAttr" is not defined.
   ts.selectedColor = "#aaa"; // Color of selected lines. It only has effect when "groupAttr" is not defined.
@@ -313,6 +312,7 @@ function TimeSearcher({
       .attr("class", "brushControl")
       .each(function (d) {
         const li = d3.select(this);
+        let outGroup = htl.html``;
         li.node().innerHTML = `<div style="
             display: flex;
             flex-wrap: nowrap;        
@@ -332,29 +332,45 @@ function TimeSearcher({
               background-color: ${ts.brushesColorScale(d[0])};
               margin-right: 5px;
             "></div>
-            <output style="margin-right: 5px;" contenteditable="true">Group ${
-              d[0]
-            }</output>
+            <input 
+              style="margin-right: 5px; border: none;outline: none;" 
+              contenteditable="true">Group ${d[0]}</input>
             <span style="margin-right: 5px;">(${
               dataSelected.get(d[0]).length
             })</span>
-            <input type="checkbox" id="checkBoxShowBrushGroup" ${enableBrushGroups.has(d[0]) ? "checked" : ""}>
+            <input type="checkbox" id="checkBoxShowBrushGroup" ${
+              enableBrushGroups.has(d[0]) ? "checked" : ""
+            }>
             <button style="display" id="btnRemoveBrushGroup">-</button>
           </div>
         `;
+
+        li.select("input")
+          .on("input", function (evt) {
+            evt.target.style.width = evt.target.value.length + "ch";
+            d3.select(this).style("width", evt.target.value.length + "ch");
+            log("on change group name", evt.target.value);
+          })
+          .call(function (input) {
+            input.style("width", this.value.length + "ch");
+          });
 
         li.select("#btnRemoveBrushGroup").on("click", (event) => {
           event.stopPropagation();
           removeBrushGroup(d[0]);
         });
-        li.select("#checkBoxShowBrushGroup").on("click", (event) => { //Prevent the event from reaching the element li
+        li.select("#checkBoxShowBrushGroup").on("click", (event) => {
+          //Prevent the event from reaching the element li
           event.stopPropagation();
         });
         li.select("#checkBoxShowBrushGroup").on("change", (event) => {
           event.stopPropagation();
-          changeBrushGroupState(d[0],event.target.checked)
-          console.log("Should change state of brushesGroup " + d[0], event.target.checked);
-        })
+          changeBrushGroupState(d[0], event.target.checked);
+          console.log(
+            "Should change state of brushesGroup " + d[0],
+            event.target.checked
+          );
+        });
         li.on("click", () => selectBrushGroup(d[0]));
       });
 
@@ -371,7 +387,7 @@ function TimeSearcher({
         "transform",
         (d, i) => `translate(${90 + i * (ts.brushGruopSize + 5)}, -2)`
       )
-      .style("stroke-width", (d) => d[0] === brushGroupSelected ? 2 : 0)
+      .style("stroke-width", (d) => (d[0] === brushGroupSelected ? 2 : 0))
       .style("stroke", "black")
       .style("fill", (d) => ts.brushesColorScale(d[0]))
       .on("click", function () {
@@ -383,23 +399,23 @@ function TimeSearcher({
   function changeBrushGroupState(id, newState) {
     if (enableBrushGroups.has(id) === newState) return; //same state so no update needed
 
-    if (!newState && brushGroupSelected === id) { // Not Allowed to disable active brushGroup
+    if (!newState && brushGroupSelected === id) {
+      // Not Allowed to disable active brushGroup
       renderBrushesControls();
       return;
     }
 
-    if (newState)
-      enableBrushGroups.add(id)
+    if (newState) enableBrushGroups.add(id);
     else {
-      enableBrushGroups.delete(id)
+      enableBrushGroups.delete(id);
       if (brushInSpinBox[1].group === id) {
-        hideTooltip(null, true)
+        hideTooltip(null, true);
       }
     }
 
     renderBrushesControls();
-    drawBrushes()
-    render(dataSelected,dataNotSelected)
+    drawBrushes();
+    render(dataSelected, dataNotSelected);
   }
   function removeBrushGroup(id) {
     if (brushesGroup.length <= 1) return;
@@ -1227,11 +1243,11 @@ function TimeSearcher({
           ts.defaultColor
         );
       } else {
-        let mDataSelected = []
+        let mDataSelected = [];
 
         dataSelected.forEach((g, i) => {
           if (enableBrushGroups.has(i)) {
-            mDataSelected = mDataSelected.concat(g)
+            mDataSelected = mDataSelected.concat(g);
           } else {
             dataNotSelected = dataNotSelected.concat(g);
           }
@@ -1252,23 +1268,26 @@ function TimeSearcher({
           ts.selectedColor
         );
 
-
+        context.save();
         // Render Group Means
         if (showGroupMean) {
-          let line2m = d3.line()
-            .x(d => overviewX(d[0]))
-            .y(d => overviewY(d[1]));
-          context.lineWidth = 3;
+          let line2m = d3
+            .line()
+            .x((d) => overviewX(d[0]))
+            .y((d) => overviewY(d[1]));
+          context.lineWidth = 2;
           context.globalAlpha = 1;
 
           medianBrushGroups.forEach((d, i) => {
             if (enableBrushGroups.has(i)) {
               let path = new Path2D(line2m(d));
+              context.setLineDash([5]);
               context.strokeStyle = ts.brushesColorScale(i);
-              context.stroke(path)
+              context.stroke(path);
             }
           });
         }
+        context.restore();
       }
     }
 
@@ -1407,8 +1426,7 @@ function TimeSearcher({
     enableBrushGroups.add(newId);
     brushesGroup.set(newId, new Map());
     dataSelected.set(newId, []);
-    selectBrushGroup(newId)
-
+    selectBrushGroup(newId);
 
     updateStatus();
     triggerValueUpdate();
@@ -1634,8 +1652,12 @@ function TimeSearcher({
             //  Draw a shadow on the current brush
             .style("-webkit-filter", brushShadowIfInSpinBox)
             .style("filter", brushShadowIfInSpinBox)
-            .style("display", (d) => enableBrushGroups.has(d[1].group) ? "" : "none" ) // Hide brushes when their group is not enabled
-            .style("pointer-events", (d) => d[1].group === brushGroupSelected ? "all" : "none") // disable interaction with not active brushes.
+            .style("display", (d) =>
+              enableBrushGroups.has(d[1].group) ? "" : "none"
+            ) // Hide brushes when their group is not enabled
+            .style("pointer-events", (d) =>
+              d[1].group === brushGroupSelected ? "all" : "none"
+            ) // disable interaction with not active brushes.
             .each(function (d) {
               d3.select(this)
                 .selectAll(".selection")
@@ -1680,14 +1702,14 @@ function TimeSearcher({
         bins.push({
           x0: cx,
           x1: cx + binW,
-          data: []
+          data: [],
         });
-        cx += binW
+        cx += binW;
       }
       for (let line of g[1]) {
         for (let point of line[1]) {
           let i = Math.floor((x(point) - minX) / binW);
-          i = i > nBins - 1 ? i - 1 : i
+          i = i > nBins - 1 ? i - 1 : i;
           bins[i].data.push(y(point));
         }
       }
@@ -1700,7 +1722,7 @@ function TimeSearcher({
           median.push([x, y]);
         }
       }
-      medianBrushGroups.set(id,median);
+      medianBrushGroups.set(id, median);
     }
   }
 
@@ -1725,7 +1747,7 @@ function TimeSearcher({
         }
       }
 
-      if (showGroupMean) getBrushGroupsMeans(dataSelected)
+      if (showGroupMean) getBrushGroupsMeans(dataSelected);
 
       triggerValueUpdate(dataSelected);
 
