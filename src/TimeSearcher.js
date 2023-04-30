@@ -253,13 +253,15 @@ function TimeSearcher({
     .style("background-color", ts.backgroundColor)
     .node();
 
-  divDetailed = d3
-    .select(detailedElement)
-    .attr("id", "detail")
-    .style("height", `${detailedContainerHeight}px`)
-    .style("width", `${detailedWidth + 40}px`)
-    .style("overflow-y", "scroll")
-    .node();
+  if (ts.hasDetailed) {
+    divDetailed = d3
+      .select(detailedElement)
+      .attr("id", "detail")
+      .style("height", `${detailedContainerHeight}px`)
+      .style("width", `${detailedWidth + 40}px`)
+      .style("overflow-y", "scroll")
+      .node();
+  }
   divBrushesCoordinates = d3.select(brushCoordinatesElement);
   brushesControlsElement = brushesControlsElement || d3.create("div");
   brushesGroup = new Map();
@@ -353,8 +355,10 @@ function TimeSearcher({
       .attr("width", ts.brushGruopSize)
       .attr(
         "transform",
-        (d, i) => `translate(${135 + i * (ts.brushGruopSize + 5)}, -2)`
+        (d, i) => `translate(${170 + i * (ts.brushGruopSize + 5)}, -2)`
       )
+      .style("stroke-width", (d) => d[0] === brushGroupSelected ? 2 : 0)
+      .style("stroke", "black")
       .style("fill", (d) => ts.brushesColorScale(d[0]))
       .on("click", function () {
         let id = d3.select(this).attr("id").substr("11");
@@ -516,7 +520,7 @@ function TimeSearcher({
         .append("line")
         .attr("class", "gridline")
         .attr("x1", 0)
-        .attr("y1", -overviewHeight + ts.margin.top + ts.margin.bottom)
+        .attr("y1", overviewHeight - ts.margin.top - ts.margin.bottom)
         .attr("x2", 0)
         .attr("y2", 0)
         .attr("stroke", "#9ca5aecf") // line color
@@ -549,7 +553,7 @@ function TimeSearcher({
       .append("text")
       .attr("x", 0)
       .attr("y", ts.brushGruopSize / 2 + 2)
-      .text("Brush groups + : ")
+      .text("TimeBoxes Groups + : ")
       .style("cursor", "pointer")
       .on("click", addBrushGroup);
 
@@ -599,7 +603,7 @@ function TimeSearcher({
 
   function generateBrushCoordinatesDiv() {
     divBrushesCoordinates.innerHTML = "";
-    divBrushesCoordinates.append("h3").text("Brush Coordinates: ");
+    divBrushesCoordinates.append("h3").text("TimeBox Coordinates: ");
     let divX = divBrushesCoordinates.append("div");
 
     divX.append("span").text(xLabel);
@@ -1344,6 +1348,8 @@ function TimeSearcher({
     brushesGroup.set(newId, new Map());
     dataSelected.set(newId, []);
 
+    selectBrushGroup(newId)
+
     updateStatus();
     triggerValueUpdate();
 
@@ -1352,13 +1358,7 @@ function TimeSearcher({
 
   function selectBrushGroup(id) {
     brushGroupSelected = id;
-    gGroupBrushes.selectAll("rect.colorBrushes").style("stroke-width", 0);
-
-    gGroupBrushes
-      .select("#colorBrush-" + id)
-      .style("stroke-width", 2)
-      .style("stroke", "black");
-
+    renderBrushesControls();
     drawBrushes();
     render(dataSelected, dataNotSelected);
   }
@@ -1456,7 +1456,7 @@ function TimeSearcher({
     if (sourceEvent === undefined) return;
     if (selection) {
       let [[x0, y0], [x1, y1]] = selection;
-      if (Math.abs(x0 - x1) < 20 && Math.abs(y0 - y1) < 20) {
+      if (Math.abs(x0 - x1) < 5 && Math.abs(y0 - y1) < 5) {
         removeBrush(brush);
       } else if (!ts.autoUpdate) {
         if (brush[1].isSelected) {
