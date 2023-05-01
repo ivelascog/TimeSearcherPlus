@@ -129,19 +129,20 @@ function TimeSearcher({
   // John TODO: Let's change everything to Observable's style TimeSearcher(data, { width, etc})
   data,
   target = document.createElement("div"), // pass a html element where you want to render
-  detailedElement = document.createElement("div"), // pass a html element where you want to render the details
+  detailsElement = document.createElement("div"), // pass a html element where you want to render the details
   brushCoordinatesElement = document.createElement("div"), // pass a html element where you want to render the brush coordinates Input.
   brushesControlsElement = document.createElement("div"), // pass a html element where you want to have the brushes controls.
   showBrushesControls = true, // If false you can still use brushesControlsElement to show the control on a different element on your app
   x = (d) => d.x, // Atribute to show in the X axis (Note that it also supports functions)
   y = (d) => d.y, // Atribute to show in the Y axis (Note that it also supports functions)
   id = (d) => d.id, // Atribute to group the input data (Note that it also supports functions)
+  groupAttr = null, // Specifies the attribute to be used to discriminate the groups.
   renderer = "canvas",
   overviewWidth = 1200, // Set the desired width of the overview Widget
-  detailedWidth = 1200 - 20, // Set the desired width of the detailed Widget
+  detailsWidth = 1200 - 20, // Set the desired width of the details Widget
   overviewHeight = 600, // Set the desired height of the overview Widget
-  detailedHeight = 300, // Set the desired height of the overview Widget
-  detailedContainerHeight = 400,
+  detailsHeight = 300, // Set the desired height of the overview Widget
+  detailsContainerHeight = 400,
   updateCallback = (data) => {},
   statusCallback = (status) => {},
   fmtX = d3.timeFormat("%d/%m/%y"), // Function, how to format x points in the tooltip
@@ -151,13 +152,34 @@ function TimeSearcher({
   filters = [], // Array of filters to use, format [[x1, y1], [x2, y2], ...]
   brushShadow = "drop-shadow( 2px 2px 2px rgba(0, 0, 0, .7))",
   useNewTooltip = true, // TODO remove this option
-  maxDetailedRecords = 100, // How many results to show in the detail view
+  maxDetailsRecords = 100, // How many results to show in the detail view
   maxTimelines = null, // Set to a value to limit the number of distinct timelines to show
   showGroupMedian = true, // If active show a line with the median of the enabled groups.
-  binWidth = 1, // Sets the width of the bins used to calculate the group average. Note that this value may vary slightly to achieve a integer number of bins.
+  medianNumBins = 500, // Number of bins used to compute the group median.
   medianLineDash = [7], // Selected group median line dash pattern canvas style
   medianLineAlpha = 1, // Selected group median line opacity
   medianLineWidth = 2, // Selected group median line width
+  xPartitions = 10, // Partitions performed on the X-axis for the collision acceleration algorithm.
+  yPartitions = 10, // Partitions performed on the Y-axis for the collision acceleration algorithm.
+  defaultAlpha = 1, // Default transparency (when no selection is active) of drawn lines
+  selectedAlpha = 1, // Transparency of selected lines
+  noSelectedAlpha = 0.6, // Transparency of unselected lines
+  alphaScale = d3.scalePow().exponent(0.25).range([1, 0.3]), // A scale to adjust the alpha by the number of rendering elements
+  backgroundColor = "#ffffff",
+  defaultColor = "#aaa", // Default color (when no selection is active) of the drawn lines. It only has effect when "groupAttr" is not defined.
+  selectedColor = "#aaa", // Color of selected lines. It only has effect when "groupAttr" is not defined.
+  noSelectedColor = "#dce0e5", // Color of unselected lines. It only has effect when "groupAttr" is not defined.
+  hasDetails = false, // Determines whether detail data will be displayed or not. Disabling it saves preprocessing time if detail data is not to be displayed.
+  margin = { left: 50, top: 30, bottom: 50, right: 20 },
+  colorScale = d3.scaleOrdinal(d3.schemeAccent), // The color scale to be used to display the different groups defined by the "groupAttr" attribute.
+  brushesColorScale = d3.scaleOrdinal(d3.schemeCategory10), // The color scale to be used to display the brushes
+  doubleYlegend = false, // Allows the y-axis legend to be displayed on both sides of the chart.
+  showGrid = false, // If active, a reference grid is displayed.
+  showBrushTooltip = true, // Allows to display a tooltip on the brushes containing its coordinates.
+  autoUpdate = true, // Allows to decide whether changes in brushes are processed while moving, or only at the end of the movement.
+  brushGroupSize = 15, //Controls the size of the colored rectangles used to select the different brushGroups.
+  stepX = { days: 10 }, // Defines the step used, both in the spinboxes and with the arrows on the X axis.
+  stepY = 1, // // Defines the step used, both in the spinboxes and with the arrows on the Y axis.
 } = {}) {
   let ts = {},
     groupedData,
@@ -165,17 +187,17 @@ function TimeSearcher({
     nGroups,
     overviewX,
     overviewY,
-    detailedX,
-    detailedY,
+    detailsX,
+    detailsY,
     line2,
-    line2Detailed,
+    line2Details,
     render,
     renderObject,
-    prerenderDetailed,
+    prerenderDetails,
     divOverview,
     divRender,
     divControls,
-    divDetailed,
+    divDetails,
     divBrushesCoordinates,
     svg,
     g,
@@ -209,33 +231,31 @@ function TimeSearcher({
     brushTooltipEditable;
 
   // Default Parameters
-  ts.xPartitions = 10; // Partitions performed on the X-axis for the collision acceleration algorithm.
-  ts.yPartitions = 10; // Partitions performed on the Y-axis for the collision acceleration algorithm.
-  ts.defaultAlpha = 0.8; // Default transparency (when no selection is active) of drawn lines
-  ts.selectedAlpha = 1; // Transparency of selected lines
-  ts.noSelectedAlpha = 0.6; // Transparency of unselected lines
-  ts.backgroundColor = "#ffffff";
-  ts.defaultColor = "#aaa"; // Default color (when no selection is active) of the drawn lines. It only has effect when "groupAttr" is not defined.
-  ts.selectedColor = "#aaa"; // Color of selected lines. It only has effect when "groupAttr" is not defined.
-  ts.noSelectedColor = "#dce0e5"; // Color of unselected lines. It only has effect when "groupAttr" is not defined.
-  ts.hasDetailed = true; // Determines whether detail data will be displayed or not. Disabling it saves preprocessing time if detail data is not to be displayed.
-  ts.margin = { left: 50, top: 30, bottom: 50, right: 20 };
-  ts.colorScale = d3.scaleOrdinal(d3.schemeAccent); // The color scale to be used to display the different groups defined by the "groupAttr" attribute.
-  ts.brushesColorScale = d3.scaleOrdinal(d3.schemeCategory10); // The color scale to be used to display the brushes
-  ts.groupAttr = null; // Specifies the attribute to be used to discriminate the groups.
-  ts.doubleYlegend = false; // Allows the y-axis legend to be displayed on both sides of the chart.
-  ts.showGrid = false; // If active, a reference grid is displayed.
-  ts.showBrushTooltip = true; // Allows to display a tooltip on the brushes containing its coordinates.
-  ts.autoUpdate = true; // Allows to decide whether changes in brushes are processed while moving, or only at the end of the movement.
-  ts.brushGroupSize = 15; //Controls the size of the colored rectangles used to select the different brushGroups.
-  ts.stepX = { days: 10 }; // Defines the step used, both in the spinboxes and with the arrows on the X axis.
-  ts.stepY = 1; // // Defines the step used, both in the spinboxes and with the arrows on the Y axis.
+  ts.xPartitions = xPartitions;
+  ts.yPartitions = yPartitions;
+  ts.defaultAlpha = defaultAlpha;
+  ts.selectedAlpha = selectedAlpha;
+  ts.noSelectedAlpha = noSelectedAlpha;
+  ts.backgroundColor = backgroundColor;
+  ts.defaultColor = defaultColor;
+  ts.selectedColor = selectedColor;
+  ts.noSelectedColor = noSelectedColor;
+  ts.hasDetails = hasDetails;
+  ts.margin = margin;
+  ts.colorScale = colorScale;
+  ts.brushesColorScale = brushesColorScale;
+  ts.groupAttr = groupAttr;
+  ts.doubleYlegend = doubleYlegend;
+  ts.showGrid = showGrid;
+  ts.showBrushTooltip = showBrushTooltip;
+  ts.autoUpdate = autoUpdate;
+  ts.brushGroupSize = brushGroupSize;
+  ts.stepX = stepX;
+  ts.stepY = stepY;
   ts.medianLineAlpha = medianLineAlpha;
   ts.medianLineWidth = medianLineWidth;
   ts.medianLineDash = medianLineDash;
-
-  // A scale to adjust the alpha
-  ts.alphaScale = d3.scalePow().exponent(0.15).range([1, 0.01]);
+  ts.alphaScale = alphaScale;
 
   // Convert attrStrings to functions
   if (typeof x === "string") {
@@ -261,12 +281,12 @@ function TimeSearcher({
     .style("background-color", ts.backgroundColor)
     .node();
 
-  if (ts.hasDetailed) {
-    divDetailed = d3
-      .select(detailedElement)
+  if (ts.hasDetails) {
+    divDetails = d3
+      .select(detailsElement)
       .attr("id", "detail")
-      .style("height", `${detailedContainerHeight}px`)
-      .style("width", `${detailedWidth + 40}px`)
+      .style("height", `${detailsContainerHeight}px`)
+      .style("width", `${detailsWidth + 40}px`)
       .style("overflow-y", "scroll")
       .node();
   }
@@ -288,8 +308,8 @@ function TimeSearcher({
   tUpdateSelection = throttle(100, updateSelection);
   tUpdateBrushSpinBox = throttle(50, updateBrushSpinBox);
 
-  ts.observer = new IntersectionObserver(onDetailedScrolled, {
-    root: divDetailed,
+  ts.observer = new IntersectionObserver(onDetailsScrolled, {
+    root: divDetails,
     threshold: 0.1,
   });
 
@@ -1069,23 +1089,23 @@ function TimeSearcher({
     brushed({ selection, sourceEvent }, brushInSpinBox);
   }
 
-  function onDetailedScrolled(entries, observer) {
+  function onDetailsScrolled(entries, observer) {
     entries.forEach((entry) => {
       if (entry.isIntersecting) {
         let div = entry.target;
         let group = div.getAttribute("group");
         group = typeof groupedData[0][0] === "number" ? +group : group;
-        const prerenderDetailedEle = prerenderDetailed.get(group);
-        if (!prerenderDetailedEle) {
+        const prerenderDetailsEle = prerenderDetails.get(group);
+        if (!prerenderDetailsEle) {
           console.log(
-            "Error onDetailedScrolled couldn't find ",
+            "Error onDetailsScrolled couldn't find ",
             group,
             " on ",
-            prerenderDetailed
+            prerenderDetails
           );
           return;
         }
-        div.appendChild(prerenderDetailedEle.node());
+        div.appendChild(prerenderDetailsEle.node());
       } else {
         entry.target.innerHTML = "";
       }
@@ -1094,11 +1114,11 @@ function TimeSearcher({
 
   function renderSVG() {
     const gData = g.append("g").attr("id", "gData");
-    let prerenderDetailed = null;
+    let prerenderDetails = null;
 
     function render(data) {
       renderOverviewSVG(data);
-      renderDetailedSVG(data);
+      renderDetailsSVG(data);
     }
 
     function renderOverviewSVG(data) {
@@ -1149,15 +1169,15 @@ function TimeSearcher({
         );
     }
 
-    function renderDetailedSVG(data) {
-      const div = d3.select(divDetailed);
+    function renderDetailsSVG(data) {
+      const div = d3.select(divDetails);
 
-      let slicedData = maxDetailedRecords
-        ? data.slice(0, maxDetailedRecords)
+      let slicedData = maxDetailsRecords
+        ? data.slice(0, maxDetailsRecords)
         : data;
 
       div
-        .selectAll(".detailed")
+        .selectAll(".details")
         .data(slicedData, (d) => d[0])
         .join(
           (enter) => {
@@ -1165,10 +1185,10 @@ function TimeSearcher({
               let g = d3
                 .select(this)
                 .append("svg")
-                .attr("class", "detailed")
-                .attr("viewBox", [0, 0, detailedWidth, detailedHeight])
-                .attr("height", detailedHeight)
-                .attr("width", detailedWidth)
+                .attr("class", "details")
+                .attr("viewBox", [0, 0, detailsWidth, detailsHeight])
+                .attr("height", detailsHeight)
+                .attr("width", detailsWidth)
                 .append("g");
               g.attr(
                 "transform",
@@ -1177,15 +1197,15 @@ function TimeSearcher({
 
               g.append("g")
                 .attr("class", "mainYAxis")
-                .call(d3.axisLeft(detailedY));
+                .call(d3.axisLeft(detailsY));
 
               g.append("g")
                 .attr("class", "mainXAxis")
-                .call(d3.axisBottom(detailedX))
+                .call(d3.axisBottom(detailsX))
                 .attr(
                   "transform",
                   `translate(0, ${
-                    detailedHeight - ts.margin.top - ts.margin.bottom
+                    detailsHeight - ts.margin.top - ts.margin.bottom
                   })`
                 );
 
@@ -1199,8 +1219,8 @@ function TimeSearcher({
                 .data(d[1])
                 .join("circle")
                 .attr("class", "point")
-                .attr("cy", (d) => detailedY(y(d)))
-                .attr("cx", (d) => detailedX(x(d)))
+                .attr("cy", (d) => detailsY(y(d)))
+                .attr("cx", (d) => detailsX(x(d)))
                 .attr("fill", "black")
                 .attr("r", 2);
 
@@ -1208,7 +1228,7 @@ function TimeSearcher({
                 .data([d])
                 .join("path")
                 .attr("class", "line")
-                .attr("d", (g) => line2Detailed(g[1]))
+                .attr("d", (g) => line2Details(g[1]))
                 .style("fill", "none")
                 .style("stroke", "black");
             });
@@ -1218,7 +1238,7 @@ function TimeSearcher({
         );
     }
 
-    return { render: render, preRender: prerenderDetailed };
+    return { render: render, preRender: prerenderDetails };
   }
 
   function renderCanvas(data) {
@@ -1249,12 +1269,12 @@ function TimeSearcher({
       paths.set(d[0], pathObject);
     });
 
-    prerenderDetailed = ts.hasDetailed ? generatePrerenderDetailed(data) : null;
+    prerenderDetails = ts.hasDetails ? generatePrerenderDetails(data) : null;
 
     function render(dataSelected, dataNotSelected) {
       renderOverviewCanvas(dataSelected, dataNotSelected);
-      if (ts.hasDetailed) {
-        window.requestAnimationFrame(() => renderDetailedCanvas(dataSelected));
+      if (ts.hasDetails) {
+        window.requestAnimationFrame(() => renderDetailsCanvas(dataSelected));
       }
     }
 
@@ -1335,60 +1355,58 @@ function TimeSearcher({
       }
     }
 
-    function renderDetailedCanvas(data) {
+    function renderDetailsCanvas(data) {
       let frag = document.createDocumentFragment();
 
-      let slicedData = maxDetailedRecords
-        ? data.get(brushGroupSelected).slice(0, maxDetailedRecords)
+      let slicedData = maxDetailsRecords
+        ? data.get(brushGroupSelected).slice(0, maxDetailsRecords)
         : data;
 
       for (let d of slicedData) {
         let div = document.createElement("div");
-        div.className = "detailedContainer";
+        div.className = "detailsContainer";
         div.setAttribute("group", d[0]);
-        div.style.height = `${detailedHeight}px`;
+        div.style.height = `${detailsHeight}px`;
         frag.appendChild(div);
       }
 
       // removed to reduce flickering
-      // divDetailed.innerHTML = "";
+      // divDetails.innerHTML = "";
 
-      // Observer API To only show in the detailed view the divs that are visible
+      // Observer API To only show in the details view the divs that are visible
       window.requestIdleCallback(() => {
-        divDetailed.replaceChildren(frag);
-        divDetailed.querySelectorAll(".detailedContainer").forEach((d) => {
+        divDetails.replaceChildren(frag);
+        divDetails.querySelectorAll(".detailsContainer").forEach((d) => {
           ts.observer.observe(d);
         });
       });
     }
 
-    function generatePrerenderDetailed(data) {
-      let prerenderDetailed = new Map();
-      data.forEach((d) => {
+    function generatePrerenderDetails(data) {
+      let prerenderDetails = new Map();
+      data.slice(0, maxDetailsRecords).forEach((d) => {
         let div = d3
           .create("div")
-          .attr("class", "detailed")
+          .attr("class", "details")
           .style("position", "relative");
 
         let g = div
           .append("svg")
-          .attr("viewBox", [0, 0, detailedWidth, detailedHeight])
-          .attr("height", detailedHeight)
-          .attr("width", detailedWidth)
+          .attr("viewBox", [0, 0, detailsWidth, detailsHeight])
+          .attr("height", detailsHeight)
+          .attr("width", detailsWidth)
           .append("g")
           .attr("class", "gDrawing")
           .attr("transform", `translate(${ts.margin.left}, ${ts.margin.top})`);
 
-        g.append("g")
-          .attr("class", "detailedYAxis")
-          .call(d3.axisLeft(detailedY));
+        g.append("g").attr("class", "detailsYAxis").call(d3.axisLeft(detailsY));
 
         g.append("g")
-          .attr("class", "detailedXAxis")
-          .call(d3.axisBottom(detailedX))
+          .attr("class", "detailsXAxis")
+          .call(d3.axisBottom(detailsX))
           .attr(
             "transform",
-            `translate(0, ${detailedHeight - ts.margin.top - ts.margin.bottom})`
+            `translate(0, ${detailsHeight - ts.margin.top - ts.margin.bottom})`
           );
 
         g.append("text")
@@ -1398,29 +1416,29 @@ function TimeSearcher({
           .style("font-size", "0.7em");
 
         g.append("path")
-          .attr("d", line2Detailed(d[1]))
+          .attr("d", line2Details(d[1]))
           .style("fill", "none")
           .style("stroke", "black");
 
         /*  let canvas = div
             .append("canvas")
-            .attr("height", detailedHeight)
-            .attr("width", detailedWidth)
+            .attr("height", detailsHeight)
+            .attr("width", detailsWidth)
             .style("position", "absolute")
             .style("top", `${ts.margin.top}px`)
             .style("left", `${ts.margin.left}px`)
             .style("pointer-events", "none");
 
           let context = canvas.node().getContext("2d");
-          let path = new Path2D(line2Detailed(d[1]));
+          let path = new Path2D(line2Details(d[1]));
           context.stroke(path); */
 
-        prerenderDetailed.set(d[0], div);
+        prerenderDetails.set(d[0], div);
       });
-      return prerenderDetailed;
+      return prerenderDetails;
     }
 
-    return { render: render, preRender: prerenderDetailed };
+    return { render: render, preRender: prerenderDetails };
   }
 
   //------------- Brush section ---------- //
@@ -1710,17 +1728,16 @@ function TimeSearcher({
     let minX = overviewX.domain()[0];
     let maxX = overviewX.domain()[1];
 
-    let nBins = Math.floor((maxX - minX) / binWidth);
-    let binW = (maxX - minX) / nBins;
+    let binW = (maxX - minX) / medianNumBins;
 
-    log("number of bins", nBins, minX, maxX);
+    log("getBrushGroupsMedians: number of bins", medianNumBins, " binW ", binW, minX, maxX);
 
     for (let g of data.entries()) {
       let id = g[0];
 
       let bins = [];
       let cx = minX;
-      for (let i = 0; i < nBins; ++i) {
+      for (let i = 0; i < medianNumBins; ++i) {
         bins.push({
           x0: cx,
           x1: cx + binW,
@@ -1731,7 +1748,7 @@ function TimeSearcher({
       for (let line of g[1]) {
         for (let point of line[1]) {
           let i = Math.floor((x(point) - minX) / binW);
-          i = i > nBins - 1 ? i - 1 : i;
+          i = i > medianNumBins - 1 ? i - 1 : i;
           bins[i].data.push(y(point));
         }
       }
@@ -2175,6 +2192,7 @@ function TimeSearcher({
 
   ts.data = function (_data) {
     data = _data;
+    log(" Processing data: ... ", data.length);
     // Ignore null values. Shouldn't be y(d) && x(d) because y(d) can be 0
     fData = data.filter(
       (d) =>
@@ -2183,7 +2201,13 @@ function TimeSearcher({
         x(d) !== undefined &&
         x(d) !== null
     );
+    log(
+      `Processing data: done filtering ${fData.length} left out of ${data.length}`
+    );
     groupedData = d3.groups(fData, id);
+    log(
+      `Processing data: grouping done ${groupedData.length} timelines out of ${data.length} records`
+    );
 
     // Limit the number of timelines
     if (maxTimelines) groupedData = groupedData.slice(0, maxTimelines);
@@ -2202,50 +2226,52 @@ function TimeSearcher({
       hasScaleTime = true;
       overviewX = d3
         .scaleTime()
-        .domain(d3.extent(fData, (d) => x(d)))
+        .domain(d3.extent(fData, x))
         .range([0, overviewWidth - ts.margin.right - ts.margin.left]);
 
-      detailedX = d3
+      detailsX = d3
         .scaleTime()
-        .domain(d3.extent(fData, (d) => x(d)))
-        .range([0, detailedWidth - ts.margin.right - ts.margin.left]);
-    } else if (xDataType === "number") {
+        .domain(d3.extent(fData, x))
+        .range([0, detailsWidth - ts.margin.right - ts.margin.left]);
+    } else {
+      // We if x is something else overviewX won't be assigned
+      // if (xDataType === "number") {
       // X is number
       overviewX = d3
         .scaleLinear()
-        .domain(d3.extent(fData, (d) => x(d)))
+        .domain(d3.extent(fData, x))
         .range([0, overviewWidth - ts.margin.right - ts.margin.left]);
       //.nice();
 
-      detailedX = d3
+      detailsX = d3
         .scaleLinear()
-        .domain(d3.extent(fData, (d) => x(d)))
-        .range([0, detailedWidth - ts.margin.right - ts.margin.left]);
+        .domain(d3.extent(fData, x))
+        .range([0, detailsWidth - ts.margin.right - ts.margin.left]);
     }
 
     overviewY = d3
       .scaleLinear()
-      .domain(d3.extent(fData, (d) => y(d)))
+      .domain(d3.extent(fData, y))
       .range([overviewHeight - ts.margin.top - ts.margin.bottom, 0])
       .nice();
 
-    detailedY = d3
+    detailsY = d3
       .scaleLinear()
-      .domain(d3.extent(fData, (d) => y(d)))
-      .range([detailedHeight - ts.margin.top - ts.margin.bottom, 0])
+      .domain(d3.extent(fData, y))
+      .range([detailsHeight - ts.margin.top - ts.margin.bottom, 0])
       .nice();
 
     line2 = d3
       .line()
       .defined((d) => y(d) !== undefined && y(d) !== null)
-      .x((d) => overviewX(x(d)))
+      .x((d) => overviewX(+x(d)))
       .y((d) => overviewY(y(d)));
 
-    line2Detailed = d3
+    line2Details = d3
       .line()
       .defined((d) => y(d) !== undefined && y(d) !== null)
-      .x((d) => detailedX(x(d)))
-      .y((d) => detailedY(y(d)));
+      .x((d) => detailsX(+x(d)))
+      .y((d) => detailsY(y(d)));
 
     BVH = makeBVH(
       groupedData,
@@ -2262,8 +2288,8 @@ function TimeSearcher({
     renderObject =
       renderer === "canvas" ? renderCanvas(groupedData) : renderSVG();
     render = renderObject.render;
-    if (ts.hasDetailed) {
-      prerenderDetailed = renderObject.preRender;
+    if (ts.hasDetails) {
+      prerenderDetails = renderObject.preRender;
     }
 
     generateDataSelectionDiv();
@@ -2288,7 +2314,7 @@ function TimeSearcher({
 
   // Make the ts object accesible
   divOverview.ts = ts;
-  divOverview.details = divDetailed;
+  divOverview.details = divDetails;
   divOverview.brushesCoordinates = divBrushesCoordinates;
 
   if (data) triggerValueUpdate(data);
