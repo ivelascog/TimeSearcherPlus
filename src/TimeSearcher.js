@@ -41,6 +41,7 @@ function TimeSearcher({
   medianLineDash = [7], // Selected group median line dash pattern canvas style
   medianLineAlpha = 1, // Selected group median line opacity
   medianLineWidth = 2, // Selected group median line width
+  medianFn = d3.median, // Function to use when showing the median
   xPartitions = 10, // Partitions performed on the X-axis for the collision acceleration algorithm.
   yPartitions = 10, // Partitions performed on the Y-axis for the collision acceleration algorithm.
   defaultAlpha = 1, // Default transparency (when no selection is active) of drawn lines
@@ -138,6 +139,7 @@ function TimeSearcher({
   ts.medianLineWidth = medianLineWidth;
   ts.medianLineDash = medianLineDash;
   ts.medianNumBins = medianNumBins;
+  ts.medianFn = medianFn;
   ts.alphaScale = alphaScale;
 
   // Convert attrStrings to functions
@@ -1649,7 +1651,7 @@ function TimeSearcher({
       for (let bin of bins) {
         if (bin.data.length > 2) {
           let x = bin.x0 + (bin.x1 - bin.x0) / 2;
-          let y = d3.median(bin.data);
+          let y = ts.medianFn(bin.data);
           median.push([x, y]);
         }
       }
