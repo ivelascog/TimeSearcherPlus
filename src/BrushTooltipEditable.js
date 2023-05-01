@@ -1,7 +1,7 @@
 import * as htl from "htl";
+import { log } from "./utils.js";
 
 function BrushTooltipEditable({
-  selection = null,
   fmtX,
   fmtY,
   target,
@@ -113,4 +113,4 @@ function BrushTooltipEditable({
   return brushTooltip;
 }
 
-export default BrushTooltipEditable
+export default BrushTooltipEditable;

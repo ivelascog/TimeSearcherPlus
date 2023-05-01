@@ -9,8 +9,6 @@ import {log} from "./utils.js";
 import BrushTooltipEditable from "./BrushTooltipEditable.js";
 
 
-
-
 function TimeSearcher({
   // John TODO: Let's change everything to Observable's style TimeSearcher(data, { width, etc})
   data,
