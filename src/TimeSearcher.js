@@ -319,7 +319,7 @@ function TimeSearcher({
     <ul id="brushesList">
       
     </ul>
-    <button id="btnAddBrushGroup">Add Brush Group</button>
+    <button id="btnAddBrushGroup">Add Group</button>
     </div>`;
 
     brushesControlsElement
@@ -422,7 +422,7 @@ function TimeSearcher({
       .attr("class", "colorBrushes")
       .attr("id", (d) => "colorBrush-" + d[0])
       .attr("height", ts.brushGroupSize)
-      .attr("min-width", ts.brushGroupSize)
+      .attr("width", ts.brushGroupSize)
       .attr(
         "transform",
         (d, i) => `translate(${90 + i * (ts.brushGroupSize + 5)}, -2)`
