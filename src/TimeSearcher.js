@@ -299,7 +299,7 @@ function TimeSearcher({
     <ul id="brushesList">
       
     </ul>
-    <button id="btnAddBrushGroup">Add Brush Group</button>
+    <button id="btnAddBrushGroup">Add Group</button>
     </div>`;
 
     brushesControlsElement
