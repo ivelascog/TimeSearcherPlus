@@ -3,11 +3,9 @@ import { throttle } from "throttle-debounce";
 import { createPopper } from "@popperjs/core";
 import { add, sub, intervalToDuration } from "date-fns";
 
-
-import {log} from "./utils.js";
+import { log } from "./utils.js";
 
 import BrushTooltipEditable from "./BrushTooltipEditable.js";
-
 
 function TimeSearcher({
   // John TODO: Let's change everything to Observable's style TimeSearcher(data, { width, etc})
@@ -39,7 +37,7 @@ function TimeSearcher({
   maxDetailsRecords = 100, // How many results to show in the detail view
   maxTimelines = null, // Set to a value to limit the number of distinct timelines to show
   showGroupMedian = true, // If active show a line with the median of the enabled groups.
-  medianNumBins = 500, // Number of bins used to compute the group median.
+  medianNumBins = 10, // Number of bins used to compute the group median.
   medianLineDash = [7], // Selected group median line dash pattern canvas style
   medianLineAlpha = 1, // Selected group median line opacity
   medianLineWidth = 2, // Selected group median line width
@@ -114,7 +112,7 @@ function TimeSearcher({
     nGroupsData,
     brushTooltipEditable;
 
-  // Default Parameters
+  // Exported Parameters
   ts.xPartitions = xPartitions;
   ts.yPartitions = yPartitions;
   ts.defaultAlpha = defaultAlpha;
@@ -139,6 +137,7 @@ function TimeSearcher({
   ts.medianLineAlpha = medianLineAlpha;
   ts.medianLineWidth = medianLineWidth;
   ts.medianLineDash = medianLineDash;
+  ts.medianNumBins = medianNumBins;
   ts.alphaScale = alphaScale;
 
   // Convert attrStrings to functions
@@ -1200,6 +1199,7 @@ function TimeSearcher({
 
         context.save();
         // Render Group Median
+
         if (showGroupMedian) {
           let line2m = d3
             .line()
@@ -1610,19 +1610,26 @@ function TimeSearcher({
 
   function getBrushGroupsMedians(data) {
     // TODO use d3.bin()
-    let minX = overviewX.domain()[0];
-    let maxX = overviewX.domain()[1];
+    let minX = +overviewX.domain()[0];
+    let maxX = +overviewX.domain()[1];
 
-    let binW = (maxX - minX) / medianNumBins;
+    let binW = (maxX - minX) / ts.medianNumBins;
 
-    log("getBrushGroupsMedians: number of bins", medianNumBins, " binW ", binW, minX, maxX);
+    log(
+      "getBrushGroupsMedians: number of bins",
+      ts.medianNumBins,
+      " binW ",
+      binW,
+      minX,
+      maxX
+    );
 
     for (let g of data.entries()) {
       let id = g[0];
 
       let bins = [];
       let cx = minX;
-      for (let i = 0; i < medianNumBins; ++i) {
+      for (let i = 0; i < ts.medianNumBins; ++i) {
         bins.push({
           x0: cx,
           x1: cx + binW,
@@ -1633,14 +1640,14 @@ function TimeSearcher({
       for (let line of g[1]) {
         for (let point of line[1]) {
           let i = Math.floor((x(point) - minX) / binW);
-          i = i > medianNumBins - 1 ? i - 1 : i;
+          i = i > ts.medianNumBins - 1 ? i - 1 : i;
           bins[i].data.push(y(point));
         }
       }
 
       let median = [];
       for (let bin of bins) {
-        if (bin.data.length > 5) {
+        if (bin.data.length > 2) {
           let x = bin.x0 + (bin.x1 - bin.x0) / 2;
           let y = d3.median(bin.data);
           median.push([x, y]);
@@ -2195,7 +2202,10 @@ function TimeSearcher({
   }
 
   // To allow a message from the outside to rerender
-  ts.render = () => render(dataSelected, dataNotSelected);
+  ts.render = () => {
+    brushFilterRender();
+    // render(dataSelected, dataNotSelected);
+  };
 
   // Make the ts object accesible
   divOverview.ts = ts;
