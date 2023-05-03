@@ -29,7 +29,9 @@ function Timeline({
     .attr("class", "gDrawing")
     .attr("transform", `translate(${margin.left}, ${margin.top})`);
 
-  g.append("g").attr("class", "detailsYAxis").call(d3.axisLeft(yScale));
+  g.append("g")
+    .attr("class", "detailsYAxis")
+    .call(d3.axisLeft(yScale).ticks(Math.floor(height / 30)));
 
   g.append("g")
     .attr("class", "detailsXAxis")

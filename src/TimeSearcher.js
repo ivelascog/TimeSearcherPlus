@@ -12,7 +12,7 @@ function TimeSearcher({
   // John TODO: Let's change everything to Observable's style TimeSearcher(data, { width, etc})
   data,
   target = document.createElement("div"), // pass a html element where you want to render
-  detailsElement = document.createElement("div"), // pass a html element where you want to render the details
+  detailsElement, // pass a html element where you want to render the details
   brushCoordinatesElement = document.createElement("div"), // pass a html element where you want to render the brush coordinates Input.
   brushesControlsElement = document.createElement("div"), // pass a html element where you want to have the brushes controls.
   showBrushesControls = true, // If false you can still use brushesControlsElement to show the control on a different element on your app
@@ -21,9 +21,9 @@ function TimeSearcher({
   id = (d) => d.id, // Atribute to group the input data (Note that it also supports functions)
   groupAttr = null, // Specifies the attribute to be used to discriminate the groups.
   renderer = "canvas",
-  overviewWidth = 1200, // Set the desired width of the overview Widget
-  detailsWidth = 1200 - 20, // Set the desired width of the details Widget
-  overviewHeight = 600, // Set the desired height of the overview Widget
+  width = 1200, // Set the desired width of the overview Widget
+  detailsWidth = 400, // Set the desired width of the details Widget
+  height = 600, // Set the desired height of the overview Widget
   detailsHeight = 300, // Set the desired height of the overview Widget
   detailsContainerHeight = 400,
   updateCallback = (data) => {},
@@ -66,7 +66,12 @@ function TimeSearcher({
   stepX = { days: 10 }, // Defines the step used, both in the spinboxes and with the arrows on the X axis.
   stepY = 1, // // Defines the step used, both in the spinboxes and with the arrows on the Y axis.
   yScale = d3.scaleLinear,
+  overviewWidth, // Legacy, to be deleted
+  overviewHeight // Legacy, to be deleted
 } = {}) {
+  width = overviewWidth || width;
+  height = overviewHeight || height;
+
   let ts = {},
     groupedData,
     fData,
@@ -167,19 +172,6 @@ function TimeSearcher({
     .style("left", "0px")
     .style("background-color", ts.backgroundColor)
     .node();
-
-  if (ts.hasDetails) {
-    timelineDetails = TimelineDetails({
-      ts,
-      detailsElement,
-      detailsContainerHeight,
-      detailsWidth,
-      maxDetailsRecords,
-      detailsHeight,
-      x,
-      y,
-    });
-  }
 
   divBrushesCoordinates = d3.select(brushCoordinatesElement);
   brushesControlsElement = brushesControlsElement || d3.create("div");
@@ -378,6 +370,40 @@ function TimeSearcher({
     renderBrushesControls();
   }
 
+  function initDomains({xDataType, groupedData, fData}) {
+    // Adjust the alpha based on the number of lines
+    ts.alphaScale.domain([0, groupedData.length]);
+
+    groupedData.map((d) => [
+      d[0],
+      d[1].sort((a, b) => d3.ascending(x(a), x(b))),
+    ]);
+
+    
+    if (xDataType === "object" && x(fData[0]) instanceof Date) {
+      // X is Date
+      hasScaleTime = true;
+      overviewX = d3
+        .scaleTime()
+        .domain(d3.extent(fData, x))
+        .range([0, width - ts.margin.right - ts.margin.left]);
+    } else {
+      // We if x is something else overviewX won't be assigned
+      // if (xDataType === "number") {
+      // X is number
+      overviewX = d3
+        .scaleLinear()
+        .domain(d3.extent(fData, x))
+        .range([0, width - ts.margin.right - ts.margin.left]);
+      //.nice();
+    }
+
+    overviewY = ts
+      .yScale()
+      .domain(d3.extent(fData, y))
+      .range([height - ts.margin.top - ts.margin.bottom, 0]);    
+  }
+
   function init() {
     //CreateOverView
     divControls = d3
@@ -395,9 +421,9 @@ function TimeSearcher({
 
     svg = divRender
       .append("svg")
-      .attr("viewBox", [0, 0, overviewWidth, overviewHeight])
-      .attr("height", overviewHeight)
-      .attr("width", overviewWidth);
+      .attr("viewBox", [0, 0, width, height])
+      .attr("height", height)
+      .attr("width", width);
 
     const g = svg
       .append("g")
@@ -452,7 +478,7 @@ function TimeSearcher({
         .call(d3.axisRight(overviewY))
         .attr(
           "transform",
-          `translate(${overviewWidth - ts.margin.left - ts.margin.right},0)`
+          `translate(${width - ts.margin.left - ts.margin.right},0)`
         )
         .style("pointer-events", "none");
     }
@@ -464,7 +490,7 @@ function TimeSearcher({
 
       .attr(
         "transform",
-        `translate(0, ${overviewHeight - ts.margin.top - ts.margin.bottom})`
+        `translate(0, ${height - ts.margin.top - ts.margin.bottom})`
       )
       .call((axis) =>
         axis
@@ -473,7 +499,7 @@ function TimeSearcher({
           .attr(
             "transform",
             `translate(${
-              overviewWidth - ts.margin.right - ts.margin.left - 5
+              width - ts.margin.right - ts.margin.left - 5
             }, -10 )`
           )
           .style("fill", "black")
@@ -494,7 +520,7 @@ function TimeSearcher({
         .attr("class", "gridline")
         .attr("x1", 0)
         .attr("y1", 0)
-        .attr("x2", overviewWidth - ts.margin.right - ts.margin.left)
+        .attr("x2", width - ts.margin.right - ts.margin.left)
         .attr("y2", 0)
         .attr("stroke", "#9ca5aecf") // line color
         .attr("stroke-dasharray", "4"); // make it dashed;;
@@ -504,7 +530,7 @@ function TimeSearcher({
         .append("line")
         .attr("class", "gridline")
         .attr("x1", 0)
-        .attr("y1", -overviewHeight + ts.margin.top + ts.margin.bottom)
+        .attr("y1", -height + ts.margin.top + ts.margin.bottom)
         .attr("x2", 0)
         .attr("y2", 0)
         .attr("stroke", "#9ca5aecf") // line color
@@ -683,6 +709,31 @@ function TimeSearcher({
         });
       divButtons.append("span").text((d) => d);
     }
+  }
+
+  function initDetails({xDataType, fData}) {
+    if (ts.hasDetails) {
+      // We didn't receive a HTML element for the details div,
+      // let's create it and add it to the target
+      if (!detailsElement) {
+        detailsElement = document.createElement("div");
+        divOverview.appendChild(detailsElement);
+      }
+
+      // TimelineDetails object
+      timelineDetails = TimelineDetails({
+        ts,
+        detailsElement,
+        detailsContainerHeight,
+        detailsWidth,
+        maxDetailsRecords,
+        detailsHeight,
+        x,
+        y,
+      });
+    }
+
+    ts.hasDetails && timelineDetails.setScales({ xDataType, fData });
   }
 
   function onSpinboxChange(sourceEvent) {
@@ -1108,14 +1159,14 @@ function TimeSearcher({
   function renderCanvas(data) {
     const canvas = divRender
       .append("canvas")
-      .attr("height", overviewHeight * window.devicePixelRatio)
-      .attr("width", overviewWidth * window.devicePixelRatio)
+      .attr("height", height * window.devicePixelRatio)
+      .attr("width", width * window.devicePixelRatio)
       .style("position", "absolute")
       .style("z-index", "-1")
       .style("top", `${ts.margin.top}px`)
       .style("left", `${ts.margin.left}px`)
-      .style("width", `${overviewWidth}px`)
-      .style("height", `${overviewHeight}px`)
+      .style("width", `${width}px`)
+      .style("height", `${height}px`)
       .style("pointer-events", "none");
 
     const context = canvas.node().getContext("2d");
@@ -2005,39 +2056,11 @@ function TimeSearcher({
     // Limit the number of timelines
     if (maxTimelines) groupedData = groupedData.slice(0, maxTimelines);
 
-    // Adjust the alpha based on the number of lines
-    ts.alphaScale.domain([0, groupedData.length]);
-
-    groupedData.map((d) => [
-      d[0],
-      d[1].sort((a, b) => d3.ascending(x(a), x(b))),
-    ]);
-
+    
     let xDataType = typeof x(fData[0]);
-    if (xDataType === "object" && x(fData[0]) instanceof Date) {
-      // X is Date
-      hasScaleTime = true;
-      overviewX = d3
-        .scaleTime()
-        .domain(d3.extent(fData, x))
-        .range([0, overviewWidth - ts.margin.right - ts.margin.left]);
-    } else {
-      // We if x is something else overviewX won't be assigned
-      // if (xDataType === "number") {
-      // X is number
-      overviewX = d3
-        .scaleLinear()
-        .domain(d3.extent(fData, x))
-        .range([0, overviewWidth - ts.margin.right - ts.margin.left]);
-      //.nice();
-    }
 
-    overviewY = ts
-      .yScale()
-      .domain(d3.extent(fData, y))
-      .range([overviewHeight - ts.margin.top - ts.margin.bottom, 0]);
 
-    ts.hasDetails && timelineDetails.setScales({ xDataType, fData });
+    initDomains({xDataType, fData, groupedData});
 
     line2 = d3
       .line()
@@ -2049,8 +2072,8 @@ function TimeSearcher({
       groupedData,
       ts.xPartitions,
       ts.yPartitions,
-      overviewWidth,
-      overviewHeight
+      width,
+      height
     );
 
     g = init();
@@ -2063,6 +2086,8 @@ function TimeSearcher({
 
     generateDataSelectionDiv();
     generateBrushCoordinatesDiv();
+
+    initDetails({xDataType, fData});
 
     addBrushGroup();
     dataSelected.set(0, groupedData);
