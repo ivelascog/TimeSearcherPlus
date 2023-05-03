@@ -1,18 +1,18 @@
 import * as d3 from "d3";
-import {log} from "./utils.js";
+import { log } from "./utils.js";
 import TimelineDetails from "./TimelineDetails.js";
 function TimeLineOverview({
   ts,
   element,
-  width,
-  height,
+  width= 800,
+  height = 600,
   x,
-  y
+  y,
+  overviewY,
+  overviewX,
 }) {
   let me = {};
-  let paths,
-    overviewX,
-    overviewY;
+  let paths;
 
   const divOverview = d3
     .select(element)
@@ -21,10 +21,15 @@ function TimeLineOverview({
     .style("position", "relative")
     .style("top", "0px")
     .style("left", "0px")
-    .style("background-color", ts.backgroundColor)
+    .style("background-color", ts.backgroundColor);
 
-  const line = d3.line().defined((d) => y(d) !== undefined && y(d) !== null);
-  const linem = d3.line();
+  let line = d3
+    .line()
+    .defined((d) => y(d) !== undefined && y(d) !== null)
+    .x((d) => overviewX(x(d)))
+    .y((d) => overviewY(+y(d)));
+
+  let linem = d3.line();
 
   const canvas = divOverview
     .append("canvas")
@@ -41,17 +46,17 @@ function TimeLineOverview({
   const context = canvas.node().getContext("2d");
   context.scale(window.devicePixelRatio, window.devicePixelRatio);
 
-  me.data = function (data) {
+  me.data = function (data) {    
     paths = new Map();
     data.forEach((d) => {
       let group = ts.groupAttr ? d[1][0][ts.groupAttr] : null;
       let pathObject = { path: new Path2D(line(d[1])), group: group };
       paths.set(d[0], pathObject);
     });
-  }
+  };
 
-  me.setScales = function ({data, xDataType}) {
-    if (xDataType === "object" && x(fData[0]) instanceof Date) {
+  me.setScales = function ({ data, xDataType }) {
+    if (xDataType === "object" && x(data[0]) instanceof Date) {
       overviewX = d3
         .scaleTime()
         .domain(d3.extent(data, x))
@@ -68,11 +73,16 @@ function TimeLineOverview({
       .domain(d3.extent(data, y))
       .range([height - ts.margin.top - ts.margin.bottom, 0]);
 
-    line.x((d) => overviewX(+x(d))).y((d) => overviewY(y(d)));
-    linem.x((d) => overviewX(d[0])).y((d) => overviewY(d[1]));
-  }
+    line = line.x((d) => overviewX(+x(d))).y((d) => overviewY(y(d)));
+    linem = linem.x((d) => overviewX(d[0])).y((d) => overviewY(d[1]));
+  };
 
-  function renderOvwerview(dataSelected, dataNotSelected, medians, hasSelection) {
+  function renderOvwerview(
+    dataSelected,
+    dataNotSelected,
+    medians,
+    hasSelection
+  ) {
     dataNotSelected = dataNotSelected ? dataNotSelected : [];
     context.clearRect(0, 0, canvas.node().width, canvas.node().height);
     if (!hasSelection) {
@@ -107,11 +117,11 @@ function TimeLineOverview({
         context.globalAlpha = ts.medianLineAlpha;
 
         medians.forEach((d) => {
-            let path = new Path2D(linem(d[1]));
-            context.setLineDash(ts.medianLineDash);
-            context.strokeStyle = ts.brushesColorScale(d[0]);
-            context.stroke(path);
-          });
+          let path = new Path2D(linem(d[1]));
+          context.setLineDash(ts.medianLineDash);
+          context.strokeStyle = ts.brushesColorScale(d[0]);
+          context.stroke(path);
+        });
       }
       context.restore();
     }
@@ -135,12 +145,11 @@ function TimeLineOverview({
     }
   }
 
-  me.render = function(dataSelected, dataNotSelected, medians, hasSelection){
-    renderOvwerview(dataSelected, dataNotSelected, medians, hasSelection)
-  }
+  me.render = function (dataSelected, dataNotSelected, medians, hasSelection) {
+    renderOvwerview(dataSelected, dataNotSelected, medians, hasSelection);
+  };
 
   return me;
 }
 
 export default TimeLineOverview;
-

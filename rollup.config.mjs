@@ -68,7 +68,7 @@ export default [
       file: meta.module,
       format: "esm",
       indent: false,
-      // sourcemap: true,
+      sourcemap: true,
       name: "TimeSearcher",
       globals: {
         d3: "d3",

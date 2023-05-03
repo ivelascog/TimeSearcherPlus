@@ -26,6 +26,8 @@ function TimelineDetails({
     .style("overflow-y", "scroll")
     .node();
 
+  const line = d3.line().defined((d) => y(d) !== undefined && y(d) !== null);    
+
   let detailsX, detailsY;
 
   me.setScales = function ({ fData, xDataType }) {
@@ -49,7 +51,7 @@ function TimelineDetails({
     line.x((d) => detailsX(+x(d))).y((d) => detailsY(y(d)));
   };
 
-  const line = d3.line().defined((d) => y(d) !== undefined && y(d) !== null);
+  
 
   // ts.observer = new IntersectionObserver(onDetailsScrolled, {
   //   root: divDetails,

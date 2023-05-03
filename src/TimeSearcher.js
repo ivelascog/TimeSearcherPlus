@@ -50,7 +50,7 @@ function TimeSearcher({
   defaultAlpha = 1, // Default transparency (when no selection is active) of drawn lines
   selectedAlpha = 1, // Transparency of selected lines
   noSelectedAlpha = 0.6, // Transparency of unselected lines
-  alphaScale = d3.scalePow().exponent(0.25).range([1, 0.3]), // A scale to adjust the alpha by the number of rendering elements
+  alphaScale = d3.scalePow().exponent(0.25).range([1, 1]), // A scale to adjust the alpha by the number of rendering elements
   backgroundColor = "#ffffff",
   defaultColor = "#aaa", // Default color (when no selection is active) of the drawn lines. It only has effect when "groupAttr" is not defined.
   selectedColor = "#aaa", // Color of selected lines. It only has effect when "groupAttr" is not defined.
@@ -374,12 +374,19 @@ function TimeSearcher({
 
   function initDomains({ xDataType, groupedData, fData }) {
     // Adjust the alpha based on the number of lines
-    ts.alphaScale.domain([0, groupedData.length]);
+    
 
+    log("Sorting data");
     groupedData.map((d) => [
       d[0],
       d[1].sort((a, b) => d3.ascending(x(a), x(b))),
     ]);
+
+    log("Sorting data: done");
+
+
+    ts.alphaScale.domain([0, groupedData.length]);
+
 
     if (xDataType === "object" && x(fData[0]) instanceof Date) {
       // X is Date
@@ -423,10 +430,12 @@ function TimeSearcher({
     timelineOverview = TimeLineOverview({
       ts,
       element: divRender.node(),
-      width: overviewWidth,
-      height: overviewHeight,
+      width: width,
+      height: height,
       x,
       y,
+      overviewX,
+      overviewY
     });
 
     svg = divRender
@@ -1942,7 +1951,6 @@ function TimeSearcher({
   // To allow a message from the outside to rerender
   ts.render = () => {
     brushFilterRender();
-    // render(dataSelected, dataNotSelected);
   };
 
   // Make the ts object accesible
