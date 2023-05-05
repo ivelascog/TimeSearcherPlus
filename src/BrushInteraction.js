@@ -1,8 +1,7 @@
 import * as d3 from "d3";
 import {throttle} from "throttle-debounce";
-import {compareMaps} from "./utils"
-import BVH from "./BVH"
-import {he} from "date-fns/locale";
+import {compareMaps} from "./utils";
+import BVH from "./BVH";
 import brushTooltipEditable from "./BrushTooltipEditable.js";
 
 function brushInteraction({
@@ -92,6 +91,7 @@ function brushInteraction({
       isSelected: false,
       group: brushGroupSelected,
       selection: null,
+      selectionDomain: null
     });
     brushCount++;
   }
@@ -117,10 +117,18 @@ function brushInteraction({
     drawBrushes();
   }
 
+  function getSelectionDomain(selection) {
+    return selection.map(([x, y]) => [
+      scaleX.invert(x),
+      scaleY.invert(y),
+    ]);
+  }
+
   function brushed({selection, sourceEvent}, brush) {
     if (sourceEvent === undefined) return; // dont execute this method when move brushes programatically
 
     brush[1].selection = selection;
+    brush[1].selectionDomain = getSelectionDomain(selection);
     if (updateBrush(brush)) {
       //Update intersections with modified brush
       brushFilter();
@@ -222,6 +230,7 @@ function brushInteraction({
     let distX = x0 - triggerBrush[1].selection[0][0];
     let distY = y0 - triggerBrush[1].selection[0][1];
     triggerBrush[1].selection = selection;
+    triggerBrush[1].selectionDomain = getSelectionDomain(selection);
     for (const brushGroup of brushesGroup.values()) {
       for (const brush of brushGroup) {
         if (brush[1].isSelected && !(triggerBrush[0] === brush[0])) {
@@ -238,6 +247,7 @@ function brushInteraction({
             [x0, y0],
             [x1, y1],
           ];
+          brush[1].selectionDomain = getSelectionDomain(brush[1].selection);
         }
       }
     }
@@ -481,6 +491,50 @@ function brushInteraction({
 
   me.removeSelectedBrush = function () {
     if (selectedBrush) removeBrush(selectedBrush)
+  }
+
+  me.getSelectedBrush = function () {
+    return selectedBrush;
+  }
+
+  me.moveSelectedBrush = function (x0, x1, y0, y1) { //Domain coordinates
+    let minX = scaleX.domain()[0];
+    let maxX = scaleX.domain()[1];
+    let minY = scaleY.domain()[0];
+    let maxY = scaleY.domain()[1];
+
+    x0 = Math.max(x0, minX);
+    x1 = Math.min(x1, maxX);
+    y0 = Math.max(y0, minY);
+    y1 = Math.min(y1, maxY);
+
+    if (x0 > x1) {
+      [x0, x1] = [x1, x0]
+    }
+
+    if (y0 < y1) {
+      [y0, y1] =  [y1, y0]
+    }
+
+
+    let x0p = scaleX(x0);
+    let x1p = scaleX(x1);
+    let y0p = scaleY(y0);
+    let y1p = scaleY(y1);
+
+    gBrushes
+      .select("#brush-" + selectedBrush[0])
+      .call(selectedBrush[1].brush.move, [
+        [x0p, y0p],
+        [x1p, y1p],
+      ])
+
+    let selection = [[x0p,y0p],[x1p,y1p]];
+    let selectionDomain = [[x0,y0],[x1,y1]]
+
+    let sourceEvent = new Event("move")
+    brushed({ selection, sourceEvent }, selectedBrush);
+    brushTooltip.__update({selection: selectionDomain, selectionPixels: selection})
   }
 
   // add brush group without funct to avoid callback

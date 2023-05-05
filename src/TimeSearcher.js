@@ -750,13 +750,11 @@ function TimeSearcher({
     return { x0, x1, y0, y1 };
   }
 
-  function onArrowRigth(sourceEvent) {  //TODO
-    // TODO avoid using spinbox to get the actual selection and use the selectedBrush.
+  function onArrowRigth(sourceEvent) {
+    let selectedBrush = brushes.getSelectedBrush();
     if (selectedBrush === null) return;
 
-    let [[sx0, sy0], [sx1, sy1]] = brushSpinBoxes;
-
-    let { x0, x1, y0, y1 } = getSpinBoxValues();
+    let [[x0, y0], [x1, y1]] = selectedBrush[1].selectionDomain;
 
     let maxX = overviewX.domain()[1];
 
@@ -782,66 +780,14 @@ function TimeSearcher({
       }
     }
 
-    sx0.node().value = fmtX(x0);
-    sx1.node().value = fmtX(x1);
-
-    x0 = overviewX(x0);
-    x1 = overviewX(x1);
-    y0 = overviewY(y0);
-    y1 = overviewY(y1);
-
-    gBrushes
-      .select("#brush-" + selectedBrush[0])
-      .call(selectedBrush[1].brush.move, [
-        [x0, y0],
-        [x1, y1],
-      ]);
-
-    let selection = [
-      [x0, y0],
-      [x1, y1],
-    ];
-
-    brushed({ selection, sourceEvent }, selectedBrush);
+    brushes.moveSelectedBrush(x0, x1, y0, y1);
   }
 
-  function updateBrushSelection(nx0, nx1, ny0, ny1, brush) {
-    let [[x0, y0], [x1, y1]] = brush[1].selection;
-
-    let minX = overviewX.domain()[0];
-    let maxX = overviewX.domain()[1];
-
-    if (nx0) {
-      if (nx0 > maxX) nx0 = maxX - ts.stepX;
-      if (nx1 < minX) nx0 = minX;
-
-      x0 = nx0;
-      if (x0 > x1) x1 = x0 + ts.stepX;
-    }
-
-    if (nx1) {
-      if (nx1 > maxX) nx1 = maxX;
-      if (nx1 < minX) nx1 = minX + ts.stepX;
-
-      x1 = nx1;
-      if (x1 < x0) x0 = x1 - ts.stepX;
-    }
-
-    let miny = overviewY.domain()[0];
-    let maxy = overviewY.domain()[1];
-
-    if (ny0) {
-      if (n) {
-      }
-    }
-  }
-
-  function onArrowLeft(sourceEvent) { //TODO
+  function onArrowLeft(sourceEvent) {
+    let selectedBrush = brushes.getSelectedBrush();
     if (selectedBrush === null) return;
 
-    let [[sx0, sy0], [sx1, sy1]] = brushSpinBoxes;
-
-    let { x0, x1, y0, y1 } = getSpinBoxValues();
+    let [[x0, y0], [x1, y1]] = selectedBrush[1].selectionDomain;
 
     let minX = overviewX.domain()[0];
 
@@ -866,39 +812,18 @@ function TimeSearcher({
       }
     }
 
-    sx0.node().value = fmtX(x0);
-    sx1.node().value = fmtX(x1);
-
-    x0 = overviewX(x0);
-    x1 = overviewX(x1);
-    y0 = overviewY(y0);
-    y1 = overviewY(y1);
-
-    gBrushes
-      .select("#brush-" + selectedBrush[0])
-      .call(selectedBrush[1].brush.move, [
-        [x0, y0],
-        [x1, y1],
-      ]);
-
-    let selection = [
-      [x0, y0],
-      [x1, y1],
-    ];
-
-    brushed({ selection, sourceEvent }, selectedBrush);
+    brushes.moveSelectedBrush(x0, x1, y0, y1);
   }
 
-  function onArrowDown(sourceEvent) { //TODO
+  function onArrowDown(sourceEvent) {
+    let selectedBrush = brushes.getSelectedBrush();
     if (selectedBrush === null) return;
 
-    let [[sx0, sy0], [sx1, sy1]] = brushSpinBoxes;
-
-    let { x0, x1, y0, y1 } = getSpinBoxValues();
+    let [[x0, y0], [x1, y1]] = selectedBrush[1].selectionDomain;
 
     y1 -= ts.stepY;
 
-    let minY = +sy0.node().min;
+    let minY = overviewY.domain()[0]
 
     if (y1 < minY) {
       let dist = y1 + ts.stepY - minY;
@@ -907,40 +832,18 @@ function TimeSearcher({
     } else {
       y0 -= ts.stepY;
     }
-
-    sy0.node().value = y1;
-    sy1.node().value = y0;
-
-    x0 = overviewX(x0);
-    x1 = overviewX(x1);
-    y0 = overviewY(y0);
-    y1 = overviewY(y1);
-
-    gBrushes
-      .select("#brush-" + selectedBrush[0])
-      .call(selectedBrush[1].brush.move, [
-        [x0, y0],
-        [x1, y1],
-      ]);
-
-    let selection = [
-      [x0, y0],
-      [x1, y1],
-    ];
-
-    brushed({ selection, sourceEvent }, selectedBrush);
+    brushes.moveSelectedBrush(x0, x1, y0, y1);
   }
 
-  function onArrowUp(sourceEvent) { // TODO
+  function onArrowUp(sourceEvent) {
+    let selectedBrush = brushes.getSelectedBrush();
     if (selectedBrush === null) return;
 
-    let [[sx0, sy0], [sx1, sy1]] = brushSpinBoxes;
-
-    let { x0, x1, y0, y1 } = getSpinBoxValues();
+    let [[x0, y0], [x1, y1]] = selectedBrush[1].selectionDomain;
 
     y0 += ts.stepY;
 
-    let maxY = +sy0.node().max;
+    let maxY = overviewY.domain()[1]
 
     if (y0 > maxY) {
       let dist = maxY - y0 + ts.stepY;
@@ -950,27 +853,7 @@ function TimeSearcher({
       y1 += ts.stepY;
     }
 
-    sy0.node().value = y1;
-    sy1.node().value = y0;
-
-    x0 = overviewX(x0);
-    x1 = overviewX(x1);
-    y0 = overviewY(y0);
-    y1 = overviewY(y1);
-
-    gBrushes
-      .select("#brush-" + selectedBrush[0])
-      .call(selectedBrush[1].brush.move, [
-        [x0, y0],
-        [x1, y1],
-      ]);
-
-    let selection = [
-      [x0, y0],
-      [x1, y1],
-    ];
-
-    brushed({ selection, sourceEvent }, selectedBrush);
+    brushes.moveSelectedBrush(x0, x1, y0, y1);
   }
 
   function renderSVG() {
