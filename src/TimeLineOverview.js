@@ -1,6 +1,4 @@
 import * as d3 from "d3";
-import { log } from "./utils.js";
-import TimelineDetails from "./TimelineDetails.js";
 function TimeLineOverview({
   ts,
   element,
