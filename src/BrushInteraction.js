@@ -71,6 +71,7 @@ function brushInteraction({
         brushesGroup.get(brush[1].group).brushes.delete(brush[0]);
         brush[1].group = brushGroupSelected;
         brushesGroup.get(brushGroupSelected).brushes.set(brush[0], brush[1]);
+        brushesGroup.get(brushGroupSelected).isEnable = true;
         selectedBrush = brush;
         drawBrushes();
       }
@@ -437,9 +438,10 @@ function brushInteraction({
   me.changeBrushGroupState = function (id, newState) {
     if (brushesGroup.get(id).isEnable === newState) return; //same state so no update needed
 
-    if (!newState) {
-      brushesGroup.get(id).isEnable = newState;
-      if (selectedBrush[1].group === id) {
+    brushesGroup.get(id).isEnable = newState;
+
+    if (!newState) { // Hide tooltip if it was in a brush of that group.
+      if (selectedBrush && selectedBrush[1].group === id) {
         brushTooltip.__hide();
       }
     }
