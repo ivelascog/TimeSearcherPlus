@@ -23,6 +23,7 @@ function brushInteraction({
   brushShadow,
   selectionCallback = (dataSelected, dataNotSelected, hasSelection) => {},
   groupsCallback = (groups) => {},
+  changeSelectedCoordinatesCallback = (selection) => {},
   statusCallback = (status) => {}
 }) {
   let me = {},
@@ -33,6 +34,7 @@ function brushInteraction({
     tBrushed,
     tUpdateSelection,
     tShowTooltip,
+    tSelectionCall,
     brushGroupSelected,
     selectedBrush,
     dataSelected,
@@ -45,6 +47,7 @@ function brushInteraction({
   tBrushed = throttle(updateTime, brushed);
   tUpdateSelection = throttle(updateTime, updateSelection);
   tShowTooltip = throttle(50, showBrushTooltip);
+  tSelectionCall = throttle(50, updateSelectedCoordinates);
 
 
   dataSelected = new Map();
@@ -76,7 +79,7 @@ function brushInteraction({
       }
     });
     brush.on("brush.move", moveSelectedBrushes);
-    //brush.on("brush.spinBox", tUpdateBrushSpinBox); // TODO
+    brush.on("brush.Selected", tSelectionCall);
 
     if (ts.autoUpdate) {
       brush.on("brush.brushed", tBrushed);
@@ -189,6 +192,11 @@ function brushInteraction({
     })
 
     groupsCallback(groups);
+  }
+
+  function updateSelectedCoordinates ({selection}) {
+    let selectionDomain = getSelectionDomain(selection);
+    changeSelectedCoordinatesCallback(selectionDomain);
   }
 
   function intersectGroup(data, group) {
@@ -432,7 +440,7 @@ function brushInteraction({
     if (!newState) {
       brushesGroup.get(id).isEnable = newState;
       if (selectedBrush[1].group === id) {
-        hideTooltip(null, true); //TODO
+        brushTooltip.__hide();
       }
     }
 
@@ -535,6 +543,7 @@ function brushInteraction({
     let sourceEvent = new Event("move")
     brushed({ selection, sourceEvent }, selectedBrush);
     brushTooltip.__update({selection: selectionDomain, selectionPixels: selection})
+    //moveSelectedBrushes({selection,sourceEvent},brushInSpinBox)
   }
 
   // add brush group without funct to avoid callback

@@ -89,7 +89,6 @@ function TimeSearcher({
     gEditbrushes,
     gReferences,
     brushSpinBoxes,
-    selectedBrush,
     medianBrushGroups,
     dataSelected,
     dataNotSelected,
@@ -517,7 +516,8 @@ function TimeSearcher({
       updateTime: 150,
       statusCallback: (status) => log("status brush Change", status),
       selectionCallback: onSelectionChange,
-      groupsCallback: renderBrushesControls
+      groupsCallback: renderBrushesControls,
+      changeSelectedCoordinatesCallback: updateBrushSpinBox
     });
 
     gGroupBrushes
@@ -533,16 +533,18 @@ function TimeSearcher({
     return g;
   }
 
-  function updateBrushSpinBox({ selection, sourceEvent }, brush) { //TODO
-    selectedBrush = brush;
+  function updateBrushSpinBox( selection ) { //TODO
+    if (selection) {
+      let [[x0, y0], [x1, y1]] = selection;
+      let [[sx0, sy0], [sx1, sy1]] = brushSpinBoxes;
 
-    let [[x0, y0], [x1, y1]] = selection;
-    let [[sx0, sy0], [sx1, sy1]] = brushSpinBoxes;
-
-    sx0.node().value = fmtX(overviewX.invert(x0));
-    sx1.node().value = fmtX(overviewX.invert(x1));
-    sy0.node().value = fmtY(overviewY.invert(y1));
-    sy1.node().value = fmtY(overviewY.invert(y0));
+      sx0.node().value = fmtX(x0);
+      sx1.node().value = fmtX(x1);
+      sy0.node().value = fmtY(y1);
+      sy1.node().value = fmtY(y0);
+    } else {
+      emptyBrushSpinBox();
+    }
   }
 
   function emptyBrushSpinBox() {
@@ -552,8 +554,6 @@ function TimeSearcher({
     sx1.node().value = "";
     sy0.node().value = "";
     sy1.node().value = "";
-
-    selectedBrush = null;
   }
 
   function generateBrushCoordinatesDiv() {
@@ -681,7 +681,8 @@ function TimeSearcher({
     ts.hasDetails && timelineDetails.setScales({ xDataType, fData });
   }
 
-  function onSpinboxChange(sourceEvent) { //TODO
+  function onSpinboxChange(sourceEvent) {
+    let selectedBrush = brushes.getSelectedBrush();
     if (selectedBrush === null) return;
 
     let [[sx0, sy0], [sx1, sy1]] = brushSpinBoxes;
@@ -710,26 +711,7 @@ function TimeSearcher({
       }
     }
 
-    x0 = overviewX(x0);
-    x1 = overviewX(x1);
-    y0 = overviewY(y0);
-    y1 = overviewY(y1);
-
-    gBrushes
-      .select("#brush-" + selectedBrush[0])
-      .call(selectedBrush[1].brush.move, [
-        [x0, y0],
-        [x1, y1],
-      ]);
-
-    let selection = [
-      [x0, y0],
-      [x1, y1],
-    ];
-
-    brushed({ selection, sourceEvent }, selectedBrush);
-
-    //moveSelectedBrushes({selection,sourceEvent},brushInSpinBox)
+    brushes.moveSelectedBrush(x0,x1,y0,y1);
   }
 
   function getSpinBoxValues() {
@@ -1043,6 +1025,7 @@ function TimeSearcher({
   }
 
   function brushesToDomain(brushesGroup) {
+    let selectedBrush = brushes.getSelectedBrush();
     let outMap = new Map();
     for (let brushGroup of brushesGroup.entries()) {
       let innerMap = new Map();
