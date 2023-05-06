@@ -49,6 +49,7 @@ function TimelineDetails({
       .range([detailsHeight - margin.top - margin.bottom, 0]);
 
     line.x((d) => detailsX(+x(d))).y((d) => detailsY(y(d)));
+
   };
 
   

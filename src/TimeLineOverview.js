@@ -4,7 +4,7 @@ import TimelineDetails from "./TimelineDetails.js";
 function TimeLineOverview({
   ts,
   element,
-  width= 800,
+  width = 800,
   height = 600,
   x,
   y,
@@ -46,7 +46,7 @@ function TimeLineOverview({
   const context = canvas.node().getContext("2d");
   context.scale(window.devicePixelRatio, window.devicePixelRatio);
 
-  me.data = function (data) {    
+  me.data = function (data) {
     paths = new Map();
     data.forEach((d) => {
       let group = ts.groupAttr ? d[1][0][ts.groupAttr] : null;
@@ -61,11 +61,13 @@ function TimeLineOverview({
         .scaleTime()
         .domain(d3.extent(data, x))
         .range([0, width - ts.margin.right - ts.margin.left]);
+      log("Using date scale for x", overviewX.domain(), overviewX.range());
     } else {
       overviewX = d3
         .scaleLinear()
         .domain(d3.extent(data, x))
         .range([0, width - ts.margin.right - ts.margin.left]);
+      log("Using linear scale for x", overviewX.domain(), overviewX.range());
     }
 
     overviewY = ts
