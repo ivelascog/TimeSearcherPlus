@@ -102,11 +102,11 @@ function BrushTooltipEditable({
   }
 
   btnChange0E.addEventListener("click", triggerUpdate);
-  btnChange0E.addEventListener("click", triggerUpdate);
+  btnChange1E.addEventListener("click", triggerUpdate);
 
   target.appendChild(brushTooltip);
 
-  triggerUpdate();
+  //triggerUpdate();
   resizeInputs();
 
   return brushTooltip;
