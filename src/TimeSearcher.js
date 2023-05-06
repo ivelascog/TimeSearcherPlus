@@ -1,6 +1,5 @@
 ﻿import * as d3 from "d3";
-import { throttle } from "throttle-debounce";
-import { add, sub, intervalToDuration } from "date-fns";
+import { add, intervalToDuration, sub } from "date-fns";
 
 import { log } from "./utils.js";
 
@@ -20,7 +19,6 @@ function TimeSearcher({
   y = (d) => d.y, // Atribute to show in the Y axis (Note that it also supports functions)
   id = (d) => d.id, // Atribute to group the input data (Note that it also supports functions)
   groupAttr = null, // Specifies the attribute to be used to discriminate the groups.
-  renderer = "canvas",
   width = 1200, // Set the desired width of the overview Widget
   detailsWidth = 400, // Set the desired width of the details Widget
   height = 600, // Set the desired height of the overview Widget
@@ -97,7 +95,7 @@ function TimeSearcher({
     nGroupsData,
     timelineDetails, // Centralizes the details component
     timelineOverview, // Centralizes the overview component
-    brushes
+    brushes;
 
   // Exported Parameters
   ts.xPartitions = xPartitions;
@@ -162,7 +160,6 @@ function TimeSearcher({
   selectedGroupData = new Set();
   nGroupsData = 0;
 
-
   function initBrushesControls() {
     brushesControlsElement.innerHTML = `<div id="brushesGroups" style="flex-basis:100%;">
     <h3>Groups</h3>
@@ -189,7 +186,9 @@ function TimeSearcher({
       .each(function (d) {
         const li = d3.select(this);
         let groupName = d[1].name;
-        let groupCount = dataSelected.has(d[0]) ? dataSelected.get(d[0]).length : 0;
+        let groupCount = dataSelected.has(d[0])
+          ? dataSelected.get(d[0]).length
+          : 0;
         li.node().innerHTML = `<div style="
             display: flex;
             flex-wrap: nowrap;        
@@ -213,7 +212,9 @@ function TimeSearcher({
               width: ${ts.brushGroupSize}px; 
               height: ${ts.brushGroupSize}px;
               background-color: ${ts.brushesColorScale(d[0])};
-              border-width: ${d[0] === brushes.getBrushGroupSelected() ? 2 : 0}px;
+              border-width: ${
+                d[0] === brushes.getBrushGroupSelected() ? 2 : 0
+              }px;
               border-color: black;
               border-style: solid;
               margin-right: 5px;
@@ -226,9 +227,7 @@ function TimeSearcher({
               }ch;"
               contenteditable="true" 
               value="${groupName}"></input>
-            <span id="groupSize" style="margin-right: 5px;">(${
-              groupCount
-            })</span>
+            <span id="groupSize" style="margin-right: 5px;">(${groupCount})</span>
             <button style="display" id="btnRemoveBrushGroup">-</button>
           </div>
         `;
@@ -262,8 +261,12 @@ function TimeSearcher({
         });
 
         // Select only on the box and size
-        li.select("div#groupColor").on("click", () => brushes.selectBrushGroup(d[0]));
-        li.select("span#groupSize").on("click", () => brushes.selectBrushGroup(d[0]));
+        li.select("div#groupColor").on("click", () =>
+          brushes.selectBrushGroup(d[0])
+        );
+        li.select("span#groupSize").on("click", () =>
+          brushes.selectBrushGroup(d[0])
+        );
       });
 
     // Render internal brush  controls
@@ -279,7 +282,9 @@ function TimeSearcher({
         "transform",
         (d, i) => `translate(${90 + i * (ts.brushGroupSize + 5)}, -2)`
       )
-      .style("stroke-width", (d) => (d[0] === brushes.getBrushGroupSelected() ? 2 : 0))
+      .style("stroke-width", (d) =>
+        d[0] === brushes.getBrushGroupSelected() ? 2 : 0
+      )
       .style("stroke", "black")
       .style("fill", (d) => ts.brushesColorScale(d[0]))
       .on("click", function () {
@@ -290,7 +295,6 @@ function TimeSearcher({
 
   function initDomains({ xDataType, groupedData, fData }) {
     // Adjust the alpha based on the number of lines
-    
 
     log("Sorting data");
     groupedData.map((d) => [
@@ -300,9 +304,7 @@ function TimeSearcher({
 
     log("Sorting data: done");
 
-
     ts.alphaScale.domain([0, groupedData.length]);
-
 
     if (xDataType === "object" && x(fData[0]) instanceof Date) {
       // X is Date
@@ -351,7 +353,7 @@ function TimeSearcher({
       x,
       y,
       overviewX,
-      overviewY
+      overviewY,
     });
 
     svg = divRender
@@ -512,7 +514,7 @@ function TimeSearcher({
       statusCallback: (status) => log("status brush Change", status),
       selectionCallback: onSelectionChange,
       groupsCallback: renderBrushesControls,
-      changeSelectedCoordinatesCallback: updateBrushSpinBox
+      changeSelectedCoordinatesCallback: updateBrushSpinBox,
     });
 
     gGroupBrushes
@@ -528,7 +530,8 @@ function TimeSearcher({
     return g;
   }
 
-  function updateBrushSpinBox( selection ) { //TODO
+  // Callback that is called every time the coordinates of the selected brush are modified.
+  function updateBrushSpinBox(selection) {
     if (selection) {
       let [[x0, y0], [x1, y1]] = selection;
       let [[sx0, sy0], [sx1, sy1]] = brushSpinBoxes;
@@ -638,6 +641,7 @@ function TimeSearcher({
         .style("height", `${ts.brushGroupSize}px`)
         .style("background-color", (d) => ts.colorScale(d))
         .on("click", function (event, d) {
+          // TODO
           if (selectedGroupData.has(d)) {
             selectedGroupData.delete(d);
             d3.select(this).style("border", "solid transparent");
@@ -645,7 +649,6 @@ function TimeSearcher({
             selectedGroupData.add(d);
             d3.select(this).style("border", "solid black");
           }
-          brushFilterRender();
         });
       divButtons.append("span").text((d) => d);
     }
@@ -676,6 +679,7 @@ function TimeSearcher({
     ts.hasDetails && timelineDetails.setScales({ xDataType, fData });
   }
 
+  // Callback that is called when the value of the spinboxes is modified.
   function onSpinboxChange(sourceEvent) {
     let selectedBrush = brushes.getSelectedBrush();
     if (selectedBrush === null) return;
@@ -706,7 +710,7 @@ function TimeSearcher({
       }
     }
 
-    brushes.moveSelectedBrush(x0,x1,y0,y1);
+    brushes.moveSelectedBrush(x0, x1, y0, y1);
   }
 
   function getSpinBoxValues() {
@@ -719,15 +723,14 @@ function TimeSearcher({
       x1 = timeParse(sx1.node().value);
     } else {
       x0 = +sx0.node().value;
-      x1
-        = +sx1.node().value;
+      x1 = +sx1.node().value;
     }
     let y0 = +sy1.node().value;
     let y1 = +sy0.node().value;
     return { x0, x1, y0, y1 };
   }
 
-  function onArrowRigth(sourceEvent) {
+  function onArrowRigth() {
     let selectedBrush = brushes.getSelectedBrush();
     if (selectedBrush === null) return;
 
@@ -760,7 +763,7 @@ function TimeSearcher({
     brushes.moveSelectedBrush(x0, x1, y0, y1);
   }
 
-  function onArrowLeft(sourceEvent) {
+  function onArrowLeft() {
     let selectedBrush = brushes.getSelectedBrush();
     if (selectedBrush === null) return;
 
@@ -792,7 +795,7 @@ function TimeSearcher({
     brushes.moveSelectedBrush(x0, x1, y0, y1);
   }
 
-  function onArrowDown(sourceEvent) {
+  function onArrowDown() {
     let selectedBrush = brushes.getSelectedBrush();
     if (selectedBrush === null) return;
 
@@ -800,7 +803,7 @@ function TimeSearcher({
 
     y1 -= ts.stepY;
 
-    let minY = overviewY.domain()[0]
+    let minY = overviewY.domain()[0];
 
     if (y1 < minY) {
       let dist = y1 + ts.stepY - minY;
@@ -812,7 +815,7 @@ function TimeSearcher({
     brushes.moveSelectedBrush(x0, x1, y0, y1);
   }
 
-  function onArrowUp(sourceEvent) {
+  function onArrowUp() {
     let selectedBrush = brushes.getSelectedBrush();
     if (selectedBrush === null) return;
 
@@ -820,7 +823,7 @@ function TimeSearcher({
 
     y0 += ts.stepY;
 
-    let maxY = overviewY.domain()[1]
+    let maxY = overviewY.domain()[1];
 
     if (y0 > maxY) {
       let dist = maxY - y0 + ts.stepY;
@@ -892,15 +895,17 @@ function TimeSearcher({
     return { render: render };
   }
 
+  // To render the overview and detailed view based on the selectedData
   function render(dataSelected, dataNotSelected, hasSelection) {
+    // Prepare the medians array to print ( only the enable groups)
     let medians = [];
-    let enableBrushGroups = brushes.getEnableGroups()
+    let enableBrushGroups = brushes.getEnableGroups();
     enableBrushGroups.forEach((id) => {
       medians.push([id, medianBrushGroups.get(id)]);
     });
 
+    // Decide which elements are painted as selected or not, depending on the enable groups.
     let mDataSelected = [];
-
     dataSelected.forEach((g, i) => {
       if (enableBrushGroups.has(i)) {
         mDataSelected = mDataSelected.concat(g);
@@ -923,7 +928,6 @@ function TimeSearcher({
       // window.requestAnimationFrame(() => renderDetailsCanvas(dataSelected));
     }
   }
-
 
   function getBrushGroupsMedians(data) {
     // TODO use d3.bin()
@@ -976,17 +980,20 @@ function TimeSearcher({
     log(" Bins computed", medianBrushGroups);
   }
 
+  // Callback that is called each time the selection made by the brushes is modified.
   function onSelectionChange(dataSelected_, dataNotSelected_, hasSelection) {
     dataSelected = dataSelected_;
-    dataNotSelected = dataNotSelected_
+    dataNotSelected = dataNotSelected_;
+    // Compute the medians if needed
     if (showGroupMedian) getBrushGroupsMedians(dataSelected);
 
-    render(dataSelected,dataNotSelected, hasSelection)
+    render(dataSelected, dataNotSelected, hasSelection);
     renderBrushesControls();
   }
 
-  function updateStatus() { // TODO
-   /* // exportColors
+  function updateStatus() {
+    // TODO
+    /* // exportColors
     let colors = [];
     for (let i of ts.colorScale.domain()) {
       colors.push({ value: i, color: ts.colorScale(i) });
@@ -1005,7 +1012,8 @@ function TimeSearcher({
   }
 
   // Triggers the update of the selection calls callback and dispatches input event
-  function triggerValueUpdate(sel = divOverview.value) { //TODO
+  function triggerValueUpdate(sel = divOverview.value) {
+    //TODO
     if (!sel) {
       log("Return selection with empty selection", sel);
       return;
@@ -1013,9 +1021,7 @@ function TimeSearcher({
     updateCallback(sel);
 
     divOverview.value = sel;
-    divOverview.value.brushes = Array.from(
-      (brushes.getBrushesGroup()).values()
-    );
+    divOverview.value.brushes = Array.from(brushes.getBrushesGroup().values());
     divOverview.dispatchEvent(new Event("input", { bubbles: true }));
   }
 
@@ -1127,11 +1133,7 @@ function TimeSearcher({
       .x((d) => overviewX(+x(d)))
       .y((d) => overviewY(y(d)));
 
-
-
-
     g = init();
-
 
     timelineOverview.setScales({ data: fData, xDataType });
     timelineOverview.data(groupedData);
@@ -1142,7 +1144,7 @@ function TimeSearcher({
     initDetails({ xDataType, fData });
 
     triggerValueUpdate([]);
-    dataSelected.set(0,groupedData);
+    dataSelected.set(0, groupedData);
     render(dataSelected, [], false);
     renderBrushesControls();
   };
@@ -1154,7 +1156,7 @@ function TimeSearcher({
 
   // To allow a message from the outside to rerender
   ts.render = () => {
-   render(dataSelected, dataNotSelected);
+    render(dataSelected, dataNotSelected);
   };
 
   // Make the ts object accesible

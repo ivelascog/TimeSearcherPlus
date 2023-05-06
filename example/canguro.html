@@ -17,7 +17,8 @@
   let target = TimeSearcher({
     target: d3.select("#target").node(),
     detailedElement: d3.select("#targetDetailed").node(),
-    showBrushesControls: false,
+    brushCoordinatesElement: d3.select("#targetCoordinates").node(),
+    showBrushesControls: true,
     //brushCoordinatesElement: d3.select("#targetCoordinates").node(),
     detailedContainerHeight: 600,
     overviewWidth: 800,
