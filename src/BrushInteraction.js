@@ -1,6 +1,6 @@
 import * as d3 from "d3";
-import {throttle} from "throttle-debounce";
-import {compareMaps} from "./utils";
+import { throttle } from "throttle-debounce";
+import { compareMaps } from "./utils";
 import BVH from "./BVH";
 import brushTooltipEditable from "./BrushTooltipEditable.js";
 
@@ -24,7 +24,7 @@ function brushInteraction({
   selectionCallback = (dataSelected, dataNotSelected, hasSelection) => {},
   groupsCallback = (groups) => {},
   changeSelectedCoordinatesCallback = (selection) => {},
-  statusCallback = (status) => {}
+  statusCallback = (status) => {},
 }) {
   let me = {},
     brushSize,
@@ -40,7 +40,7 @@ function brushInteraction({
     dataSelected,
     dataNotSelected,
     BVH_,
-    brushTooltip
+    brushTooltip;
 
   gBrushes = d3.select(element);
 
@@ -49,27 +49,35 @@ function brushInteraction({
   tShowTooltip = throttle(50, showBrushTooltip);
   tSelectionCall = throttle(50, updateSelectedCoordinates);
 
-
   dataSelected = new Map();
   dataNotSelected = [];
   brushesGroup = new Map();
   brushCount = 0;
   brushSize = 0;
-  BVH_ = BVH({data, x, y, width, height, scaleX, scaleY, xPartitions, yPartitions})
+  BVH_ = BVH({
+    data,
+    x,
+    y,
+    width,
+    height,
+    scaleX,
+    scaleY,
+    xPartitions,
+    yPartitions,
+  });
 
   brushTooltip = brushTooltipEditable({
     fmtX,
     fmtY,
     target: tooltipTarget,
     margin: { top: ts.margin.top, left: ts.margin.left },
-    callback: onTooltipChange })
-
+    callback: onTooltipChange,
+  });
 
   function onTooltipChange(selection) {
     let [[x0, y0], [x1, y1]] = selection;
     me.moveSelectedBrush(x0, x1, y0, y1);
   }
-
 
   function newBrush() {
     let brush = d3.brush().on("start", (e, brush) => {
@@ -102,12 +110,12 @@ function brushInteraction({
       isSelected: false,
       group: brushGroupSelected,
       selection: null,
-      selectionDomain: null
+      selectionDomain: null,
     });
     brushCount++;
   }
 
-  function endBrush({selection, sourceEvent}, brush) {
+  function endBrush({ selection, sourceEvent }, brush) {
     if (sourceEvent === undefined) return;
     if (selection) {
       let [[x0, y0], [x1, y1]] = selection;
@@ -117,7 +125,7 @@ function brushInteraction({
         if (brush[1].isSelected) {
           updateSelection();
         } else {
-          brushed({selection, sourceEvent}, brush);
+          brushed({ selection, sourceEvent }, brush);
         }
       }
     } else {
@@ -129,13 +137,10 @@ function brushInteraction({
   }
 
   function getSelectionDomain(selection) {
-    return selection.map(([x, y]) => [
-      scaleX.invert(x),
-      scaleY.invert(y),
-    ]);
+    return selection.map(([x, y]) => [scaleX.invert(x), scaleY.invert(y)]);
   }
 
-  function brushed({selection, sourceEvent}, brush) {
+  function brushed({ selection, sourceEvent }, brush) {
     if (sourceEvent === undefined) return; // dont execute this method when move brushes programatically
 
     brush[1].selection = selection;
@@ -168,9 +173,8 @@ function brushInteraction({
       dataSelected.set(0, data);
     }
 
-    selectionCallback(dataSelected, dataNotSelected, brushSize !== 0)
+    selectionCallback(dataSelected, dataNotSelected, brushSize !== 0);
   }
-
 
   function removeBrush(brush) {
     brushSize--;
@@ -191,7 +195,7 @@ function brushInteraction({
     groupsCallback(brushesGroup);
   }
 
-  function updateSelectedCoordinates ({selection}) {
+  function updateSelectedCoordinates({ selection }) {
     let selectionDomain = getSelectionDomain(selection);
     changeSelectedCoordinatesCallback(selectionDomain);
   }
@@ -301,7 +305,7 @@ function brushInteraction({
     return selectedBrush && d[0] === selectedBrush[0] ? brushShadow : "";
   }
 
-  function showBrushTooltip({selection, sourceEvent}) {
+  function showBrushTooltip({ selection, sourceEvent }) {
     if (!selection || sourceEvent === undefined) return;
 
     let selectionInverted = selection.map(([x, y]) => [
@@ -312,12 +316,14 @@ function brushInteraction({
     brushTooltip.__update({
       selection: selectionInverted,
       selectionPixels: selection,
-    })
+    });
   }
 
   function drawBrushes() {
     let brushes = [];
-    brushesGroup.forEach((d) => (brushes = brushes.concat(Array.from(d.brushes))));
+    brushesGroup.forEach(
+      (d) => (brushes = brushes.concat(Array.from(d.brushes)))
+    );
 
     gBrushes
       .selectAll(".brush")
@@ -365,7 +371,7 @@ function brushInteraction({
                   .on(
                     "mouseout",
                     () => {
-                       //brushTooltip.__hide();
+                      //brushTooltip.__hide();
                     },
                     false
                   );
@@ -411,19 +417,19 @@ function brushInteraction({
       });
   }
 
-  me.updateBrushGroupName = function (id, name) { // TODO
-    brushesGroup.get(id).name = name
+  me.updateBrushGroupName = function (id, name) {
+    // TODO
+    brushesGroup.get(id).name = name;
     updateGroups();
     updateStatus();
-
-  }
+  };
   me.addBrushGroup = function () {
     let newId = getUnusedIdBrushGroup();
     let brushGroup = {
       isEnable: true,
       name: "Group " + newId,
-      brushes: new Map()
-    }
+      brushes: new Map(),
+    };
 
     brushesGroup.set(newId, brushGroup);
     dataSelected.set(newId, []);
@@ -431,13 +437,14 @@ function brushInteraction({
 
     updateStatus();
     updateGroups();
-  }
+  };
   me.changeBrushGroupState = function (id, newState) {
     if (brushesGroup.get(id).isEnable === newState) return; //same state so no update needed
 
     brushesGroup.get(id).isEnable = newState;
 
-    if (!newState) { // Hide tooltip if it was in a brush of that group.
+    if (!newState) {
+      // Hide tooltip if it was in a brush of that group.
       if (selectedBrush && selectedBrush[1].group === id) {
         brushTooltip.__hide();
       }
@@ -446,7 +453,7 @@ function brushInteraction({
     drawBrushes();
     updateStatus();
     updateGroups();
-  }
+  };
 
   me.selectBrushGroup = function (id) {
     brushesGroup.get(brushGroupSelected).isActive = false;
@@ -456,9 +463,10 @@ function brushInteraction({
     drawBrushes();
     updateStatus();
     updateGroups();
-  }
+  };
 
-  me.removeBrushGroup = function (id) { // TODO
+  me.removeBrushGroup = function (id) {
+    // TODO
     if (brushesGroup.length <= 1) return;
 
     let itKeys = brushesGroup.keys();
@@ -485,35 +493,36 @@ function brushInteraction({
     brushesGroup.delete(id);
 
     updateGroups();
-  }
+  };
 
   me.getEnableGroups = function () {
     let enable = new Set();
-    brushesGroup.forEach( (d, id) => {
+    brushesGroup.forEach((d, id) => {
       if (d.isEnable) {
-        enable.add(id)
+        enable.add(id);
       }
     });
     return enable;
-  }
+  };
 
   me.getBrushesGroup = function () {
     return brushesGroup;
-  }
+  };
 
   me.getBrushGroupSelected = function () {
     return brushGroupSelected;
-  }
+  };
 
   me.removeSelectedBrush = function () {
-    if (selectedBrush) removeBrush(selectedBrush)
-  }
+    if (selectedBrush) removeBrush(selectedBrush);
+  };
 
   me.getSelectedBrush = function () {
     return selectedBrush;
-  }
+  };
 
-  me.moveSelectedBrush = function (x0, x1, y0, y1) { //Domain coordinates
+  me.moveSelectedBrush = function (x0, x1, y0, y1) {
+    //Domain coordinates
     let minX = scaleX.domain()[0];
     let maxX = scaleX.domain()[1];
     let minY = scaleY.domain()[0];
@@ -525,13 +534,12 @@ function brushInteraction({
     y1 = Math.min(y1, maxY);
 
     if (x0 > x1) {
-      [x0, x1] = [x1, x0]
+      [x0, x1] = [x1, x0];
     }
 
     if (y0 < y1) {
-      [y0, y1] =  [y1, y0]
+      [y0, y1] = [y1, y0];
     }
-
 
     let x0p = scaleX(x0);
     let x1p = scaleX(x1);
@@ -543,16 +551,25 @@ function brushInteraction({
       .call(selectedBrush[1].brush.move, [
         [x0p, y0p],
         [x1p, y1p],
-      ])
+      ]);
 
-    let selection = [[x0p,y0p],[x1p,y1p]];
-    let selectionDomain = [[x0,y0],[x1,y1]]
+    let selection = [
+      [x0p, y0p],
+      [x1p, y1p],
+    ];
+    let selectionDomain = [
+      [x0, y0],
+      [x1, y1],
+    ];
 
-    let sourceEvent = new Event("move")
+    let sourceEvent = new Event("move");
     brushed({ selection, sourceEvent }, selectedBrush);
-    brushTooltip.__update({selection: selectionDomain, selectionPixels: selection})
+    brushTooltip.__update({
+      selection: selectionDomain,
+      selectionPixels: selection,
+    });
     //moveSelectedBrushes({selection,sourceEvent},brushInSpinBox)
-  }
+  };
 
   // add brush group without funct to avoid callback
   let newId = getUnusedIdBrushGroup();
@@ -561,7 +578,7 @@ function brushInteraction({
     isActive: true,
     name: "Group " + newId,
     brushes: new Map(),
-  }
+  };
 
   brushesGroup.set(newId, brushGroup);
   dataSelected.set(newId, []);
@@ -574,4 +591,4 @@ function brushInteraction({
   return me;
 }
 
-export default brushInteraction
+export default brushInteraction;
