@@ -203,8 +203,8 @@ function TimeSearcher({
               }
             </style>
             <input type="checkbox" id="checkBoxShowBrushGroup" ${
-  d[1].isEnable ? "checked" : ""
-} ></input>                        
+              d[1].isEnable ? "checked" : ""
+            } ></input>                        
             <div 
               id="groupColor"
               style="
@@ -213,8 +213,8 @@ function TimeSearcher({
               height: ${ts.brushGroupSize}px;
               background-color: ${ts.brushesColorScale(d[0])};
               border-width: ${
-  d[0] === brushes.getBrushGroupSelected() ? 2 : 0
-}px;
+                d[0] === brushes.getBrushGroupSelected() ? 2 : 0
+              }px;
               border-color: black;
               border-style: solid;
               margin-right: 5px;
@@ -223,8 +223,8 @@ function TimeSearcher({
             <input 
               id="groupName"
               style="margin-right: 5px; border: none;outline: none; width: ${
-  groupName.length
-}ch;"
+                groupName.length
+              }ch;"
               contenteditable="true" 
               value="${groupName}"></input>
             <span id="groupSize" style="margin-right: 5px;">(${groupCount})</span>
@@ -981,14 +981,19 @@ function TimeSearcher({
   }
 
   // Callback that is called each time the selection made by the brushes is modified.
-  function onSelectionChange(dataSelected_, dataNotSelected_, hasSelection) {
-    dataSelected = dataSelected_;
-    dataNotSelected = dataNotSelected_;
+  function onSelectionChange(
+    newDataSelected = dataSelected,
+    newDataNotSelected = dataNotSelected,
+    hasSelection = false
+  ) {
+    dataSelected = newDataSelected;
+    dataNotSelected = newDataNotSelected;
     // Compute the medians if needed
     if (showGroupMedian) getBrushGroupsMedians(dataSelected);
 
     render(dataSelected, dataNotSelected, hasSelection);
     renderBrushesControls();
+    triggerValueUpdate(dataSelected);
   }
 
   function updateStatus() {
@@ -1143,10 +1148,11 @@ function TimeSearcher({
 
     initDetails({ xDataType, fData });
 
-    triggerValueUpdate([]);
+    
     dataSelected.set(0, groupedData);
     render(dataSelected, [], false);
     renderBrushesControls();
+    triggerValueUpdate(dataSelected);
   };
 
   // If we receive the data on initialization call ts.Data
@@ -1156,7 +1162,8 @@ function TimeSearcher({
 
   // To allow a message from the outside to rerender
   ts.render = () => {
-    render(dataSelected, dataNotSelected);
+    // render(dataSelected, dataNotSelected);
+    onSelectionChange();
   };
 
   // Make the ts object accesible
@@ -1164,7 +1171,6 @@ function TimeSearcher({
   divOverview.details = divDetails;
   divOverview.brushesCoordinates = divBrushesCoordinates;
 
-  if (data) triggerValueUpdate(data);
   return divOverview;
 }
 
