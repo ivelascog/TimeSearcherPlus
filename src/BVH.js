@@ -1,7 +1,6 @@
-import {lineIntersection} from "./utils.js";
+// import { lineIntersection } from "./utils.js";
 
-
-function BVH ({
+function BVH({
   data,
   x,
   y,
@@ -10,10 +9,9 @@ function BVH ({
   scaleX,
   scaleY,
   xPartitions,
-  yPartitions
+  yPartitions,
 }) {
-
-  let me = {}
+  let me = {};
   let BVH = makeBVH();
 
   function makeBVH() {
@@ -177,9 +175,9 @@ function BVH ({
       }
     }
     return intersections;
-  }
+  };
 
   return me;
 }
 
-export default BVH
+export default BVH;
