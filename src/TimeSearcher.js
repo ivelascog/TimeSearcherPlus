@@ -203,8 +203,8 @@ function TimeSearcher({
               }
             </style>
             <input type="checkbox" id="checkBoxShowBrushGroup" ${
-              d[1].isEnable ? "checked" : ""
-            } ></input>                        
+  d[1].isEnable ? "checked" : ""
+} ></input>                        
             <div 
               id="groupColor"
               style="
@@ -213,8 +213,8 @@ function TimeSearcher({
               height: ${ts.brushGroupSize}px;
               background-color: ${ts.brushesColorScale(d[0])};
               border-width: ${
-                d[0] === brushes.getBrushGroupSelected() ? 2 : 0
-              }px;
+  d[0] === brushes.getBrushGroupSelected() ? 2 : 0
+}px;
               border-color: black;
               border-style: solid;
               margin-right: 5px;
@@ -223,8 +223,8 @@ function TimeSearcher({
             <input 
               id="groupName"
               style="margin-right: 5px; border: none;outline: none; width: ${
-                groupName.length
-              }ch;"
+  groupName.length
+}ch;"
               contenteditable="true" 
               value="${groupName}"></input>
             <span id="groupSize" style="margin-right: 5px;">(${groupCount})</span>
