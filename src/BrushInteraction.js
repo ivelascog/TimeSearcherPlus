@@ -61,7 +61,14 @@ function brushInteraction({
     fmtX,
     fmtY,
     target: tooltipTarget,
-    margin: { top: ts.margin.top, left: ts.margin.left }})
+    margin: { top: ts.margin.top, left: ts.margin.left },
+    callback: onTooltipChange })
+
+
+  function onTooltipChange(selection) {
+    let [[x0, y0], [x1, y1]] = selection;
+    me.moveSelectedBrush(x0, x1, y0, y1);
+  }
 
 
   function newBrush() {
