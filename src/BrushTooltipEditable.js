@@ -96,7 +96,6 @@ function BrushTooltipEditable({
       [x0E.value, y0E.value],
       [x1E.value, y1E.value],
     ];
-    log("triggerUpdate", brushTooltip.value);
     brushTooltip.dispatchEvent(new Event("input", { bubbles: true }));
 
     callback(brushTooltip.value);
