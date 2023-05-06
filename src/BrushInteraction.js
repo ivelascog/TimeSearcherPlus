@@ -188,18 +188,7 @@ function brushInteraction({
   }
 
   function updateGroups() {
-    let groups = new Map()
-
-    brushesGroup.forEach((d,id) => {
-      let o = {
-        isEnable: d.isEnable,
-        isActive: id === brushGroupSelected,
-        name: d.name
-      }
-      groups.set(id,o)
-    })
-
-    groupsCallback(groups);
+    groupsCallback(brushesGroup);
   }
 
   function updateSelectedCoordinates ({selection}) {
@@ -226,7 +215,7 @@ function brushInteraction({
   function updateSelection() {
     let someUpdate = false;
     for (const brushGroup of brushesGroup.values()) {
-      for (const brush of brushGroup) {
+      for (const brush of brushGroup.brushes) {
         if (brush[1].isSelected) {
           let update = updateBrush(brush); //avoid lazy evaluation
           someUpdate = someUpdate || update;
@@ -248,7 +237,7 @@ function brushInteraction({
     triggerBrush[1].selection = selection;
     triggerBrush[1].selectionDomain = getSelectionDomain(selection);
     for (const brushGroup of brushesGroup.values()) {
-      for (const brush of brushGroup) {
+      for (const brush of brushGroup.brushes) {
         if (brush[1].isSelected && !(triggerBrush[0] === brush[0])) {
           let [[x0, y0], [x1, y1]] = brush[1].selection;
           x0 += distX;
@@ -283,6 +272,7 @@ function brushInteraction({
 
   function selectBrush(brush) {
     brush[1].isSelected = !brush[1].isSelected;
+    updateGroups();
   }
   function deselectAllBrushes() {
     for (let brushGroup of brushesGroup.values()) {
@@ -363,7 +353,6 @@ function brushInteraction({
 
                   if (sourceEvent.shiftKey) {
                     selectBrush(d);
-                    triggerValueUpdate();
                   }
                 });
               if (ts.showBrushTooltip) {
@@ -424,6 +413,7 @@ function brushInteraction({
 
   me.updateBrushGroupName = function (id, name) { // TODO
     brushesGroup.get(id).name = name
+    updateGroups();
     updateStatus();
 
   }
@@ -459,7 +449,9 @@ function brushInteraction({
   }
 
   me.selectBrushGroup = function (id) {
+    brushesGroup.get(brushGroupSelected).isActive = false;
     brushGroupSelected = id;
+    brushesGroup.get(id).isActive = true;
     brushesGroup.get(id).isEnable = true;
     drawBrushes();
     updateStatus();
@@ -475,7 +467,7 @@ function brushInteraction({
 
     let brushGroupToDelete = brushesGroup.get(id);
 
-    for (let brush of brushGroupToDelete.entries()) {
+    for (let brush of brushGroupToDelete.brushes.entries()) {
       if (brush[1].selection !== null) {
         removeBrush(brush);
       } else {
@@ -484,6 +476,13 @@ function brushInteraction({
         brushGroupToDelete.delete(brush[0]);
       }
     }
+
+    if (brushGroupSelected === id) {
+      brushesGroup.get(newId).isActive = true;
+      brushGroupSelected = newId;
+    }
+
+    brushesGroup.delete(id);
 
     updateGroups();
   }
@@ -559,8 +558,9 @@ function brushInteraction({
   let newId = getUnusedIdBrushGroup();
   let brushGroup = {
     isEnable: true,
+    isActive: true,
     name: "Group " + newId,
-    brushes: new Map()
+    brushes: new Map(),
   }
 
   brushesGroup.set(newId, brushGroup);

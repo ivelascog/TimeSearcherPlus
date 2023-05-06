@@ -76,7 +76,6 @@ function TimeSearcher({
     fData,
     overviewX,
     overviewY,
-    line2,
     divOverview,
     divRender,
     divControls,
@@ -86,13 +85,12 @@ function TimeSearcher({
     g,
     gGroupBrushes,
     gBrushes,
-    gEditbrushes,
     gReferences,
+    line2,
     brushSpinBoxes,
     medianBrushGroups,
     dataSelected,
     dataNotSelected,
-    tUpdateBrushSpinBox,
     gGroupData,
     selectedGroupData,
     hasScaleTime,
@@ -164,7 +162,6 @@ function TimeSearcher({
   selectedGroupData = new Set();
   nGroupsData = 0;
 
-  tUpdateBrushSpinBox = throttle(50, updateBrushSpinBox);
 
   function initBrushesControls() {
     brushesControlsElement.innerHTML = `<div id="brushesGroups" style="flex-basis:100%;">
@@ -482,8 +479,6 @@ function TimeSearcher({
       fData.forEach((d) => selectedGroupData.add(d[ts.groupAttr]));
       nGroupsData = selectedGroupData.size;
     }
-
-    gEditbrushes = svg.append("g").attr("class", "editBrushes");
 
     gGroupBrushes = svg
       .append("g")
@@ -1018,13 +1013,13 @@ function TimeSearcher({
     updateCallback(sel);
 
     divOverview.value = sel;
-    //divOverview.value.brushes = Array.from(
-      //brushesToDomain(brushes.getBrushesGroup()).values() TODO
-    //);
+    divOverview.value.brushes = Array.from(
+      (brushes.getBrushesGroup()).values()
+    );
     divOverview.dispatchEvent(new Event("input", { bubbles: true }));
   }
 
-  function brushesToDomain(brushesGroup) {
+  /*function brushesToDomain(brushesGroup) {
     let selectedBrush = brushes.getSelectedBrush();
     let outMap = new Map();
     for (let brushGroup of brushesGroup.entries()) {
@@ -1058,7 +1053,7 @@ function TimeSearcher({
       outMap.set(brushGroup[0], innerMap);
     }
     return outMap;
-  }
+  } */
 
   ts.addReferenceCurves = function (curves) {
     curves.forEach((c) => {
