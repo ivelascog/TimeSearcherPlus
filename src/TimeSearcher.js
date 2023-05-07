@@ -1024,8 +1024,8 @@ function TimeSearcher({
 
     // Filter data with active dataGroups
     if (groupAttr) {
-      dataSelectedGroupData = new Map(dataSelected_);
-      dataNotSelectedGroupData = dataNotSelected_;
+      dataSelectedGroupData = new Map(newDataSelected);
+      dataNotSelectedGroupData = newDataNotSelected;
       for (let d of dataSelectedGroupData) {
         let filtered = d[1].filter((d) =>
           selectedGroupData.has(groupAttr(d[1][0]))
@@ -1201,7 +1201,6 @@ function TimeSearcher({
     generateBrushCoordinatesDiv();
 
     initDetails({ xDataType, fData });
-
 
     dataSelected.set(0, groupedData);
     render(dataSelected, [], false);
