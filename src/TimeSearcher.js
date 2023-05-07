@@ -1014,9 +1014,13 @@ function TimeSearcher({
   }
 
   // Callback that is called each time the selection made by the brushes is modified.
-  function onSelectionChange(dataSelected_, dataNotSelected_, hasSelection) {
-    dataSelected = dataSelected_;
-    dataNotSelected = dataNotSelected_;
+  function onSelectionChange(
+    newDataSelected = dataSelected,
+    newDataNotSelected = dataNotSelected,
+    hasSelection = false
+  ) {
+    dataSelected = newDataSelected;
+    dataNotSelected = newDataNotSelected;
 
     // Filter data with active dataGroups
     if (groupAttr) {
@@ -1043,6 +1047,7 @@ function TimeSearcher({
       render(dataSelected, dataNotSelected, hasSelection);
     }
     renderBrushesControls();
+    triggerValueUpdate(dataSelected);
   }
 
   function updateStatus() {
@@ -1197,10 +1202,11 @@ function TimeSearcher({
 
     initDetails({ xDataType, fData });
 
-    triggerValueUpdate([]);
+
     dataSelected.set(0, groupedData);
     render(dataSelected, [], false);
     renderBrushesControls();
+    triggerValueUpdate(dataSelected);
   };
 
   // If we receive the data on initialization call ts.Data
@@ -1210,15 +1216,8 @@ function TimeSearcher({
 
   // To allow a message from the outside to rerender
   ts.render = () => {
-    if (groupAttr) {
-      render(
-        dataSelectedGroupData,
-        dataNotSelectedGroupData,
-        brushes.hasSelection()
-      );
-    } else {
-      render(dataSelected, dataNotSelected, brushes.hasSelection());
-    }
+    // render(dataSelected, dataNotSelected);
+    onSelectionChange();
   };
 
   // Make the ts object accesible
@@ -1226,7 +1225,6 @@ function TimeSearcher({
   divOverview.details = divDetails;
   divOverview.brushesCoordinates = divBrushesCoordinates;
 
-  if (data) triggerValueUpdate(data);
   return divOverview;
 }
 
