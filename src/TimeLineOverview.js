@@ -1,4 +1,6 @@
 import * as d3 from "d3";
+import { log } from "./utils.js";
+
 function TimeLineOverview({
   ts,
   element,
@@ -6,6 +8,7 @@ function TimeLineOverview({
   height = 600,
   x,
   y,
+  groupAttr,
   overviewY,
   overviewX,
 }) {
@@ -47,7 +50,7 @@ function TimeLineOverview({
   me.data = function (data) {
     paths = new Map();
     data.forEach((d) => {
-      let group = ts.groupAttr ? d[1][0][ts.groupAttr] : null;
+      let group = groupAttr ? groupAttr(d[1][0]) : null;
       let pathObject = { path: new Path2D(line(d[1])), group: group };
       paths.set(d[0], pathObject);
     });
@@ -140,7 +143,7 @@ function TimeLineOverview({
         console.log("renderOverviewCanvasSubset error finding path", d[0], d);
         return;
       }
-      context.strokeStyle = ts.groupAttr ? ts.colorScale(path.group) : color;
+      context.strokeStyle = groupAttr ? ts.colorScale(path.group) : color;
       context.stroke(path.path);
     }
   }

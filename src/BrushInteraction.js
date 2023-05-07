@@ -521,6 +521,10 @@ function brushInteraction({
     return selectedBrush;
   };
 
+  me.hasSelection = function () {
+    return brushSize !== 0;
+  };
+
   me.moveSelectedBrush = function (x0, x1, y0, y1) {
     //Domain coordinates
     let minX = scaleX.domain()[0];
