@@ -24,7 +24,7 @@ function TimeSearcher({
   height = 600, // Set the desired height of the overview Widget
   detailsHeight = 300, // Set the desired height of the overview Widget
   detailsContainerHeight = 400,
-  detailsMargin = { left: 50, top: 10, bottom: 20, right: 0 },
+  detailsMargin = null, // Margin options for details view, d3 common format, leave null for using the overview margin
   updateCallback = (data) => {},
   statusCallback = (status) => {},
   fmtX = d3.timeFormat("%d/%m/%y"), // Function, how to format x points in the tooltip
@@ -69,6 +69,7 @@ function TimeSearcher({
 } = {}) {
   width = overviewWidth || width;
   height = overviewHeight || height;
+  detailsMargin = detailsMargin || margin;
 
   let ts = {},
     groupedData,
@@ -130,6 +131,8 @@ function TimeSearcher({
   ts.alphaScale = alphaScale;
   ts.medianMinRecordsPerBin = medianMinRecordsPerBin;
   ts.yScale = yScale;
+
+
 
   // Convert attrStrings to functions
   if (typeof x === "string") {
