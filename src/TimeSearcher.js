@@ -15,10 +15,10 @@ function TimeSearcher({
   brushCoordinatesElement = document.createElement("div"), // pass a html element where you want to render the brush coordinates Input.
   brushesControlsElement = document.createElement("div"), // pass a html element where you want to have the brushes controls.
   showBrushesControls = true, // If false you can still use brushesControlsElement to show the control on a different element on your app
-  x = (d) => d.x, // Atribute to show in the X axis (Note that it also supports functions)
-  y = (d) => d.y, // Atribute to show in the Y axis (Note that it also supports functions)
-  id = (d) => d.id, // Atribute to group the input data (Note that it also supports functions)
-  groupAttr = null, // Specifies the attribute to be used to discriminate the groups.
+  x = (d) => d.x, // Attribute to show in the X axis (Note that it also supports functions)
+  y = (d) => d.y, // Attribute to show in the Y axis (Note that it also supports functions)
+  id = (d) => d.id, // Attribute to group the input data (Note that it also supports functions)
+  groupAttr = null, // Specifies the attribute to be used to discriminate the groups (Note that it also supports functions).
   width = 1200, // Set the desired width of the overview Widget
   detailsWidth = 400, // Set the desired width of the details Widget
   height = 600, // Set the desired height of the overview Widget
@@ -90,6 +90,8 @@ function TimeSearcher({
     medianBrushGroups,
     dataSelected,
     dataNotSelected,
+    dataSelectedGroupData, // Stores the selected data filtered with active dataGroups
+    dataNotSelectedGroupData, // Stores the not-selected data filtered with active dataGroups
     gGroupData,
     selectedGroupData,
     hasScaleTime,
@@ -141,6 +143,10 @@ function TimeSearcher({
   if (typeof id === "string") {
     let _id = id;
     id = (d) => d[_id];
+  }
+  if (groupAttr && typeof groupAttr === "string") {
+    let _groupAttr = groupAttr;
+    groupAttr = (d) => d[_groupAttr];
   }
 
   divOverview = d3
@@ -353,6 +359,7 @@ function TimeSearcher({
       height: height,
       x,
       y,
+      groupAttr,
       overviewX,
       overviewY,
     });
@@ -478,8 +485,8 @@ function TimeSearcher({
       .attr("class", "groupData")
       .attr("transform", `translate(10,${ts.margin.top} )`);
 
-    if (ts.groupAttr) {
-      fData.forEach((d) => selectedGroupData.add(d[ts.groupAttr]));
+    if (groupAttr) {
+      fData.forEach((d) => selectedGroupData.add(groupAttr(d)));
       nGroupsData = selectedGroupData.size;
     }
 
@@ -620,7 +627,7 @@ function TimeSearcher({
   }
 
   function generateDataSelectionDiv() {
-    if (ts.groupAttr) {
+    if (groupAttr) {
       let divData = divControls.append("div");
 
       divData.append("span").text("Data groups: ");
@@ -650,9 +657,35 @@ function TimeSearcher({
             selectedGroupData.add(d);
             d3.select(this).style("border", "solid black");
           }
+
+          onGroupDataChange();
         });
       divButtons.append("span").text((d) => d);
     }
+  }
+
+  // Called when the active dataGroups are modified.
+  function onGroupDataChange() {
+    dataSelectedGroupData = new Map(dataSelected);
+    dataNotSelectedGroupData = dataNotSelected;
+    for (let d of dataSelectedGroupData) {
+      let filtered = d[1].filter((d) =>
+        selectedGroupData.has(groupAttr(d[1][0]))
+      );
+      dataSelectedGroupData.set(d[0], filtered);
+    }
+    dataNotSelectedGroupData = dataNotSelectedGroupData.filter((d) =>
+      selectedGroupData.has(groupAttr(d))
+    );
+
+    // Compute the medians if needed
+    if (showGroupMedian) getBrushGroupsMedians(dataSelectedGroupData);
+
+    render(
+      dataSelectedGroupData,
+      dataNotSelectedGroupData,
+      brushes.hasSelection()
+    );
   }
 
   function initDetails({ xDataType, fData }) {
@@ -990,10 +1023,31 @@ function TimeSearcher({
   ) {
     dataSelected = newDataSelected;
     dataNotSelected = newDataNotSelected;
-    // Compute the medians if needed
-    if (showGroupMedian) getBrushGroupsMedians(dataSelected);
 
-    render(dataSelected, dataNotSelected, hasSelection);
+    // Filter data with active dataGroups
+    if (groupAttr) {
+      dataSelectedGroupData = new Map(newDataSelected);
+      dataNotSelectedGroupData = newDataNotSelected;
+      for (let d of dataSelectedGroupData) {
+        let filtered = d[1].filter((d) =>
+          selectedGroupData.has(groupAttr(d[1][0]))
+        );
+        dataSelectedGroupData.set(d[0], filtered);
+      }
+      dataNotSelectedGroupData = dataNotSelectedGroupData.filter((d) =>
+        selectedGroupData.has(d[0])
+      );
+    }
+
+    // Compute the medians if needed
+    if (showGroupMedian)
+      getBrushGroupsMedians(groupAttr ? dataSelectedGroupData : dataSelected);
+
+    if (groupAttr) {
+      render(dataSelectedGroupData, dataNotSelectedGroupData, hasSelection); // Print the filtered data by active dataGroups
+    } else {
+      render(dataSelected, dataNotSelected, hasSelection);
+    }
     renderBrushesControls();
     triggerValueUpdate(dataSelected);
   }
@@ -1150,7 +1204,6 @@ function TimeSearcher({
 
     initDetails({ xDataType, fData });
 
-    
     dataSelected.set(0, groupedData);
     render(dataSelected, [], false);
     renderBrushesControls();
