@@ -24,6 +24,7 @@ function TimeSearcher({
   height = 600, // Set the desired height of the overview Widget
   detailsHeight = 300, // Set the desired height of the overview Widget
   detailsContainerHeight = 400,
+  detailsMargin = { left: 50, top: 10, bottom: 20, right: 0 },
   updateCallback = (data) => {},
   statusCallback = (status) => {},
   fmtX = d3.timeFormat("%d/%m/%y"), // Function, how to format x points in the tooltip
@@ -673,6 +674,7 @@ function TimeSearcher({
         detailsHeight,
         x,
         y,
+        margin: detailsMargin
       });
     }
 

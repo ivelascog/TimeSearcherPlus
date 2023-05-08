@@ -13,7 +13,7 @@ function TimelineDetails({
   detailsHeight,
   x,
   y,
-  margin = { left: 20, top: 10, bottom: 20, right: 0 },
+  margin = { left: 50, top: 10, bottom: 20, right: 0 },
 } = {}) {
   const me = {};
   let prerenderDetails = new Map();
@@ -26,7 +26,7 @@ function TimelineDetails({
     .style("overflow-y", "scroll")
     .node();
 
-  const line = d3.line().defined((d) => y(d) !== undefined && y(d) !== null);    
+  const line = d3.line().defined((d) => y(d) !== undefined && y(d) !== null);
 
   let detailsX, detailsY;
 
@@ -49,10 +49,7 @@ function TimelineDetails({
       .range([detailsHeight - margin.top - margin.bottom, 0]);
 
     line.x((d) => detailsX(+x(d))).y((d) => detailsY(y(d)));
-
   };
-
-  
 
   // ts.observer = new IntersectionObserver(onDetailsScrolled, {
   //   root: divDetails,
