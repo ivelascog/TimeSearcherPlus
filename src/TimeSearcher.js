@@ -65,6 +65,7 @@ function TimeSearcher({
   yScale = d3.scaleLinear,
   overviewWidth, // Legacy, to be deleted
   overviewHeight, // Legacy, to be deleted
+  _this,
 } = {}) {
   width = overviewWidth || width;
   height = overviewHeight || height;
@@ -163,6 +164,7 @@ function TimeSearcher({
   medianBrushGroups = new Map();
   dataSelected = new Map();
   dataNotSelected = [];
+  if (groupAttr) dataNotSelectedGroupData = [];
   selectedGroupData = new Set();
   nGroupsData = 0;
 
@@ -520,7 +522,7 @@ function TimeSearcher({
       updateTime: 150,
       statusCallback: (status) => log("status brush Change", status),
       selectionCallback: onSelectionChange,
-      groupsCallback: renderBrushesControls,
+      groupsCallback: onBrushGroupsChange,
       changeSelectedCoordinatesCallback: updateBrushSpinBox,
     });
 
@@ -663,8 +665,8 @@ function TimeSearcher({
     }
   }
 
-  // Called when the active dataGroups are modified.
-  function onGroupDataChange() {
+  // Filter dataSelected and dataNotSelected by enable dataGroups
+  function filterDatabyDataGroups() {
     dataSelectedGroupData = new Map(dataSelected);
     dataNotSelectedGroupData = dataNotSelected;
     for (let d of dataSelectedGroupData) {
@@ -674,8 +676,14 @@ function TimeSearcher({
       dataSelectedGroupData.set(d[0], filtered);
     }
     dataNotSelectedGroupData = dataNotSelectedGroupData.filter((d) =>
-      selectedGroupData.has(groupAttr(d))
+      selectedGroupData.has(groupAttr(d[1][0]))
     );
+  }
+
+  // Called when the active dataGroups are modified.
+  function onGroupDataChange() {
+    // Filter dataSelected and dataNotSelected by enable dataGroups
+    filterDatabyDataGroups();
 
     // Compute the medians if needed
     if (showGroupMedian) getBrushGroupsMedians(dataSelectedGroupData);
@@ -934,7 +942,9 @@ function TimeSearcher({
     let medians = [];
     let enableBrushGroups = brushes.getEnableGroups();
     enableBrushGroups.forEach((id) => {
-      medians.push([id, medianBrushGroups.get(id)]);
+      if (medianBrushGroups.has(id)) {
+        medians.push([id, medianBrushGroups.get(id)]);
+      }
     });
 
     // Decide which elements are painted as selected or not, depending on the enable groups.
@@ -1019,22 +1029,13 @@ function TimeSearcher({
     newDataNotSelected = dataNotSelected,
     hasSelection = false
   ) {
+    console.log("onSelection");
     dataSelected = newDataSelected;
     dataNotSelected = newDataNotSelected;
 
     // Filter data with active dataGroups
     if (groupAttr) {
-      dataSelectedGroupData = new Map(newDataSelected);
-      dataNotSelectedGroupData = newDataNotSelected;
-      for (let d of dataSelectedGroupData) {
-        let filtered = d[1].filter((d) =>
-          selectedGroupData.has(groupAttr(d[1][0]))
-        );
-        dataSelectedGroupData.set(d[0], filtered);
-      }
-      dataNotSelectedGroupData = dataNotSelectedGroupData.filter((d) =>
-        selectedGroupData.has(d[0])
-      );
+      filterDatabyDataGroups();
     }
 
     // Compute the medians if needed
@@ -1048,6 +1049,27 @@ function TimeSearcher({
     }
     renderBrushesControls();
     triggerValueUpdate(dataSelected);
+  }
+
+  // Function called to recreate the selection when dataInput change.
+  function recreateBrushes() {
+    brushes.recreate(_this.value.brushes);
+  }
+
+  // Called every time the brushGroups changes
+  function onBrushGroupsChange() {
+    if (groupAttr) {
+      // Render for possible change in brushGroups enable.
+      render(
+        dataSelectedGroupData,
+        dataNotSelectedGroupData,
+        brushes.hasSelection()
+      );
+    } else {
+      render(dataSelected, dataNotSelected, brushes.hasSelection());
+    }
+
+    renderBrushesControls();
   }
 
   function updateStatus() {
@@ -1080,7 +1102,7 @@ function TimeSearcher({
     updateCallback(sel);
 
     divOverview.value = sel;
-    divOverview.value.brushes = Array.from(brushes.getBrushesGroup().values());
+    divOverview.value.brushes = Array.from(brushes.getBrushesGroup().entries());
     divOverview.dispatchEvent(new Event("input", { bubbles: true }));
   }
 
@@ -1203,6 +1225,10 @@ function TimeSearcher({
     initDetails({ xDataType, fData });
 
     dataSelected.set(0, groupedData);
+    if (groupAttr) dataSelectedGroupData = new Map(dataSelected); // Initialize data filtered by enable dataGroups if needed.
+
+    if (_this) recreateBrushes();
+
     render(dataSelected, [], false);
     renderBrushesControls();
     triggerValueUpdate(dataSelected);

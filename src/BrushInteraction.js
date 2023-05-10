@@ -324,6 +324,7 @@ function brushInteraction({
     brushesGroup.forEach(
       (d) => (brushes = brushes.concat(Array.from(d.brushes)))
     );
+    brushes.sort((a, b) => d3.descending(a[0], b[0]));
 
     gBrushes
       .selectAll(".brush")
@@ -335,7 +336,6 @@ function brushInteraction({
             .insert("g", ".brush")
             .attr("class", "brush")
             .attr("id", (d) => "brush-" + d[0])
-
             .each(function (d) {
               return d3.select(this).call(d[1].brush);
             })
@@ -345,6 +345,7 @@ function brushInteraction({
               d3.select(this)
                 .selectAll(".selection")
                 .style("outline", "-webkit-focus-ring-color solid 0px")
+                .style("fill", ts.brushesColorScale(d[1].group))
                 .attr("tabindex", 0)
                 .on("mousedown", (sourceEvent) => {
                   let selection = d[1].selection;
@@ -411,14 +412,13 @@ function brushInteraction({
       .each(function (d) {
         d3.select(this)
           .selectAll(".overlay")
-          .style("pointer-events", () =>
-            brushCount - 1 === d[0] ? "all" : "none"
-          );
+          .style("pointer-events", () => {
+            return brushCount - 1 === d[0] ? "all" : "none";
+          });
       });
   }
 
   me.updateBrushGroupName = function (id, name) {
-    // TODO
     brushesGroup.get(id).name = name;
     updateGroups();
     updateStatus();
@@ -523,6 +523,37 @@ function brushInteraction({
 
   me.hasSelection = function () {
     return brushSize !== 0;
+  };
+
+  me.recreate = function (brushesGroups_) {
+    brushCount = 0;
+    brushSize = 0;
+    gBrushes.html("");
+    for (let brushGroup of brushesGroups_) {
+      if (brushGroup[1].isActive) brushGroupSelected = brushGroup[0];
+      for (let brush of brushGroup[1].brushes) {
+        brushSize++;
+        brushCount = Math.max(brushCount, brush[0]);
+        if (brush[1].selection) updateBrush(brush);
+      }
+      brushesGroup.set(brushGroup[0], brushGroup[1]);
+    }
+    brushCount++;
+
+    drawBrushes();
+    /*for (let brushGroup of brushesGroups_) {
+      for (let brush of brushGroup[1].brushes) {
+        if (brush[1].selection) {
+          gBrushes
+            .select("#brush-" + brush[0])
+            .call(brush[1].brush.move, brush[1].selection);
+        }
+      }
+    } */
+
+    // drawBrushes();
+
+    //brushFilter();
   };
 
   me.moveSelectedBrush = function (x0, x1, y0, y1) {
