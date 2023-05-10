@@ -126,6 +126,8 @@ function TimelineDetails({
           margin,
           yScale: detailsY,
           xScale: detailsX,
+          x,
+          y,
           title: d[0],
           points: d[1],
           line: line,
@@ -154,66 +156,66 @@ function TimelineDetails({
     // });
   }
 
-  function createDetailsChart(d) {
-    let g = d3
-      .select(this)
-      .append("svg")
-      .attr("class", "details")
-      .attr("viewBox", [0, 0, detailsWidth, detailsHeight])
-      .attr("height", detailsHeight)
-      .attr("width", detailsWidth)
-      .append("g");
-    g.attr("transform", `translate(${margin.left}, ${margin.top})`);
+  // function createDetailsChart(d) {
+  //   let g = d3
+  //     .select(this)
+  //     .append("svg")
+  //     .attr("class", "details")
+  //     .attr("viewBox", [0, 0, detailsWidth, detailsHeight])
+  //     .attr("height", detailsHeight)
+  //     .attr("width", detailsWidth)
+  //     .append("g");
+  //   g.attr("transform", `translate(${margin.left}, ${margin.top})`);
 
-    g.append("g")
-      .attr("class", "mainYAxis")
-      .call(d3.axisLeft(detailsY).ticks(Math.floor(detailsHeight / 20)));
+  //   g.append("g")
+  //     .attr("class", "mainYAxis")
+  //     .call(d3.axisLeft(detailsY).ticks(Math.floor(detailsHeight / 20)));
 
-    g.append("g")
-      .attr("class", "mainXAxis")
-      .call(d3.axisBottom(detailsX))
-      .attr(
-        "transform",
-        `translate(0, ${detailsHeight - margin.top - margin.bottom})`
-      );
+  //   g.append("g")
+  //     .attr("class", "mainXAxis")
+  //     .call(d3.axisBottom(detailsX))
+  //     .attr(
+  //       "transform",
+  //       `translate(0, ${detailsHeight - margin.top - margin.bottom})`
+  //     );
 
-    g.append("text")
-      .text(d[0])
-      .attr("transform", "translate(10, 0)")
-      .style("fill", "black")
-      .style("font-size", "0.7em");
+  //   g.append("text")
+  //     .text(d[0])
+  //     .attr("transform", "translate(10, 0)")
+  //     .style("fill", "black")
+  //     .style("font-size", "0.7em");
 
-    g.selectAll(".point") //.select("#points") //TODO make new G with id for this cricles
-      .data(d[1])
-      .join("circle")
-      .attr("class", "point")
-      .attr("cy", (d) => detailsY(y(d)))
-      .attr("cx", (d) => detailsX(x(d)))
-      .attr("fill", "black")
-      .attr("r", 2);
+  //   g.selectAll(".point") //.select("#points") //TODO make new G with id for this cricles
+  //     .data(d[1])
+  //     .join("circle")
+  //     .attr("class", "point")
+  //     .attr("cy", (d) => detailsY(y(d)))
+  //     .attr("cx", (d) => detailsX(x(d)))
+  //     .attr("fill", "black")
+  //     .attr("r", 2);
 
-    g.selectAll(".lines") //TODO add to the new G
-      .data([d])
-      .join("path")
-      .attr("class", "line")
-      .attr("d", (g) => line(g[1]))
-      .style("fill", "none")
-      .style("stroke", "black");
-  }
+  //   g.selectAll(".lines") //TODO add to the new G
+  //     .data([d])
+  //     .join("path")
+  //     .attr("class", "line")
+  //     .attr("d", (g) => line(g[1]))
+  //     .style("fill", "none")
+  //     .style("stroke", "black");
+  // }
 
-  me.renderDetailsSVG = function (data) {
-    const div = d3.select(divDetails);
+  // me.renderDetailsSVG = function (data) {
+  //   const div = d3.select(divDetails);
 
-    let slicedData = maxDetailsRecords
-      ? data.slice(0, maxDetailsRecords)
-      : data;
+  //   let slicedData = maxDetailsRecords
+  //     ? data.slice(0, maxDetailsRecords)
+  //     : data;
 
-    div
-      .selectAll(".details")
-      .data(slicedData, (d) => d[0])
-      .join("div")
-      .each(createDetailsChart);
-  };
+  //   div
+  //     .selectAll(".details")
+  //     .data(slicedData, (d) => d[0])
+  //     .join("div")
+  //     .each(createDetailsChart);
+  // };
 
   me.render = ({ data, brushGroupSelected }) =>
     renderDetailsCanvas({ data, brushGroupSelected });
