@@ -155,16 +155,15 @@ function BVH({
     let initJ = Math.floor(y0 / BVH.yinc);
     let finJ = Math.floor(y1 / BVH.yinc);
 
-    let intersections = new Map();
-    BVH.keys.forEach((d) => intersections.set(d, false));
+    let intersections = new Set();
     for (let i = initI; i <= finI; ++i) {
       for (let j = initJ; j <= finJ; ++j) {
         for (const segments of BVH.BVH[i][j].data) {
-          if (!intersections.get(segments[0])) {
+          if (!intersections.has(segments[0])) {
             for (const segment of segments[1]) {
               let intersect = lineIntersection(segment, x0, y0, x1, y1);
               if (intersect) {
-                intersections.set(segments[0], true);
+                intersections.add(segments[0]);
                 break;
               }
             }

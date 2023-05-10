@@ -132,8 +132,6 @@ function TimeSearcher({
   ts.medianMinRecordsPerBin = medianMinRecordsPerBin;
   ts.yScale = yScale;
 
-
-
   // Convert attrStrings to functions
   if (typeof x === "string") {
     let _x = x;
@@ -710,7 +708,7 @@ function TimeSearcher({
         detailsHeight,
         x,
         y,
-        margin: detailsMargin
+        margin: detailsMargin,
       });
     }
 
@@ -939,7 +937,8 @@ function TimeSearcher({
     let medians = [];
     let enableBrushGroups = brushes.getEnableGroups();
     enableBrushGroups.forEach((id) => {
-      medians.push([id, medianBrushGroups.get(id)]);
+      if (medianBrushGroups.has(id))
+        medians.push([id, medianBrushGroups.get(id)]);
     });
 
     // Decide which elements are painted as selected or not, depending on the enable groups.
