@@ -66,6 +66,7 @@ function TimeSearcher({
   yScale = d3.scaleLinear,
   overviewWidth, // Legacy, to be deleted
   overviewHeight, // Legacy, to be deleted
+  _this,
 } = {}) {
   width = overviewWidth || width;
   height = overviewHeight || height;
@@ -79,6 +80,7 @@ function TimeSearcher({
     divOverview,
     divRender,
     divControls,
+    divData,
     divDetails,
     divBrushesCoordinates,
     svg,
@@ -165,6 +167,7 @@ function TimeSearcher({
   medianBrushGroups = new Map();
   dataSelected = new Map();
   dataNotSelected = [];
+  if (groupAttr) dataNotSelectedGroupData = [];
   selectedGroupData = new Set();
   nGroupsData = 0;
 
@@ -342,13 +345,23 @@ function TimeSearcher({
     //CreateOverView
     divControls = d3
       .select(divOverview)
-      .append("div")
+      .selectAll("div#controls")
+      .data([1])
+      .join("div")
       .attr("id", "controls")
       .style("margin-top", `${ts.margin.top}px`);
 
+    divData = divControls
+      .select("div#divData")
+      .data([1])
+      .join("div")
+      .attr("id", "divData");
+
     divRender = d3
       .select(divOverview)
-      .append("div")
+      .selectAll("div#render")
+      .data([1])
+      .join("div")
       .attr("id", "render")
       .style("position", "relative")
       .style("z-index", 1);
@@ -366,13 +379,17 @@ function TimeSearcher({
     });
 
     svg = divRender
-      .append("svg")
+      .selectAll("svg")
+      .data([1])
+      .join("svg")
       .attr("viewBox", [0, 0, width, height])
       .attr("height", height)
       .attr("width", width);
 
     const g = svg
-      .append("g")
+      .selectAll("g.gDrawing")
+      .data([1])
+      .join("g")
       .attr("class", "gDrawing")
       .attr("transform", `translate(${ts.margin.left}, ${ts.margin.top})`)
       .attr("tabindex", 0)
@@ -404,14 +421,19 @@ function TimeSearcher({
       });
 
     let gmainY = g
-      .append("g")
+      .selectAll("g.mainYAxis")
+      .data([1])
+      .join("g")
       .attr("class", "mainYAxis")
       .call(d3.axisLeft(overviewY))
       .call((axis) =>
         axis
-          .append("text")
+          .selectAll("text.label")
+          .data([1])
+          .join("text")
           .text(yLabel)
           .attr("dy", -15)
+          .attr("class", "label")
           .style("fill", "black")
           .style("text-anchor", "end")
           .style("pointer-events", "none")
@@ -419,7 +441,9 @@ function TimeSearcher({
       .style("pointer-events", "none");
 
     if (ts.doubleYlegend) {
-      g.append("g")
+      g.selectAll("g.secondYaxis")
+        .data([1])
+        .join("g")
         .attr("class", "secondYaxis")
         .call(d3.axisRight(overviewY))
         .attr(
@@ -430,17 +454,21 @@ function TimeSearcher({
     }
 
     let gmainx = g
-      .append("g")
+      .selectAll("g.mainXAxis")
+      .data([1])
+      .join("g")
       .attr("class", "mainXAxis")
       .call(d3.axisBottom(overviewX))
-
       .attr(
         "transform",
         `translate(0, ${height - ts.margin.top - ts.margin.bottom})`
       )
       .call((axis) =>
         axis
-          .append("text")
+          .selectAll("text.label")
+          .data([1])
+          .join("text")
+          .attr("class", "label")
           .text(xLabel)
           .attr(
             "transform",
@@ -453,36 +481,42 @@ function TimeSearcher({
       .style("pointer-events", "none");
 
     gReferences = g
-      .append("g")
+      .selectAll("g.gReferences")
+      .data([1])
+      .join("g")
       .attr("class", "gReferences")
       .style("pointer-events", "none");
 
-    if (ts.showGrid) {
-      gmainY
-        .selectAll("g.tick")
-        .append("line")
-        .attr("class", "gridline")
-        .attr("x1", 0)
-        .attr("y1", 0)
-        .attr("x2", width - ts.margin.right - ts.margin.left)
-        .attr("y2", 0)
-        .attr("stroke", "#9ca5aecf") // line color
-        .attr("stroke-dasharray", "4"); // make it dashed;;
+    gmainY
+      .selectAll("g.tick")
+      .selectAll(".gridline")
+      .data(ts.showGrid ? [1] : [])
+      .join("line")
+      .attr("class", "gridline")
+      .attr("x1", 0)
+      .attr("y1", 0)
+      .attr("x2", width - ts.margin.right - ts.margin.left)
+      .attr("y2", 0)
+      .attr("stroke", "#9ca5aecf") // line color
+      .attr("stroke-dasharray", "4"); // make it dashed;;
 
-      gmainx
-        .selectAll("g.tick")
-        .append("line")
-        .attr("class", "gridline")
-        .attr("x1", 0)
-        .attr("y1", -height + ts.margin.top + ts.margin.bottom)
-        .attr("x2", 0)
-        .attr("y2", 0)
-        .attr("stroke", "#9ca5aecf") // line color
-        .attr("stroke-dasharray", "4"); // make it dashed;
-    }
+    gmainx
+      .selectAll("g.tick")
+      .selectAll(".gridline")
+      .data(ts.showGrid ? [1] : [])
+      .join("line")
+      .attr("class", "gridline")
+      .attr("x1", 0)
+      .attr("y1", -height + ts.margin.top + ts.margin.bottom)
+      .attr("x2", 0)
+      .attr("y2", 0)
+      .attr("stroke", "#9ca5aecf") // line color
+      .attr("stroke-dasharray", "4"); // make it dashed;
 
     gGroupData = svg
-      .append("g")
+      .selectAll("g.groupData")
+      .data([1])
+      .join("g")
       .attr("class", "groupData")
       .attr("transform", `translate(10,${ts.margin.top} )`);
 
@@ -492,7 +526,9 @@ function TimeSearcher({
     }
 
     gGroupBrushes = svg
-      .append("g")
+      .selectAll("g.colorBrushes")
+      .data([1])
+      .join("g")
       .attr("class", "colorBrushes")
       .attr(
         "transform",
@@ -501,7 +537,11 @@ function TimeSearcher({
         } )`
       );
 
-    gBrushes = g.append("g").attr("id", "brushes");
+    gBrushes = g
+      .selectAll("g#brushes")
+      .data([1])
+      .join("g")
+      .attr("id", "brushes");
 
     brushes = brushInteraction({
       ts,
@@ -522,12 +562,14 @@ function TimeSearcher({
       updateTime: 150,
       statusCallback: (status) => log("status brush Change", status),
       selectionCallback: onSelectionChange,
-      groupsCallback: renderBrushesControls,
+      groupsCallback: onBrushGroupsChange,
       changeSelectedCoordinatesCallback: updateBrushSpinBox,
     });
 
     gGroupBrushes
-      .append("text")
+      .selectAll("text")
+      .data([1])
+      .join("text")
       .attr("x", 0)
       .attr("y", ts.brushGroupSize / 2 + 2)
       .text("Groups + : ")
@@ -564,7 +606,7 @@ function TimeSearcher({
   }
 
   function generateBrushCoordinatesDiv() {
-    divBrushesCoordinates.innerHTML = "";
+    divBrushesCoordinates.node().innerHTML = "";
     divBrushesCoordinates.append("h3").text("Current TimeBox Coordinates: ");
     let divX = divBrushesCoordinates.append("div");
 
@@ -629,8 +671,7 @@ function TimeSearcher({
 
   function generateDataSelectionDiv() {
     if (groupAttr) {
-      let divData = divControls.append("div");
-
+      divData.innerHTML = "";
       divData.append("span").text("Data groups: ");
 
       let divButtons = divData
@@ -665,8 +706,8 @@ function TimeSearcher({
     }
   }
 
-  // Called when the active dataGroups are modified.
-  function onGroupDataChange() {
+  // Filter dataSelected and dataNotSelected by enable dataGroups
+  function filterDatabyDataGroups() {
     dataSelectedGroupData = new Map(dataSelected);
     dataNotSelectedGroupData = dataNotSelected;
     for (let d of dataSelectedGroupData) {
@@ -676,8 +717,14 @@ function TimeSearcher({
       dataSelectedGroupData.set(d[0], filtered);
     }
     dataNotSelectedGroupData = dataNotSelectedGroupData.filter((d) =>
-      selectedGroupData.has(groupAttr(d))
+      selectedGroupData.has(groupAttr(d[1][0]))
     );
+  }
+
+  // Called when the active dataGroups are modified.
+  function onGroupDataChange() {
+    // Filter dataSelected and dataNotSelected by enable dataGroups
+    filterDatabyDataGroups();
 
     // Compute the medians if needed
     if (showGroupMedian) getBrushGroupsMedians(dataSelectedGroupData);
@@ -872,73 +919,15 @@ function TimeSearcher({
     brushes.moveSelectedBrush(x0, x1, y0, y1);
   }
 
-  function renderSVG() {
-    const gData = g.append("g").attr("id", "gData");
-    // let prerenderDetails = null;
-
-    function render(data) {
-      renderOverviewSVG(data);
-      ts.hasDetails && timelineDetails.renderDetailsSVG(data);
-    }
-
-    function renderOverviewSVG(data) {
-      // const g = d3.select(chart).select(".gDrawing");
-      let flatData = data.map((d) => d[1]).flat();
-
-      gData
-        .selectAll(".point")
-        .data(flatData, (d) => d.__id__)
-        .join(
-          (enter) => {
-            enter
-              .append("circle")
-              .attr("class", "point")
-              .attr("cy", (d) => overviewY(y(d)))
-              .attr("cx", (d) => overviewX(x(d)))
-              .attr("fill", "black")
-              .attr("r", 2)
-              .style("opacity", 1.0);
-          },
-          (update) => {
-            update.attr("fill", "black").style("opacity", 1.0);
-          },
-          (exit) => {
-            exit.attr("fill", "gray").style("opacity", 0.1);
-          }
-        );
-
-      let lines = gData
-        .selectAll(".line")
-        .data(data, (d) => d[0])
-        .join(
-          (enter) => {
-            enter
-              .append("path")
-              .attr("class", "line")
-              .attr("d", (g) => line2(g[1]))
-              .style("fill", "none")
-              .style("stroke", "black")
-              .style("opacity", 1.0);
-          },
-          (update) => {
-            update.style("stroke", "black").style("opacity", 1.0);
-          },
-          (exit) => {
-            exit.style("stroke", "gray").style("opacity", 0.1);
-          }
-        );
-    }
-    return { render: render };
-  }
-
   // To render the overview and detailed view based on the selectedData
   function render(dataSelected, dataNotSelected, hasSelection) {
     // Prepare the medians array to print ( only the enable groups)
     let medians = [];
     let enableBrushGroups = brushes.getEnableGroups();
     enableBrushGroups.forEach((id) => {
-      if (medianBrushGroups.has(id))
+      if (medianBrushGroups.has(id)) {
         medians.push([id, medianBrushGroups.get(id)]);
+      }
     });
 
     // Decide which elements are painted as selected or not, depending on the enable groups.
@@ -1023,22 +1012,13 @@ function TimeSearcher({
     newDataNotSelected = dataNotSelected,
     hasSelection = false
   ) {
+    console.log("onSelection");
     dataSelected = newDataSelected;
     dataNotSelected = newDataNotSelected;
 
     // Filter data with active dataGroups
     if (groupAttr) {
-      dataSelectedGroupData = new Map(newDataSelected);
-      dataNotSelectedGroupData = newDataNotSelected;
-      for (let d of dataSelectedGroupData) {
-        let filtered = d[1].filter((d) =>
-          selectedGroupData.has(groupAttr(d[1][0]))
-        );
-        dataSelectedGroupData.set(d[0], filtered);
-      }
-      dataNotSelectedGroupData = dataNotSelectedGroupData.filter((d) =>
-        selectedGroupData.has(d[0])
-      );
+      filterDatabyDataGroups();
     }
 
     // Compute the medians if needed
@@ -1052,6 +1032,27 @@ function TimeSearcher({
     }
     renderBrushesControls();
     triggerValueUpdate(dataSelected);
+  }
+
+  // Function called to recreate the selection when dataInput change.
+  function recreateBrushes() {
+    brushes.recreate(_this.value.brushes);
+  }
+
+  // Called every time the brushGroups changes
+  function onBrushGroupsChange() {
+    if (groupAttr) {
+      // Render for possible change in brushGroups enable.
+      render(
+        dataSelectedGroupData,
+        dataNotSelectedGroupData,
+        brushes.hasSelection()
+      );
+    } else {
+      render(dataSelected, dataNotSelected, brushes.hasSelection());
+    }
+
+    renderBrushesControls();
   }
 
   function updateStatus() {
@@ -1084,7 +1085,7 @@ function TimeSearcher({
     updateCallback(sel);
 
     divOverview.value = sel;
-    divOverview.value.brushes = Array.from(brushes.getBrushesGroup().values());
+    divOverview.value.brushes = Array.from(brushes.getBrushesGroup().entries());
     divOverview.dispatchEvent(new Event("input", { bubbles: true }));
   }
 
@@ -1207,6 +1208,10 @@ function TimeSearcher({
     initDetails({ xDataType, fData });
 
     dataSelected.set(0, groupedData);
+    if (groupAttr) dataSelectedGroupData = new Map(dataSelected); // Initialize data filtered by enable dataGroups if needed.
+
+    if (_this) recreateBrushes();
+
     render(dataSelected, [], false);
     renderBrushesControls();
     triggerValueUpdate(dataSelected);
@@ -1232,3 +1237,62 @@ function TimeSearcher({
 }
 
 export default TimeSearcher;
+
+/*function renderSVG() {
+    const gData = g.append("g").attr("id", "gData");
+    // let prerenderDetails = null;
+
+    function render(data) {
+      renderOverviewSVG(data);
+      ts.hasDetails && timelineDetails.renderDetailsSVG(data);
+    }
+
+    function renderOverviewSVG(data) {
+      // const g = d3.select(chart).select(".gDrawing");
+      let flatData = data.map((d) => d[1]).flat();
+
+      gData
+        .selectAll(".point")
+        .data(flatData, (d) => d.__id__)
+        .join(
+          (enter) => {
+            enter
+              .append("circle")
+              .attr("class", "point")
+              .attr("cy", (d) => overviewY(y(d)))
+              .attr("cx", (d) => overviewX(x(d)))
+              .attr("fill", "black")
+              .attr("r", 2)
+              .style("opacity", 1.0);
+          },
+          (update) => {
+            update.attr("fill", "black").style("opacity", 1.0);
+          },
+          (exit) => {
+            exit.attr("fill", "gray").style("opacity", 0.1);
+          }
+        );
+
+      let lines = gData
+        .selectAll(".line")
+        .data(data, (d) => d[0])
+        .join(
+          (enter) => {
+            enter
+              .append("path")
+              .attr("class", "line")
+              .attr("d", (g) => line2(g[1]))
+              .style("fill", "none")
+              .style("stroke", "black")
+              .style("opacity", 1.0);
+          },
+          (update) => {
+            update.style("stroke", "black").style("opacity", 1.0);
+          },
+          (exit) => {
+            exit.style("stroke", "gray").style("opacity", 0.1);
+          }
+        );
+    }
+    return { render: render };
+  } */

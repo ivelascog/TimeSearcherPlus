@@ -19,22 +19,26 @@
     detailedElement: d3.select("#targetDetailed").node(),
     brushCoordinatesElement: d3.select("#targetCoordinates").node(),
     showBrushesControls: true,
+    colorScale: d3.scaleOrdinal(d3.schemeCategory10),
     //brushCoordinatesElement: d3.select("#targetCoordinates").node(),
     detailedContainerHeight: 600,
     overviewWidth: 800,
     detailedWidth: 400,
+    noSelectedAlpha: 0.1,
+    alphaScale: d3.scalePow().exponent(0.2).range([1, 0.01]),
     x: "__time",
     y: "peso",
     id: "Code",
+    groupAttr: "ERN_Sexo",
     renderer: "canvas",
-    fmtX: d3.format(".2d")
+    fmtX: d3.format(".2d"),
+    _this: this
   });
 
   //nn.updateCallback(selected => console.log(selected));
   //      nn.statusCallback(status => console.log(status))
   target.ts.doubleYlegend = true;
   target.ts.margin.right = 40;
-  //target.ts.groupAttr = "ERN_Sexo";
   target.ts.showGrid = true;
   target.ts.autoUpdate = true;
   target.ts.stepX = 1;
