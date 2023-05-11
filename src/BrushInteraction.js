@@ -77,8 +77,17 @@ function brushInteraction({
     callback: onTooltipChange,
   });
 
-  function onTooltipChange(selection) {
-    let [[x0, y0], [x1, y1]] = selection;
+  function onTooltipChange([[x0, y0], [x1, y1]]) {
+    y0 = +y0;
+    y1 = +y1;
+    if (isNaN(+x0)) {
+      let timeParse = d3.timeParse(fmtX);
+      x0 = timeParse(x0);
+      x1 = timeParse(x1);
+    } else {
+      x0 = +x0;
+      x1 = +x1;
+    }
     me.moveSelectedBrush([
       [x0, y0],
       [x1, y1],
@@ -302,7 +311,7 @@ function brushInteraction({
           x1 += distX;
           y0 += distY;
           y1 += distY;
-          gBrushes.select("#brush-" + brushId).call(brush.brush.move, [
+          gBrushes.selectAll("#brush-" + brushId).call(brush.brush.move, [
             [x0, y0],
             [x1, y1],
           ]);
@@ -627,8 +636,8 @@ function brushInteraction({
 
     x0 = Math.max(x0, minX);
     x1 = Math.min(x1, maxX);
-    y0 = Math.max(y0, minY);
-    y1 = Math.min(y1, maxY);
+    y0 = Math.min(y0, maxY);
+    y1 = Math.max(y1, minY);
 
     if (x0 > x1) {
       [x0, x1] = [x1, x0];
