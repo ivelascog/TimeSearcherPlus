@@ -32,8 +32,9 @@ function TimeLineOverview({
 
   let linem = d3.line();
 
-  const canvas = divOverview
-    .append("canvas")
+  const canvas = divOverview.selectAll("canvas")
+    .data([1])
+    .join("canvas")
     .attr("height", height * window.devicePixelRatio)
     .attr("width", width * window.devicePixelRatio)
     .style("position", "absolute")
