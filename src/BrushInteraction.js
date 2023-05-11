@@ -253,16 +253,12 @@ function brushInteraction({
 
   // Calculates whether a line intersects a complete brushGroup.
   function intersectGroup(data, group) {
-    if (
-      group.size === 0 ||
-      (group.size === 1 && group.values().next().value.intersections.size === 0)
-    )
-      return false;
+    if (group.size === 0) return false;
+
     let intersect = true;
     for (const brush of group.values()) {
       intersect =
-        intersect &&
-        (brush.intersections.has(data[0]) || brush.intersections.size === 0);
+        intersect && (brush.intersections.has(data[0]) || !brush.selection);
     }
     return intersect;
   }
@@ -272,7 +268,7 @@ function brushInteraction({
     let someUpdate = false;
     for (const brushGroup of brushesGroup.values()) {
       for (const brush of brushGroup.brushes) {
-        if (brush.isSelected) {
+        if (brush[1].isSelected) {
           let update = updateBrush(brush); //avoid lazy evaluation
           someUpdate = someUpdate || update;
         }

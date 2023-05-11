@@ -1,3 +1,5 @@
+import { log } from "./utils.js";
+
 function BVH({
   data,
   x,
@@ -146,9 +148,17 @@ function BVH({
   }
 
   me.intersect = function (x0, y0, x1, y1) {
-    //avoid overflow when brush are in the limits
-    x1 = x1 === BVH.width ? x1 - 1 : x1;
-    y1 = y1 === BVH.height ? y1 - 1 : y1;
+    if (x1 > BVH.width || y1 > BVH.height || x0 < 0 || y0 < 0)
+      log("👁️ BVH is called off limits", [
+        [x0, y0],
+        [x1, y1],
+      ]);
+
+    // Esure that the coordinates are in the limits oh the BVH
+    x1 = Math.min(x1, BVH.width - 1);
+    y1 = Math.min(y1, BVH.height - 1);
+    x0 = Math.max(x0, 0);
+    y0 = Math.max(y0, 0);
 
     let initI = Math.floor(x0 / BVH.xinc);
     let finI = Math.floor(x1 / BVH.xinc);
