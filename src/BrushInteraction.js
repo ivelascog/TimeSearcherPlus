@@ -107,7 +107,7 @@ function brushInteraction({
       brush.group = brushGroupSelected;
       brushesGroup.get(brushGroupSelected).brushes.set(id, brush);
       brushesGroup.get(brushGroupSelected).isEnable = true;
-      selectedBrush = brush;
+      selectedBrush = [id, brush];
       drawBrushes();
     }
     if (ts.autoUpdate) {
@@ -163,8 +163,8 @@ function brushInteraction({
       isSelected: false,
       group: brushGroupSelected,
       selection: null,
-      selectionDomain:  null,
-      initialSelection
+      selectionDomain: null,
+      initialSelection,
     });
     brushCount++;
   }
