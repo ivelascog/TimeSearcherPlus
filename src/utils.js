@@ -6,9 +6,11 @@ export function log() {
   before = performance.now();
 }
 
-export function compareMaps(map1, map2) {
-  for (const [key, value] of map1) {
-    if (map2.get(key) !== value) {
+export function compareSets(set1, set2) {
+  if (set1.size !== set2.size) return false;
+
+  for (const val of set1) {
+    if (!set2.has(val)) {
       return false;
     }
   }

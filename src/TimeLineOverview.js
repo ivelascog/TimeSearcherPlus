@@ -121,6 +121,10 @@ function TimeLineOverview({
         context.globalAlpha = ts.medianLineAlpha;
 
         medians.forEach((d) => {
+          if (!d[1]) {
+            console.log("Error drawing medians, empty data", d);
+            return;
+          }
           let path = new Path2D(linem(d[1]));
           context.setLineDash(ts.medianLineDash);
           context.strokeStyle = ts.brushesColorScale(d[0]);
