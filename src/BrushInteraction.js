@@ -262,7 +262,7 @@ function brushInteraction({
   function updateSelection() {
     let someUpdate = false;
     for (const brushGroup of brushesGroup.values()) {
-      for (const brush of brushGroup.brushes.values()) {
+      for (const brush of brushGroup.brushes) {
         if (brush.isSelected) {
           let update = updateBrush(brush); //avoid lazy evaluation
           someUpdate = someUpdate || update;
@@ -296,8 +296,8 @@ function brushInteraction({
     triggerBrush.selectionDomain = getSelectionDomain(selection);
     for (const brushGroup of brushesGroup.values()) {
       for (const [brushId, brush] of brushGroup.brushes) {
-        if (brush[1].isSelected && !(triggerId === brushId)) {
-          let [[x0, y0], [x1, y1]] = brush[1].selection;
+        if (brush.isSelected && !(triggerId === brushId)) {
+          let [[x0, y0], [x1, y1]] = brush.selection;
           x0 += distX;
           x1 += distX;
           y0 += distY;
@@ -310,7 +310,7 @@ function brushInteraction({
             [x0, y0],
             [x1, y1],
           ];
-          brush.selectionDomain = getSelectionDomain(brush[1].selection);
+          brush.selectionDomain = getSelectionDomain(brush.selection);
         }
       }
     }
