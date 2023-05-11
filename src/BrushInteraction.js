@@ -23,7 +23,6 @@ function brushInteraction({
   fmtY,
   updateTime,
   brushShadow,
-  initialSelections, // Initial filters received from the outside
   minBrushSize = 5, // Min size in pixels of brushes
   selectionCallback = () => {}, // (dataSelected, dataNotSelected, hasSelection) => {} Called when selected elements change
   groupsCallback = () => {}, // (groups) => {} Called when information of the groups changes (not the selection made by them)
@@ -675,6 +674,21 @@ function brushInteraction({
     ]);
   };
 
+  // A function to add filters as brushes post-initialization
+  // filters should be an array of filter, where each filter is 
+  // { id: 0, selectionDomain: [[x0, y0], [x1, y1]] }
+  // where the selection is in the domain of the data
+  me.addFilters = function(filters) {
+    if (!Array.isArray(filters)) {
+      console.log("Add Filters called without an array of filters");
+    }
+    for (let filter of filters) {
+      newBrush(filter);
+    }
+
+    drawBrushes();
+  };
+
   // add brush group without funct to avoid callback
   let newId = getUnusedIdBrushGroup();
   let brushGroup = {
@@ -689,7 +703,7 @@ function brushInteraction({
   brushGroupSelected = newId;
   brushesGroup.get(newId).isEnable = true;
 
-  newBrush(initialSelections);
+  newBrush();
   drawBrushes();
 
   return me;
