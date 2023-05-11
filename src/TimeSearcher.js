@@ -565,7 +565,7 @@ function TimeSearcher({
       selectionCallback: onSelectionChange,
       groupsCallback: onBrushGroupsChange,
       changeSelectedCoordinatesCallback: updateBrushSpinBox,
-      initialSelections: filters
+      initialSelections: filters,
     });
 
     gGroupBrushes
@@ -597,7 +597,10 @@ function TimeSearcher({
         sy0.node().value = fmtY(y1);
         sy1.node().value = fmtY(y0);
       } else {
-        log("updateBrushSpinBox called, but brushSpinBoxes not ready ", brushSpinBoxes);
+        log(
+          "updateBrushSpinBox called, but brushSpinBoxes not ready ",
+          brushSpinBoxes
+        );
       }
     } else {
       emptyBrushSpinBox();
@@ -801,7 +804,10 @@ function TimeSearcher({
       }
     }
 
-    brushes.moveSelectedBrush([ [x0, y0], [ x1,  y1] ]);
+    brushes.moveSelectedBrush([
+      [x0, y0],
+      [x1, y1],
+    ]);
   }
 
   function getSpinBoxValues() {
@@ -851,7 +857,10 @@ function TimeSearcher({
       }
     }
 
-    brushes.moveSelectedBrush([ [x0, y0], [ x1,  y1] ]);
+    brushes.moveSelectedBrush([
+      [x0, y0],
+      [x1, y1],
+    ]);
   }
 
   function onArrowLeft() {
@@ -883,7 +892,10 @@ function TimeSearcher({
       }
     }
 
-    brushes.moveSelectedBrush([ [x0, y0], [ x1,  y1] ]);
+    brushes.moveSelectedBrush([
+      [x0, y0],
+      [x1, y1],
+    ]);
   }
 
   function onArrowDown() {
@@ -903,7 +915,10 @@ function TimeSearcher({
     } else {
       y0 -= ts.stepY;
     }
-    brushes.moveSelectedBrush([ [x0, y0], [ x1,  y1] ]);
+    brushes.moveSelectedBrush([
+      [x0, y0],
+      [x1, y1],
+    ]);
   }
 
   function onArrowUp() {
@@ -924,7 +939,10 @@ function TimeSearcher({
       y1 += ts.stepY;
     }
 
-    brushes.moveSelectedBrush([ [x0, y0], [ x1,  y1] ]);
+    brushes.moveSelectedBrush([
+      [x0, y0],
+      [x1, y1],
+    ]);
   }
 
   // To render the overview and detailed view based on the selectedData
@@ -1092,8 +1110,18 @@ function TimeSearcher({
     }
     updateCallback(sel);
 
-    divOverview.value = sel;
-    divOverview.value.brushes = Array.from(brushes.getBrushesGroup().entries());
+    let value = new Map();
+    for (let [id, brushGroup] of brushes.getBrushesGroup()) {
+      let object = {
+        selection: sel.get(id),
+        name: brushGroup.name,
+        isActive: brushGroup.isActive,
+        isEnable: brushGroup.isEnable,
+      };
+      value.set(id, object);
+    }
+
+    divOverview.value = value;
     divOverview.dispatchEvent(new Event("input", { bubbles: true }));
   }
 
