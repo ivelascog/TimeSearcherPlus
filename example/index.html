@@ -45,10 +45,13 @@
         showGroupMedian: true, // If active show a line with the median of the enabled groups.
         binWidth: 1, // Sets the width of the bins used to calculate the group average. Note that this value may vary slightly to achieve a integer number of bins.
         hasDetails: true,
-        filters: [
-          [new Date(2020, 3, 1), 3000],
-          [new Date(2022, 3, 1), 5500],
-        ],
+        filters: [{
+          id: 0,
+          selectionDomain: [
+            [new Date(2020, 3, 1), 3000],
+            [new Date(2022, 3, 1), 5500],
+          ],
+        }],
       });
 
       // load your data, Remember to provide a function that transforms your data attributes to the correct type.

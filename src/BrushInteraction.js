@@ -462,11 +462,11 @@ function brushInteraction({
         log(
           "setting initial selection",
           brush.initialSelection,
-          brush.initialSelection.map(([px, py]) => [scaleX(px), scaleY(py)])
+          brush.initialSelection.selectionDomain.map(([px, py]) => [scaleX(px), scaleY(py)])
         );
 
         // // if so set the new brush programatically, and delete the initial selection
-        // me.moveBrush([id, brush], brush.initialSelection);
+        me.moveBrush([id, brush], brush.initialSelection.selectionDomain);
         // d3.select(this).call(
         //   brush.brush.move,
         //   // [[52, 254], [237, 320]]

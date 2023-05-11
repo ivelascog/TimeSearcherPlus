@@ -565,7 +565,6 @@ function TimeSearcher({
       selectionCallback: onSelectionChange,
       groupsCallback: onBrushGroupsChange,
       changeSelectedCoordinatesCallback: updateBrushSpinBox,
-      initialSelections: filters
     });
 
     gGroupBrushes
@@ -579,9 +578,6 @@ function TimeSearcher({
       .on("click", brushes.addBrushGroup);
 
     initBrushesControls();
-
-    // Create initial filters
-    if (filters) brushes.addFilters(filters);
 
     return g;
   }
@@ -1254,6 +1250,11 @@ function TimeSearcher({
     render(dataSelected, [], false);
     renderBrushesControls();
     triggerValueUpdate(dataSelected);
+
+
+    // Create initial filters
+    if (filters) brushes.addFilters(filters);
+
   };
 
   // If we receive the data on initialization call ts.Data
