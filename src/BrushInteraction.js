@@ -113,7 +113,7 @@ function brushInteraction({
       drawBrushes();
     }
     if (ts.autoUpdate) {
-      tBrushed(e, brush);
+      tBrushed(e, [id, brush]);
     }
   };
 
@@ -644,7 +644,7 @@ function brushInteraction({
     let y1p = scaleY(y1);
 
     log("moveBrush", brushID, brushValue, arguments[1]);
-    gBrushes.select("#brush-" + brushID).call(brushValue.brush.move, [
+    gBrushes.selectAll("#brush-" + brushID).call(brushValue.brush.move, [
       [x0p, y0p],
       [x1p, y1p],
     ]);
