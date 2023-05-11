@@ -528,7 +528,6 @@ function brushInteraction({
   me.recreate = function (brushesGroups_) {
     brushCount = 0;
     brushSize = 0;
-    gBrushes.html("");
     for (let brushGroup of brushesGroups_) {
       if (brushGroup[1].isActive) brushGroupSelected = brushGroup[0];
       for (let brush of brushGroup[1].brushes) {
@@ -541,7 +540,7 @@ function brushInteraction({
     brushCount++;
 
     drawBrushes();
-    /*for (let brushGroup of brushesGroups_) {
+    for (let brushGroup of brushesGroups_) {
       for (let brush of brushGroup[1].brushes) {
         if (brush[1].selection) {
           gBrushes
@@ -549,9 +548,9 @@ function brushInteraction({
             .call(brush[1].brush.move, brush[1].selection);
         }
       }
-    } */
+    }
 
-    // drawBrushes();
+    drawBrushes();
 
     //brushFilter();
   };
