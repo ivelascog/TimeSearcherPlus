@@ -25,10 +25,10 @@ function brushInteraction({
   brushShadow,
   initialSelections, // Initial filters received from the outside
   minBrushSize = 5, // Min size in pixels of brushes
-  selectionCallback = (dataSelected, dataNotSelected, hasSelection) => {}, // Called when selected elements change
-  groupsCallback = (groups) => {}, // Called when information of the groups changes (not the selection made by them)
-  changeSelectedCoordinatesCallback = (selection) => {}, // Called when the coordinates of the selected brush change.
-  statusCallback = (status) => {},
+  selectionCallback = () => {}, // (dataSelected, dataNotSelected, hasSelection) => {} Called when selected elements change
+  groupsCallback = () => {}, // (groups) => {} Called when information of the groups changes (not the selection made by them)
+  changeSelectedCoordinatesCallback = () => {}, // (selection) => {} Called when the coordinates of the selected brush change.
+  statusCallback = () => {}, // (status) => {}
 }) {
   let me = {},
     brushSize,
@@ -93,6 +93,12 @@ function brushInteraction({
       log("🚫 ERRROR onBrushStart called with no or wrong brush", brushObject);
       return;
     }
+
+    
+    if (!brushObject[1].selection) {
+      log("👁️ brushStart, not doing anything selection is null");
+      return;
+    };
     const [id, brush] = brushObject;
 
     // call when the user starts interacting with a timeBox
@@ -178,7 +184,8 @@ function brushInteraction({
       return;
     }
 
-    if (sourceEvent === undefined) return; // dont execute this method when move brushes programatically
+    // dont execute this method when move brushes programatically (sourceEvent === null) or when there is no selection
+    if (sourceEvent === undefined || !selection) return; 
     log("brushed", brush);
     brush[1].selection = selection;
     brush[1].selectionDomain = getSelectionDomain(selection); // Calculate the selection coordinates in data domain
@@ -272,10 +279,17 @@ function brushInteraction({
   // Move all selected brushes the same amount of the triggerBrush
   function moveSelectedBrushes(
     { selection, sourceEvent },
-    [triggerId, triggerBrush]
+    trigger
+    
   ) {
-    log("moveSelectedBrushes", arguments);
-    if (sourceEvent === undefined) return; // dont execute this method when move brushes programatically
+    // dont execute this method when move brushes programatically
+    if (sourceEvent === undefined) return;
+    if (!Array.isArray(trigger) || trigger.length!==2 ) {
+      log("👁️ moveSelectedBrushes called without array trigger returning",trigger);
+      return;
+    }
+
+    const [triggerId, triggerBrush] = trigger;
     if (!selection || !triggerBrush.isSelected) return;
 
     let [[x0, y0]] = selection;
@@ -452,14 +466,8 @@ function brushInteraction({
           brush.initialSelection.map(([px, py]) => [scaleX(px), scaleY(py)])
         );
 
-        // me.moveBrush([id, brush], brush.initialSelection);
-
-        // log(
-        //   "setting initial selection",
-        //   brush.initialSelection,
-        //   brush.initialSelection.map(([px, py]) => [scaleX(px), scaleY(py)])
-        // );
         // // if so set the new brush programatically, and delete the initial selection
+        // me.moveBrush([id, brush], brush.initialSelection);
         // d3.select(this).call(
         //   brush.brush.move,
         //   // [[52, 254], [237, 320]]
