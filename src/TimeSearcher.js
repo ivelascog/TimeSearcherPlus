@@ -25,8 +25,8 @@ function TimeSearcher({
   detailsHeight = 300, // Set the desired height of the overview Widget
   detailsContainerHeight = 400,
   detailsMargin = null, // Margin options for details view, d3 common format, leave null for using the overview margin
-  updateCallback = (data) => {},
-  statusCallback = (status) => {},
+  updateCallback = () => {}, // (data) => doSomethingWithData
+  statusCallback = () => {}, // (status) => doSomethingWithStatus
   fmtX = d3.timeFormat("%d/%m/%y"), // Function, how to format x points in the tooltip
   fmtY = d3.format(".1f"), // Function, how to format x points in the tooltip
   yLabel = "",
@@ -565,7 +565,7 @@ function TimeSearcher({
       selectionCallback: onSelectionChange,
       groupsCallback: onBrushGroupsChange,
       changeSelectedCoordinatesCallback: updateBrushSpinBox,
-      initialSelections: filters,
+      initialSelections: filters
     });
 
     gGroupBrushes
@@ -579,6 +579,9 @@ function TimeSearcher({
       .on("click", brushes.addBrushGroup);
 
     initBrushesControls();
+
+    // Create initial filters
+    if (filters) brushes.addFilters(filters);
 
     return g;
   }
