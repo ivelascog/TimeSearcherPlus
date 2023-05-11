@@ -89,7 +89,7 @@ function TimeSearcher({
     gBrushes,
     gReferences,
     line2,
-    brushSpinBoxes,
+    brushSpinBoxes = null,
     medianBrushGroups,
     dataSelected,
     dataNotSelected,
@@ -537,6 +537,7 @@ function TimeSearcher({
         } )`
       );
 
+    // TODO John: We might want to move this into brushInteraction
     gBrushes = g
       .selectAll("g#brushes")
       .data([1])
@@ -564,6 +565,7 @@ function TimeSearcher({
       selectionCallback: onSelectionChange,
       groupsCallback: onBrushGroupsChange,
       changeSelectedCoordinatesCallback: updateBrushSpinBox,
+      initialSelections: filters
     });
 
     gGroupBrushes
@@ -585,12 +587,18 @@ function TimeSearcher({
   function updateBrushSpinBox(selection) {
     if (selection) {
       let [[x0, y0], [x1, y1]] = selection;
-      let [[sx0, sy0], [sx1, sy1]] = brushSpinBoxes;
 
-      sx0.node().value = fmtX(x0);
-      sx1.node().value = fmtX(x1);
-      sy0.node().value = fmtY(y1);
-      sy1.node().value = fmtY(y0);
+      // When initializing the brushes the spinbox is not ready
+      if (brushSpinBoxes) {
+        let [[sx0, sy0], [sx1, sy1]] = brushSpinBoxes;
+
+        sx0.node().value = fmtX(x0);
+        sx1.node().value = fmtX(x1);
+        sy0.node().value = fmtY(y1);
+        sy1.node().value = fmtY(y0);
+      } else {
+        log("updateBrushSpinBox called, but brushSpinBoxes not ready ", brushSpinBoxes);
+      }
     } else {
       emptyBrushSpinBox();
     }
@@ -793,7 +801,7 @@ function TimeSearcher({
       }
     }
 
-    brushes.moveSelectedBrush(x0, x1, y0, y1);
+    brushes.moveSelectedBrush([ [x0, y0], [ x1,  y1] ]);
   }
 
   function getSpinBoxValues() {
@@ -843,7 +851,7 @@ function TimeSearcher({
       }
     }
 
-    brushes.moveSelectedBrush(x0, x1, y0, y1);
+    brushes.moveSelectedBrush([ [x0, y0], [ x1,  y1] ]);
   }
 
   function onArrowLeft() {
@@ -875,7 +883,7 @@ function TimeSearcher({
       }
     }
 
-    brushes.moveSelectedBrush(x0, x1, y0, y1);
+    brushes.moveSelectedBrush([ [x0, y0], [ x1,  y1] ]);
   }
 
   function onArrowDown() {
@@ -895,7 +903,7 @@ function TimeSearcher({
     } else {
       y0 -= ts.stepY;
     }
-    brushes.moveSelectedBrush(x0, x1, y0, y1);
+    brushes.moveSelectedBrush([ [x0, y0], [ x1,  y1] ]);
   }
 
   function onArrowUp() {
@@ -916,7 +924,7 @@ function TimeSearcher({
       y1 += ts.stepY;
     }
 
-    brushes.moveSelectedBrush(x0, x1, y0, y1);
+    brushes.moveSelectedBrush([ [x0, y0], [ x1,  y1] ]);
   }
 
   // To render the overview and detailed view based on the selectedData
@@ -1237,62 +1245,3 @@ function TimeSearcher({
 }
 
 export default TimeSearcher;
-
-/*function renderSVG() {
-    const gData = g.append("g").attr("id", "gData");
-    // let prerenderDetails = null;
-
-    function render(data) {
-      renderOverviewSVG(data);
-      ts.hasDetails && timelineDetails.renderDetailsSVG(data);
-    }
-
-    function renderOverviewSVG(data) {
-      // const g = d3.select(chart).select(".gDrawing");
-      let flatData = data.map((d) => d[1]).flat();
-
-      gData
-        .selectAll(".point")
-        .data(flatData, (d) => d.__id__)
-        .join(
-          (enter) => {
-            enter
-              .append("circle")
-              .attr("class", "point")
-              .attr("cy", (d) => overviewY(y(d)))
-              .attr("cx", (d) => overviewX(x(d)))
-              .attr("fill", "black")
-              .attr("r", 2)
-              .style("opacity", 1.0);
-          },
-          (update) => {
-            update.attr("fill", "black").style("opacity", 1.0);
-          },
-          (exit) => {
-            exit.attr("fill", "gray").style("opacity", 0.1);
-          }
-        );
-
-      let lines = gData
-        .selectAll(".line")
-        .data(data, (d) => d[0])
-        .join(
-          (enter) => {
-            enter
-              .append("path")
-              .attr("class", "line")
-              .attr("d", (g) => line2(g[1]))
-              .style("fill", "none")
-              .style("stroke", "black")
-              .style("opacity", 1.0);
-          },
-          (update) => {
-            update.style("stroke", "black").style("opacity", 1.0);
-          },
-          (exit) => {
-            exit.style("stroke", "gray").style("opacity", 0.1);
-          }
-        );
-    }
-    return { render: render };
-  } */
