@@ -987,14 +987,14 @@ function TimeSearcher({
 
     let binW = (maxX - minX) / ts.medianNumBins;
 
-    log(
-      "getBrushGroupsMedians: number of bins",
-      ts.medianNumBins,
-      " binW ",
-      binW,
-      minX,
-      maxX
-    );
+    // log(
+    //   "getBrushGroupsMedians: number of bins",
+    //   ts.medianNumBins,
+    //   " binW ",
+    //   binW,
+    //   minX,
+    //   maxX
+    // );
 
     for (let g of data.entries()) {
       let id = g[0];
@@ -1251,10 +1251,8 @@ function TimeSearcher({
     renderBrushesControls();
     triggerValueUpdate(dataSelected);
 
-
     // Create initial filters
     if (filters) brushes.addFilters(filters);
-
   };
 
   // If we receive the data on initialization call ts.Data

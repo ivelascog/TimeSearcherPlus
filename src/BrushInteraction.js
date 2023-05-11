@@ -93,11 +93,10 @@ function brushInteraction({
       return;
     }
 
-    
-    if (!brushObject[1].selection) {
-      log("👁️ brushStart, not doing anything selection is null");
-      return;
-    };
+    // if (!brushObject[1].selection) {
+    //   log("👁️ brushStart, selection is null, not doing anything ");
+    //   return;
+    // }
     const [id, brush] = brushObject;
 
     // call when the user starts interacting with a timeBox
@@ -164,8 +163,8 @@ function brushInteraction({
       isSelected: false,
       group: brushGroupSelected,
       selection: null,
-      selectionDomain: null,
-      initialSelection,
+      selectionDomain:  null,
+      initialSelection
     });
     brushCount++;
   }
@@ -184,7 +183,7 @@ function brushInteraction({
     }
 
     // dont execute this method when move brushes programatically (sourceEvent === null) or when there is no selection
-    if (sourceEvent === undefined || !selection) return; 
+    if (sourceEvent === undefined || !selection) return;
     log("brushed", brush);
     brush[1].selection = selection;
     brush[1].selectionDomain = getSelectionDomain(selection); // Calculate the selection coordinates in data domain
@@ -276,15 +275,14 @@ function brushInteraction({
   }
 
   // Move all selected brushes the same amount of the triggerBrush
-  function moveSelectedBrushes(
-    { selection, sourceEvent },
-    trigger
-    
-  ) {
+  function moveSelectedBrushes({ selection, sourceEvent }, trigger) {
     // dont execute this method when move brushes programatically
     if (sourceEvent === undefined) return;
-    if (!Array.isArray(trigger) || trigger.length!==2 ) {
-      log("👁️ moveSelectedBrushes called without array trigger returning",trigger);
+    if (!Array.isArray(trigger) || trigger.length !== 2) {
+      log(
+        "👁️ moveSelectedBrushes called without array trigger returning",
+        trigger
+      );
       return;
     }
 
@@ -460,9 +458,12 @@ function brushInteraction({
       // Are we creating a brush for a predefined filter?
       if (brush.initialSelection) {
         log(
-          "setting initial selection",
+          "🎉 setting initial selection",
           brush.initialSelection,
-          brush.initialSelection.selectionDomain.map(([px, py]) => [scaleX(px), scaleY(py)])
+          brush.initialSelection.selectionDomain.map(([px, py]) => [
+            scaleX(px),
+            scaleY(py),
+          ])
         );
 
         // // if so set the new brush programatically, and delete the initial selection
@@ -667,7 +668,15 @@ function brushInteraction({
   };
 
   me.moveSelectedBrush = function ([[x0, y0], [x1, y1]]) {
-    log("move selected brush", selectedBrush);
+    log("Move selected brush", selectedBrush);
+    if (!selectedBrush) {
+      log(
+        "🚫 ERROR moveSelectedBrush called but selectedBrush is falsy ",
+        selectedBrush
+      );
+      return;
+    }
+
     me.moveBrush(selectedBrush, [
       [x0, y0],
       [x1, y1],
@@ -675,10 +684,10 @@ function brushInteraction({
   };
 
   // A function to add filters as brushes post-initialization
-  // filters should be an array of filter, where each filter is 
+  // filters should be an array of filter, where each filter is
   // { id: 0, selectionDomain: [[x0, y0], [x1, y1]] }
   // where the selection is in the domain of the data
-  me.addFilters = function(filters) {
+  me.addFilters = function (filters) {
     if (!Array.isArray(filters)) {
       console.log("Add Filters called without an array of filters");
     }
