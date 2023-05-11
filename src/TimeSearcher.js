@@ -95,6 +95,7 @@ function TimeSearcher({
     dataNotSelected,
     dataSelectedGroupData, // Stores the selected data filtered with active dataGroups
     dataNotSelectedGroupData, // Stores the not-selected data filtered with active dataGroups
+    showNonSelected, // Determines if unselected data is rendered
     gGroupData,
     selectedGroupData,
     hasScaleTime,
@@ -170,6 +171,7 @@ function TimeSearcher({
   if (groupAttr) dataNotSelectedGroupData = [];
   selectedGroupData = new Set();
   nGroupsData = 0;
+  showNonSelected = true;
 
   function initBrushesControls() {
     brushesControlsElement.innerHTML = `<div id="brushesGroups" style="flex-basis:100%;">
@@ -278,6 +280,45 @@ function TimeSearcher({
         li.select("span#groupSize").on("click", () =>
           brushes.selectBrushGroup(d[0])
         );
+      });
+
+    // Render the nonSelected Group always on bottom of list
+    d3.select(brushesControlsElement)
+      .select("#brushesList")
+      .selectAll(".nonSelectedControl")
+      .remove();
+
+    d3.select(brushesControlsElement)
+      .select("#brushesList")
+      .append("li")
+      .attr("class", "nonSelectedControl")
+      .each(function () {
+        const li = d3.select(this);
+        let groupName = "Non selected";
+        let groupCount = dataNotSelected.length;
+
+        li.node().innerHTML = `<div style="
+            display: flex;
+            flex-wrap: nowrap;        
+            align-items: center;
+          ">
+            <input type="checkbox" id="checkBoxShowBrushGroup" ${
+              showNonSelected ? "checked" : ""
+            } ></input>                        
+            <output 
+              style="margin-right: 0px; border: none;outline: none; width: ${
+                groupName.length
+              }ch;"
+              >${groupName}</output>
+            <span id="groupSize" style="margin-right: 5px;">(${groupCount})</span>
+          </div>
+        `;
+
+        li.select("#checkBoxShowBrushGroup").on("change", (event) => {
+          event.stopPropagation();
+          showNonSelected = event.target.checked;
+          onSelectionChange();
+        });
       });
 
     // Render internal brush  controls
@@ -967,7 +1008,7 @@ function TimeSearcher({
 
     timelineOverview.render(
       mDataSelected,
-      dataNotSelected,
+      showNonSelected ? dataNotSelected : [],
       medians,
       hasSelection
     );
@@ -1035,7 +1076,7 @@ function TimeSearcher({
   function onSelectionChange(
     newDataSelected = dataSelected,
     newDataNotSelected = dataNotSelected,
-    hasSelection = false
+    hasSelection = brushes.hasSelection()
   ) {
     console.log("onSelection");
     dataSelected = newDataSelected;
