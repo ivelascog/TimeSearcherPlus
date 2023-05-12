@@ -112,9 +112,7 @@ function brushInteraction({
     // If the user is creating a new TimeBox, modify the group to which the timeBox belongs.
     if (id === brushCount - 1) {
       brushSize++;
-      brushesGroup.get(brush.group).brushes.delete(id);
-      brush.group = brushGroupSelected;
-      brushesGroup.get(brushGroupSelected).brushes.set(id, brush);
+      changeBrushOfGroup([id, brush], brushGroupSelected);
       brushesGroup.get(brushGroupSelected).isEnable = true;
       selectedBrush = [id, brush];
       drawBrushes();
@@ -422,6 +420,13 @@ function brushInteraction({
     }
   }
 
+  // Change one brush to a new BrushGroup
+  function changeBrushOfGroup([brushId, brush], newBrushGroupId) {
+    brushesGroup.get(brush.group).brushes.delete(brushId);
+    brush.group = newBrushGroupId;
+    brushesGroup.get(newBrushGroupId).brushes.set(brushId, brush);
+  }
+
   function drawBrushes() {
     let brushes = [];
     brushesGroup.forEach(
@@ -471,6 +476,28 @@ function brushInteraction({
           ])
         );
 
+        // Check if the brushGroup exist and create it if needed
+        let groupId = brush.initialSelection.groupId;
+        if (!brushesGroup.has(groupId)) {
+          let brushGroup = {
+            isEnable: true,
+            isActive: false,
+            name: "Group " + groupId,
+            brushes: new Map(),
+          };
+          brushesGroup.set(groupId, brushGroup);
+          dataSelected.set(groupId, []);
+        }
+
+        changeBrushOfGroup([id, brush], groupId);
+
+        // Update brushColor
+        d3.select(this)
+          .selectAll(".selection")
+          .style("stroke", ts.brushesColorScale(brush.group))
+          .style("outline-color", ts.brushesColorScale(brush.group))
+          .style("fill", ts.brushesColorScale(brush.group));
+
         // // if so set the new brush programatically, and delete the initial selection
         me.moveBrush([id, brush], brush.initialSelection.selectionDomain);
         // d3.select(this).call(
@@ -493,6 +520,7 @@ function brushInteraction({
     let newId = getUnusedIdBrushGroup();
     let brushGroup = {
       isEnable: true,
+      isActive: false,
       name: "Group " + newId,
       brushes: new Map(),
     };
@@ -698,7 +726,11 @@ function brushInteraction({
     }
     for (let filter of filters) {
       newBrush(filter);
+      brushSize++; // The brushSize will not be increased in onStartBrush
+      // because the last brush added will be the one set for a new Brush.
     }
+
+    newBrush(); // Add another brush that handle
 
     drawBrushes();
   };
