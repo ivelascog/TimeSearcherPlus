@@ -1286,7 +1286,7 @@ function TimeSearcher({
     dataSelected.set(0, groupedData);
     if (groupAttr) dataSelectedGroupData = new Map(dataSelected); // Initialize data filtered by enable dataGroups if needed.
 
-    if (_this) recreateBrushes();
+    // if (_this) recreateBrushes();
 
     render(dataSelected, [], false);
     renderBrushesControls();

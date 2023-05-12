@@ -25,9 +25,9 @@
     overviewWidth: 800,
     detailedWidth: 400,
     noSelectedAlpha: 0.1,
-    alphaScale: d3.scalePow().exponent(0.2).range([1, 0.01]),
+    alphaScale: d3.scalePow().exponent(0.2).range([1, 0.2]),
     x: "__time",
-    y: "peso",
+    y: "PC",
     id: "Code",
     groupAttr: "ERN_Sexo",
     renderer: "canvas",
@@ -47,11 +47,11 @@
 
 
   target.ts.brushGruopSize = 20;
-  d3.csv("./tData20000.csv", type).then(data => {
-    data = data.filter(d => d["__time"] < 89 && d["__time"] > 24 && d["peso"] < 20000);
+  d3.csv("./tData10000.csv", type).then(data => {
+    //data = data.filter(d => d["__time"] < 89 && d["__time"] > 24 && d["peso"] < 20000);
     //data = data.filter(d => ["1-0000001","1-0000002"].includes(d["Code"]))
     target.ts.data(data);
-    d3.json("./curvas.json").then(curves => {
+    d3.json("./curvasPC.json").then(curves => {
      target.ts.addReferenceCurves(curves);
     });
   });
