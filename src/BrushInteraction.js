@@ -602,7 +602,14 @@ function brushInteraction({
   };
 
   me.getBrushesGroup = function () {
-    return brushesGroup;
+    // Return a copy of brushesGroups without the uninitialized brushes
+    let filterBrushesGroup = new Map(brushesGroup);
+    filterBrushesGroup.forEach((group) => {
+      group.forEach((brush, brushId) => {
+        if (brush.selection === null) group.remove(brushId);
+      });
+    });
+    return filterBrushesGroup;
   };
 
   me.getBrushGroupSelected = function () {
