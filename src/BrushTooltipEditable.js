@@ -1,5 +1,4 @@
 import * as htl from "htl";
-import { log } from "./utils.js";
 
 function BrushTooltipEditable({
   fmtX,
@@ -19,7 +18,7 @@ function BrushTooltipEditable({
     resizeInput.call(input); // immediately call the function
 
     function resizeInput() {
-      this.style.width = this.value.length + "ch";
+      this.style.width = this.value.length + 1 + "ch";
     }
   };
 
@@ -104,6 +103,8 @@ function BrushTooltipEditable({
   btnChange0E.addEventListener("click", triggerUpdate);
   btnChange1E.addEventListener("click", triggerUpdate);
 
+  let tooltipNode = target.getElementsByClassName("__ts_tooltip");
+  if (tooltipNode.length > 0) target.removeChild(tooltipNode[0]);
   target.appendChild(brushTooltip);
 
   //triggerUpdate();

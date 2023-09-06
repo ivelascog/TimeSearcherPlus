@@ -2,7 +2,7 @@ import * as d3 from "d3";
 import { throttle } from "throttle-debounce";
 import BVH from "./BVH";
 import brushTooltipEditable from "./BrushTooltipEditable.js";
-import { compareSets } from "./utils.js";
+import { compareSets, darken } from "./utils.js";
 
 import { log } from "./utils";
 
@@ -24,9 +24,11 @@ function brushInteraction({
   updateTime,
   brushShadow,
   minBrushSize = 5, // Min size in pixels of brushes
+  tsLevel, // Store the level of the TS for brushColor. See how to change this TODO
   selectionCallback = () => {}, // (dataSelected, dataNotSelected, hasSelection) => {} Called when selected elements change
   groupsCallback = () => {}, // (groups) => {} Called when information of the groups changes (not the selection made by them)
   changeSelectedCoordinatesCallback = () => {}, // (selection) => {} Called when the coordinates of the selected brush change.
+  selectedBrushCallback = () => {}, // (brush) => {} Called when the selected Brush changes.
   statusCallback = () => {}, // (status) => {}
 }) {
   let me = {},
@@ -46,6 +48,7 @@ function brushInteraction({
     brushTooltip;
 
   gBrushes = d3.select(element);
+  gBrushes.node().innerHTML = "";
 
   tBrushed = throttle(updateTime, brushed);
   tUpdateSelection = throttle(updateTime, updateSelection);
@@ -115,6 +118,7 @@ function brushInteraction({
       changeBrushOfGroup([id, brush], brushGroupSelected);
       brushesGroup.get(brushGroupSelected).isEnable = true;
       selectedBrush = [id, brush];
+      selectedBrushCallback(selectedBrush);
       drawBrushes();
     }
     if (ts.autoUpdate) {
@@ -166,7 +170,7 @@ function brushInteraction({
     // Add the new brush to the group
     brushesGroup.get(brushGroupSelected).brushes.set(brushCount, {
       brush: brush,
-      intersections: new Set(),
+      intersections: null,
       isSelected: false,
       group: brushGroupSelected,
       selection: null,
@@ -180,9 +184,13 @@ function brushInteraction({
     return selection.map(([x, y]) => [scaleX.invert(x), scaleY.invert(y)]);
   }
 
+  function getSelectionPixels(selectionDomain) {
+    return selectionDomain.map(([x, y]) => [scaleX(x), scaleY(y)]);
+  }
+
   // Update brush intersections when moved
   function brushed({ selection, sourceEvent }, brush) {
-    log("brushed", brush, arguments);
+    //log("brushed", brush, arguments);
     if (!brush[1]) {
       // TODO
       log("**🚫 ERROR brushed called without a brush[1]", brush);
@@ -191,7 +199,7 @@ function brushInteraction({
 
     // dont execute this method when move brushes programatically (sourceEvent === null) or when there is no selection
     if (sourceEvent === undefined || !selection) return;
-    log("brushed", brush);
+    //log("brushed", brush);
     brush[1].selection = selection;
     brush[1].selectionDomain = getSelectionDomain(selection); // Calculate the selection coordinates in data domain
     if (updateBrush(brush)) {
@@ -219,7 +227,7 @@ function brushInteraction({
         }
       }
     } else {
-      dataSelected.set(0, data);
+      dataNotSelected = data;
     }
 
     selectionCallback(dataSelected, dataNotSelected, brushSize !== 0);
@@ -253,10 +261,14 @@ function brushInteraction({
   function intersectGroup(data, group) {
     if (group.size === 0) return false;
 
+    // If the group only have a 1 uninitialized brush not have intersection
+    if (group.size === 1 && !group.values().next().value.intersections)
+      return false;
+
     let intersect = true;
     for (const brush of group.values()) {
       intersect =
-        intersect && (brush.intersections.has(data[0]) || !brush.selection);
+        intersect && (!brush.intersections || brush.intersections.has(data[0]));
     }
     return intersect;
   }
@@ -335,6 +347,7 @@ function brushInteraction({
   function selectBrush(brush) {
     brush[1].isSelected = !brush[1].isSelected;
     updateGroups();
+    selectedBrushCallback(brush);
   }
   function deselectAllBrushes() {
     for (let brushGroup of brushesGroup.values()) {
@@ -384,21 +397,22 @@ function brushInteraction({
     d3.select(this)
       .selectAll(".selection")
       .style("outline", "-webkit-focus-ring-color solid 0px")
-      .style("fill", ts.brushesColorScale(brushValue.group))
+      .style("fill", computeColor(brushValue.group))
       .style(
         "stroke-width",
         brushValue.group === brushGroupSelected ? "2px" : "0.5px"
       )
       // .style("outline-style", brushValue.isSelected ? "dashed" : "solid")
       .style("stroke-dasharray", brushValue.isSelected ? "4" : "")
-      .style("stroke", ts.brushesColorScale(brushValue.group))
-      .style("outline-color", ts.brushesColorScale(brushValue.group))
-      .style("fill", ts.brushesColorScale(brushValue.group))
+      .style("stroke", darken(computeColor(brushValue.group)))
+      .style("outline-color", darken(computeColor(brushValue.group)))
+      .style("fill", computeColor(brushValue.group))
       .attr("tabindex", 0)
       .on("mousedown", (sourceEvent) => {
         let selection = brushValue.selection;
         updateSelectedCoordinates({ selection });
-        selectedBrush = d;
+        selectedBrush = selectedBrush && d[0] === selectedBrush[0] ? null : d;
+        selectedBrushCallback(selectedBrush);
 
         // Show shadow on current brush
         gBrushes
@@ -418,6 +432,16 @@ function brushInteraction({
           showBrushTooltip({ selection, sourceEvent });
         });
     }
+  }
+
+  function computeColor(groupId) {
+    // Not do if(tsLevel) because if(0) is false.
+    if (tsLevel !== undefined) return ts.brushesColorScale[groupId](tsLevel);
+
+    if (ts.brushesColorScale instanceof Array)
+      return ts.brushesColorScale[groupId](tsLevel);
+
+    ts.brushesColorScale(groupId);
   }
 
   // Change one brush to a new BrushGroup
@@ -494,9 +518,9 @@ function brushInteraction({
         // Update brushColor
         d3.select(this)
           .selectAll(".selection")
-          .style("stroke", ts.brushesColorScale(brush.group))
-          .style("outline-color", ts.brushesColorScale(brush.group))
-          .style("fill", ts.brushesColorScale(brush.group));
+          .style("stroke", darken(computeColor(brush.group)))
+          .style("outline-color", darken(computeColor(brush.group)))
+          .style("fill", computeColor(brush.group));
 
         // // if so set the new brush programatically, and delete the initial selection
         me.moveBrush([id, brush], brush.initialSelection.selectionDomain);
@@ -517,11 +541,21 @@ function brushInteraction({
     updateStatus();
   };
   me.addBrushGroup = function () {
+    // In case of a multivariate TS, it is not possible to add more groups than defined color families.
+    if (
+      tsLevel !== undefined &&
+      brushesGroup.size === ts.brushesColorScale.length
+    ) {
+      log(
+        "Another group cannot be added because there is no defined color family. "
+      );
+      return;
+    }
     let newId = getUnusedIdBrushGroup();
     let brushGroup = {
       isEnable: true,
       isActive: false,
-      name: "Group " + newId,
+      name: "Group " + (newId + 1),
       brushes: new Map(),
     };
 
@@ -602,11 +636,21 @@ function brushInteraction({
   };
 
   me.getBrushesGroup = function () {
+    //return brushesGroup;
+
     // Return a copy of brushesGroups without the uninitialized brushes
-    let filterBrushesGroup = new Map(brushesGroup);
+    let filterBrushesGroup = new Map();
+
+    // Deep copy
+    brushesGroup.forEach((g, gId) => {
+      let o = Object.assign({}, g);
+      o.brushes = new Map(g.brushes);
+      filterBrushesGroup.set(gId, o);
+    });
+
     filterBrushesGroup.forEach((group) => {
-      group.forEach((brush, brushId) => {
-        if (brush.selection === null) group.remove(brushId);
+      group.brushes.forEach((brush, brushId) => {
+        if (brush.selection === null) group.brushes.delete(brushId);
       });
     });
     return filterBrushesGroup;
@@ -628,34 +672,46 @@ function brushInteraction({
     return brushSize !== 0;
   };
 
+  me.deselectBrush = function () {
+    if (selectedBrush) {
+      selectedBrush = null;
+      drawBrushes();
+      selectedBrushCallback(selectedBrush);
+    }
+  };
+
   me.recreate = function (brushesGroups_) {
-    brushCount = 0;
-    brushSize = 0;
-    for (let brushGroup of brushesGroups_) {
-      if (brushGroup[1].isActive) brushGroupSelected = brushGroup[0];
-      for (let brush of brushGroup[1].brushes) {
-        brushSize++;
-        brushCount = Math.max(brushCount, brush[0]);
-        if (brush[1].selection) updateBrush(brush);
+    let filters = [];
+    for (let [groupId, group] of brushesGroups_) {
+      // Create or update the brushGroup
+      if (!brushesGroup.has(groupId)) {
+        let brushGroup = {
+          isEnable: group.isEnable,
+          isActive: group.isActive,
+          name: group.name,
+          brushes: new Map(),
+        };
+        brushesGroup.set(groupId, brushGroup);
+        dataSelected.set(groupId, []);
+      } else {
+        let brushGroup = brushesGroup.get(groupId);
+        brushGroup.isEnable = group.isEnable;
+        brushGroup.isActive = group.isActive;
+        brushGroup.name = group.name;
       }
-      brushesGroup.set(brushGroup[0], brushGroup[1]);
-    }
-    brushCount++;
 
-    drawBrushes();
-    for (let brushGroup of brushesGroups_) {
-      for (let brush of brushGroup[1].brushes) {
-        if (brush[1].selection) {
-          gBrushes
-            .select("#brush-" + brush[0])
-            .call(brush[1].brush.move, brush[1].selection);
-        }
+      for (let [brushId, brush] of group.brushes) {
+        let filter = {
+          id: brushId,
+          groupId: groupId,
+          selectionDomain: getSelectionDomain(brush.selection),
+        };
+        filters.push(filter);
       }
     }
 
+    me.addFilters(filters);
     drawBrushes();
-
-    //brushFilter();
   };
 
   me.moveBrush = function ([brushID, brushValue], [[x0, y0], [x1, y1]]) {
@@ -683,7 +739,7 @@ function brushInteraction({
     let y0p = scaleY(y0);
     let y1p = scaleY(y1);
 
-    log("moveBrush", brushID, brushValue, arguments[1]);
+    //log("moveBrush", brushID, brushValue, arguments[1]);
     gBrushes.selectAll("#brush-" + brushID).call(brushValue.brush.move, [
       [x0p, y0p],
       [x1p, y1p],
@@ -708,7 +764,7 @@ function brushInteraction({
   };
 
   me.moveSelectedBrush = function ([[x0, y0], [x1, y1]]) {
-    log("Move selected brush", selectedBrush);
+    //log("Move selected brush", selectedBrush);
     if (!selectedBrush) {
       log(
         "🚫 ERROR moveSelectedBrush called but selectedBrush is falsy ",
@@ -731,15 +787,35 @@ function brushInteraction({
     if (!Array.isArray(filters)) {
       console.log("Add Filters called without an array of filters");
     }
+
+    if (filters.length === 0) return;
+
+    // Remove the brush prepared to generate new TimeBox. Will be added later.
+    brushesGroup.forEach((group) => {
+      group.brushes.forEach((brush, id) => {
+        if (!brush.selection) group.brushes.delete(id);
+      });
+    });
+
     for (let filter of filters) {
       newBrush(filter);
       brushSize++; // The brushSize will not be increased in onStartBrush
       // because the last brush added will be the one set for a new Brush.
     }
 
-    newBrush(); // Add another brush that handle
+    newBrush(); // Add another brush that handle the possible new TimeBox
 
+    brushFilter();
     drawBrushes();
+  };
+
+  me.drawBrushes = function () {
+    drawBrushes();
+  };
+
+  me.setTsPosition = function (position) {
+    tsLevel = position;
+    //drawBrushes();
   };
 
   // add brush group without funct to avoid callback
@@ -747,7 +823,7 @@ function brushInteraction({
   let brushGroup = {
     isEnable: true,
     isActive: true,
-    name: "Group " + newId,
+    name: "Group " + (newId + 1),
     brushes: new Map(),
   };
 
