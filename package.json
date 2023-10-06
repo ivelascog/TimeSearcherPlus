@@ -59,5 +59,8 @@
     "index.js.flow",
     "package.json",
     "README.md"
-  ]
+  ],
+  "engines" : {    
+    "node" : ">=20.8.0 < 22.0.0"
+  }
 }
