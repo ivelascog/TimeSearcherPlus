@@ -441,7 +441,7 @@ function brushInteraction({
     if (ts.brushesColorScale instanceof Array)
       return ts.brushesColorScale[groupId](tsLevel);
 
-    ts.brushesColorScale(groupId);
+    return ts.brushesColorScale(groupId);
   }
 
   // Change one brush to a new BrushGroup

@@ -33,14 +33,14 @@
     groupAttr: "ERN_Sexo",
     renderer: "canvas",
     fmtX: d3.format(".2d"),
-    _this: this
+      showGrid: false,
   });
 
   //nn.updateCallback(selected => console.log(selected));
   //      nn.statusCallback(status => console.log(status))
+  target.ts.showGrid = false;
   target.ts.doubleYlegend = true;
   target.ts.margin.right = 40;
-  target.ts.showGrid = true;
   target.ts.autoUpdate = true;
   target.ts.stepX = 1;
   target.ts.stepY = 100;
@@ -82,7 +82,6 @@
   //      nn.statusCallback(status => console.log(status))
   target.ts.doubleYlegend = true;
   target.ts.margin.right = 40;
-  target.ts.showGrid = true;
   target.ts.autoUpdate = true;
   target.ts.stepX = 1;
   target.ts.stepY = 100;
