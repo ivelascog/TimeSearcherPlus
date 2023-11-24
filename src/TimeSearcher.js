@@ -7,14 +7,12 @@ import TimelineDetails from "./TimelineDetails.js";
 import TimeLineOverview from "./TimeLineOverview";
 import brushInteraction from "./BrushInteraction";
 
-function TimeSearcher({
-  // John TODO: Let's change everything to Observable's style TimeSearcher(data, { width, etc})
-  data,
+function TimeSearcher( data,{
   target = document.createElement("div"), // pass a html element where you want to render
   detailsElement, // pass a html element where you want to render the details
-  brushCoordinatesElement = document.createElement("div"), // pass a html element where you want to render the brush coordinates Input.
-  brushesControlsElement, // pass a html element where you want to have the brushes controls.
-  showBrushesControls = true, // If false you can still use brushesControlsElement to show the control on a different element on your app
+  coordinatesElement = document.createElement("div"), // pass a html element where you want to render the brush coordinates Input.
+  groupsElement, // pass a html element where you want to have the brushes controls.
+  showBrushesControls = false, // If false you can still use brushesControlsElement to show the control on a different element on your app
   x = (d) => d.x, // Attribute to show in the X axis (Note that it also supports functions)
   y = (d) => d.y, // Attribute to show in the Y axis (Note that it also supports functions)
   id = (d) => d.id, // Attribute to group the input data (Note that it also supports functions)
@@ -86,7 +84,6 @@ function TimeSearcher({
     divRender,
     divControls,
     divData,
-    divDetails,
     divBrushesCoordinates,
     svg,
     g,
@@ -177,9 +174,9 @@ function TimeSearcher({
   // Listen to customEvent to connect timeSearchers
   d3.select(target).on("timeSearcher", onTimeSearcherEvent);
 
-  divBrushesCoordinates = d3.select(brushCoordinatesElement);
-  brushesControlsElement =
-    brushesControlsElement ||
+  divBrushesCoordinates = d3.select(coordinatesElement);
+  groupsElement =
+    groupsElement ||
     d3.select(target).select("#brushesGroups").node() ||
     d3.create("div").attr("id", "brushesGroups").node();
   medianBrushGroups = new Map();
@@ -192,19 +189,18 @@ function TimeSearcher({
   tsElementsSelection = [];
 
   function initBrushesControls() {
-    brushesControlsElement.innerHTML = `<div style="flex-basis:100%;">
-    <h3>Groups</h3>
+    groupsElement.innerHTML = `<div style="flex-basis:100%;">
     <ul id="brushesList">
       
     </ul>
     <button id="btnAddBrushGroup">Add Group</button>
     </div>`;
 
-    brushesControlsElement
+    groupsElement
       .querySelector("button#btnAddBrushGroup")
       .addEventListener("click", onAddBrushGroup);
 
-    if (showBrushesControls) divOverview.appendChild(brushesControlsElement);
+    if (showBrushesControls) divOverview.appendChild(groupsElement);
   }
 
   function computeBrushColor(groupId) {
@@ -330,7 +326,7 @@ function TimeSearcher({
   }
 
   function renderBrushesControls() {
-    d3.select(brushesControlsElement)
+    d3.select(groupsElement)
       .select("#brushesList")
       .selectAll(".brushControl")
       .data(brushes.getBrushesGroup(), (d) => d[0])
@@ -419,12 +415,12 @@ function TimeSearcher({
       });
 
     // Render the nonSelected Group always on bottom of list
-    d3.select(brushesControlsElement)
+    d3.select(groupsElement)
       .select("#brushesList")
       .selectAll(".nonSelectedControl")
       .remove();
 
-    d3.select(brushesControlsElement)
+    d3.select(groupsElement)
       .select("#brushesList")
       .append("li")
       .attr("class", "nonSelectedControl")
@@ -791,7 +787,6 @@ function TimeSearcher({
 
   function generateBrushCoordinatesDiv() {
     divBrushesCoordinates.node().innerHTML = "";
-    divBrushesCoordinates.append("h3").text("Current TimeBox Coordinates: ");
     let divX = divBrushesCoordinates.append("div");
 
     divX.append("span").text(xLabel);
@@ -913,11 +908,11 @@ function TimeSearcher({
 
   function initDetails({ xDataType, fData }) {
     if (ts.hasDetails) {
-      // We didn't receive a HTML element for the details div,
-      // let's create it and add it to the target
+      // see if already exists and element and reutilize it, if not create new div
       if (!detailsElement) {
-        detailsElement = document.createElement("div");
-        divOverview.appendChild(detailsElement);
+        detailsElement =
+          d3.select(target).select("#details").node() ||
+          d3.create("div").attr("id","#details").node();
       }
 
       // TimelineDetails object
@@ -1690,9 +1685,9 @@ function TimeSearcher({
 
   // Make the ts object accesible
   divOverview.ts = ts;
-  divOverview.details = divDetails;
-  divOverview.brushesCoordinates = divBrushesCoordinates;
-
+  divOverview.details = detailsElement;
+  divOverview.brushesCoordinates = divBrushesCoordinates.node();
+  divOverview.groups = groupsElement;
   return divOverview;
 }
 
