@@ -726,6 +726,12 @@ function brushInteraction({
     y0 = Math.min(y0, maxY);
     y1 = Math.max(y1, minY);
 
+    // if the X axis is a Date return to Date after clamping
+    if (minX instanceof Date) {
+      x0 = new Date(x0);
+      x1 = new Date(x1);
+    }
+
     if (x0 > x1) {
       [x0, x1] = [x1, x0];
     }
