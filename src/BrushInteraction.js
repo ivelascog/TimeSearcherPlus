@@ -175,7 +175,7 @@ function brushInteraction({
       group: brushGroupSelected,
       selection: null,
       selectionDomain: null,
-      initialSelection,
+      initialSelection: initialSelection,
     });
     brushCount++;
   }
@@ -300,6 +300,8 @@ function brushInteraction({
       );
       return;
     }
+
+    log("moveSelectedBrushes");
 
     const [triggerId, triggerBrush] = trigger;
     if (!selection || !triggerBrush.isSelected) return;
@@ -714,7 +716,8 @@ function brushInteraction({
     drawBrushes();
   };
 
-  me.moveBrush = function ([brushID, brushValue], [[x0, y0], [x1, y1]]) {
+  me.moveBrush = function ([brushID, brushValue], selection, moveSelection = false ) {
+    let [[x0, y0], [x1, y1]] = selection;
     //Domain coordinates
     let minX = scaleX.domain()[0];
     let maxX = scaleX.domain()[1];
@@ -751,9 +754,9 @@ function brushInteraction({
       [x1p, y1p],
     ]);
 
-    let selection = [
+    selection = [
       [x0p, y0p],
-      [x1p, y1p],
+      [x1p, y1p]
     ];
     let selectionDomain = [
       [x0, y0],
@@ -761,15 +764,18 @@ function brushInteraction({
     ];
 
     let sourceEvent = new Event("move"); // fake event to be able to call brushed programmatically
-    brushed({ selection, sourceEvent }, [brushID, brushValue]);
-    brushTooltip.__update({
-      selection: selectionDomain,
-      selectionPixels: selection,
-    });
-    //moveSelectedBrushes({selection,sourceEvent},brushInSpinBox)
+    if (moveSelection) {
+      moveSelectedBrushes({selection,sourceEvent},[brushID, brushValue]);
+    } else {
+      brushed({ selection, sourceEvent }, [brushID, brushValue]);
+      brushTooltip.__update({
+        selection: selectionDomain,
+        selectionPixels: selection,
+      });
+    }
   };
 
-  me.moveSelectedBrush = function ([[x0, y0], [x1, y1]]) {
+  me.moveSelectedBrush = function ([[x0, y0], [x1, y1]], moveSelection = false) {
     //log("Move selected brush", selectedBrush);
     if (!selectedBrush) {
       log(
@@ -782,7 +788,7 @@ function brushInteraction({
     me.moveBrush(selectedBrush, [
       [x0, y0],
       [x1, y1],
-    ]);
+    ], moveSelection);
   };
 
   // A function to add filters as brushes post-initialization
@@ -792,6 +798,12 @@ function brushInteraction({
   me.addFilters = function (filters) {
     if (!Array.isArray(filters)) {
       console.log("Add Filters called without an array of filters");
+    }
+
+    for (let filter of filters) {
+      if (filter.id === undefined) throw new Error("Initial TimeBox without Id encounter");
+      if (!filter.groupId === undefined) throw new Error("Initial TimeBox (" + filter.id +") dosent have groupId defined");
+      if (!filter.selectionDomain) throw new Error("Initial TimeBox (" + filter.id +") dosent have valid initialSelection");
     }
 
     if (filters.length === 0) return;

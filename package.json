@@ -8,7 +8,7 @@
   },
   "license": "MIT",
   "name": "time-searcher-plus",
-  "version": "0.0.12",
+  "version": "0.0.14",
   "type": "module",
   "main": "dist/TimeSearcher.min.js",
   "module": "dist/TimeSearcher.esm.js",

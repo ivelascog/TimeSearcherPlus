@@ -27,7 +27,7 @@ function TimeSearcher( data,{
   }, // (data) => doSomethingWithData
   statusCallback = () => {
   }, // (status) => doSomethingWithStatus
-  fmtX = d3.timeFormat("%d/%m/%y"), // Function, how to format x points in the tooltip
+  fmtX = d3.format(".1f"), // Function, how to format x points in the tooltip
   fmtY = d3.format(".1f"), // Function, how to format x points in the tooltip
   yLabel = "",
   xLabel = "",
@@ -164,6 +164,7 @@ function TimeSearcher( data,{
   divOverview = d3
     .select(target)
     .style("display", "flex")
+    .style("flex-wrap", "wrap")
     .style("flex-wrap", "wrap")
     .style("position", "relative")
     .style("top", "0px")
@@ -763,8 +764,8 @@ function TimeSearcher( data,{
 
         sx0.node().value = hasScaleTime ? formatTime(x0) : fmtX(x0);
         sx1.node().value = hasScaleTime ? formatTime(x1) : fmtX(x1);
-        sy0.node().value = fmtY(y1);
-        sy1.node().value = fmtY(y0);
+        sy0.node().value = fmtY(y1).replace("\u2212","-"); // Change D3 minus sign to parseable minus
+        sy1.node().value = fmtY(y0).replace("\u2212","-");
       } else {
         log(
           "updateBrushSpinBox called, but brushSpinBoxes not ready ",
@@ -940,8 +941,6 @@ function TimeSearcher( data,{
     let [[sx0, sy0], [sx1, sy1]] = brushSpinBoxes;
 
     let domainX = overviewX.domain();
-    let domainY = overviewY.domain();
-
 
     let x0;
     let x1;
@@ -1027,7 +1026,7 @@ function TimeSearcher( data,{
     brushes.moveSelectedBrush([
       [x0, y0],
       [x1, y1]
-    ]);
+    ], true);
   }
 
   function onArrowLeft() {
@@ -1062,7 +1061,7 @@ function TimeSearcher( data,{
     brushes.moveSelectedBrush([
       [x0, y0],
       [x1, y1]
-    ]);
+    ], true);
   }
 
   function onArrowDown() {
@@ -1085,7 +1084,7 @@ function TimeSearcher( data,{
     brushes.moveSelectedBrush([
       [x0, y0],
       [x1, y1]
-    ]);
+    ], true);
   }
 
   function onArrowUp() {
@@ -1109,7 +1108,7 @@ function TimeSearcher( data,{
     brushes.moveSelectedBrush([
       [x0, y0],
       [x1, y1]
-    ]);
+    ], true);
   }
 
   // To render the overview and detailed view based on the selectedData
