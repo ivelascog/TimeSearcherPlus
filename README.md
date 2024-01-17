@@ -7,10 +7,11 @@
 You can use it to visualize thousands of time series, and select multiple groups by direct manipulation. In addition, it
 works as a reactive widget that can be added to other applications, returning the selected groups in real time.
 
-| Group Selection                                   | Detailed View                                   | Reference Lines                                                |
-|---------------------------------------------------|-------------------------------------------------|----------------------------------------------------------------|
-| <img src="imgs/timeSearcher_groupSelection.gif"/> | <img src="imgs/timeSearcher_detailedView.gif"/> | <img src="imgs/timesearcher_referencesLines.png/" width="300"> |
-
+|                                                     Group Selection                                                      |                                                          Detailed View                                                          |
+|:------------------------------------------------------------------------------------------------------------------------:|:-------------------------------------------------------------------------------------------------------------------------------:|
+|   <img src="https://raw.githubusercontent.com/ivelascog/TimeSearcherPlus/main/imgs/timeSearcher_groupSelection.gif"/>    |        <img src="https://raw.githubusercontent.com/ivelascog/TimeSearcherPlus/main/imgs/timeSearcher_detailedView.gif"/>        |
+|                                                   **Moving Patterns**                                                    |                                                       **Reference Lines**                                                       |
+|  <img src="https://raw.githubusercontent.com/ivelascog/TimeSearcherPlus/main/imgs/timeSearcher_multipleSelection.gif"/>  | <img src="https://raw.githubusercontent.com/ivelascog/TimeSearcherPlus/main/imgs/timesearcher_referencesLines.png" width="300"> |
 ## Try it!
 
 You can test timeSearcher+ right now with your **own CSV data** (less than 200MB), using:
@@ -59,7 +60,7 @@ Requires [^popper.js@2.11.6](https://github.com/FezVrasta/popper.js/), [^d3@7.8.
     
 
     // load your data, Remember to provide a function that transforms your data attributes to the correct type.
-    d3.csv("./sp500_20-22.csv",type).then(data => {
+    d3.csv("./Stocks.csv", type).then(data => {
       target.ts.data(data);
     });
 ```
