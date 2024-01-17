@@ -16,7 +16,8 @@ function TimeSearcher( data,{
   x = (d) => d.x, // Attribute to show in the X axis (Note that it also supports functions)
   y = (d) => d.y, // Attribute to show in the Y axis (Note that it also supports functions)
   id = (d) => d.id, // Attribute to group the input data (Note that it also supports functions)
-  groupAttr = null, // Specifies the attribute to be used to discriminate the groups (Note that it also supports functions).
+  color = null,  //Specifies the attribute to be used to discriminate the groups (Note that it also supports functions).
+  groupAttr = null, // DEPRECATED use color instead: Specifies the attribute to be used to discriminate the groups (Note that it also supports functions).
   referenceCurves = null, // Specifies a Json object with the information of the reference lines.
   width = 1200, // Set the desired width of the overview Widget
   detailsWidth = 400, // Set the desired width of the details Widget
@@ -124,7 +125,7 @@ function TimeSearcher( data,{
   ts.margin = margin;
   ts.colorScale = colorScale;
   ts.brushesColorScale = brushesColorScale;
-  ts.groupAttr = groupAttr;
+  ts.color = color;
   ts.doubleYlegend = doubleYlegend;
   ts.showGrid = showGrid;
   ts.showBrushTooltip = showBrushTooltip;
@@ -142,6 +143,12 @@ function TimeSearcher( data,{
   ts.yScale = yScale;
   ts.highlightAlpha = highlightAlpha;
 
+  //Backwards compatibility with groupAttr.
+  if (groupAttr) {
+    console.warn("The attribute \"groupAttr\" is deprecated use \"color\" instead");
+    color = groupAttr;
+  }
+
   // Convert attrStrings to functions
   if (typeof x === "string") {
     let _x = x;
@@ -155,9 +162,9 @@ function TimeSearcher( data,{
     let _id = id;
     id = (d) => d[_id];
   }
-  if (groupAttr && typeof groupAttr === "string") {
-    let _groupAttr = groupAttr;
-    groupAttr = (d) => d[_groupAttr];
+  if (color && typeof color === "string") {
+    let _color = color;
+    color = (d) => d[_color];
   }
 
   const formatTime = d3.timeFormat("%Y-%m-%d");
@@ -552,7 +559,7 @@ function TimeSearcher( data,{
       height: height,
       x,
       y,
-      groupAttr,
+      groupAttr: color,
       overviewX,
       overviewY
     });
@@ -692,8 +699,8 @@ function TimeSearcher( data,{
       .attr("stroke", "#9ca5aecf") // line color
       .attr("stroke-dasharray", "4"); // make it dashed;
 
-    if (groupAttr) {
-      fData.forEach((d) => selectedGroupData.add(groupAttr(d)));
+    if (color) {
+      fData.forEach((d) => selectedGroupData.add(color(d)));
       nGroupsData = selectedGroupData.size;
     }
 
@@ -852,7 +859,7 @@ function TimeSearcher( data,{
   }
 
   function generateDataSelectionDiv() {
-    if (groupAttr) {
+    if (color) {
       divData.node().innerHTML = "";
       divData.append("span").text("Data groups: ");
 
@@ -893,12 +900,12 @@ function TimeSearcher( data,{
     let dataNotSelectedF = dataNotSelected;
     for (let d of dataSelectedF) {
       let filtered = d[1].filter((d) =>
-        selectedGroupData.has(groupAttr(d[1][0]))
+        selectedGroupData.has(color(d[1][0]))
       );
       dataSelectedF.set(d[0], filtered);
     }
     dataNotSelectedF = dataNotSelectedF.filter((d) =>
-      selectedGroupData.has(groupAttr(d[1][0]))
+      selectedGroupData.has(color(d[1][0]))
     );
 
     return [dataSelectedF, dataNotSelectedF];
@@ -1236,7 +1243,7 @@ function TimeSearcher( data,{
     dataNotSelected = newDataNotSelected;
 
     // Filter data with active dataGroups
-    if (groupAttr) {
+    if (color) {
       [renderSelected, renderNotSelected] = filterDatabyDataGroups(
         dataSelected,
         dataNotSelected
@@ -1658,7 +1665,7 @@ function TimeSearcher( data,{
     dataNotSelected = groupedData;
     renderNotSelected = dataNotSelected;
 
-    if (value) recreateBrushes(value);
+    if (_this) recreateBrushes(_this);
 
     onSelectionChange();
     //render(renderSelected, renderNotSelected, brushes.hasSelection());
