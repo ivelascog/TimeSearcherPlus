@@ -10,38 +10,14 @@ function BVH({
   scaleY,
   xPartitions,
   yPartitions,
+  polylines = true,
 }) {
   let me = {};
   let BVH = makeBVH();
 
-  function makeBVH() {
-    let keys = data.map((d) => d[0]);
-    let xinc = width / xPartitions;
-    let yinc = height / yPartitions;
-    let BVH = {
-      width: width,
-      height: height,
-      xinc: xinc,
-      yinc: yinc,
-      keys: keys,
-      BVH: [],
-    };
-
-    for (let i = 0; i < xPartitions; ++i) {
-      BVH.BVH[i] = [];
-      let currentX = i * xinc;
-      for (let j = 0; j < yPartitions; ++j) {
-        let currentY = yinc * j;
-        BVH.BVH[i][j] = {
-          x0: currentX,
-          x1: currentX + xinc,
-          y0: currentY,
-          y1: currentY + yinc,
-          data: new Map(),
-        };
-      }
-    }
-
+  function pupulateBVHPolylines(data, BVH) {
+    let xinc = BVH.xinc;
+    let yinc = BVH.yinc;
     data.forEach((d) => {
       let key = d[0];
       let lastXindex = -1;
@@ -93,7 +69,66 @@ function BVH({
         }
       }
     });
+  }
+
+  function populateBVHPoints(data, BVH) {
+    let xinc = BVH.xinc;
+    let yinc = BVH.yinc;
+    data.forEach(d => {
+      let key = d[0];
+      for (let point of d[1]) {
+        let [x,y] = [scaleX(x(point)), scaleY(y(point))];
+        let Iindex = Math.floor(x / xinc);
+        let Jindex = Math.floor(y / yinc);
+        let cell = BVH.BVH[Iindex][Jindex];
+
+        if (cell.data.has(key)) {
+          cell.data.get(key).push([x,y]);
+        } else {
+          cell.data.set(key,[x,y]);
+        }
+      }
+    });
+  }
+
+  function makeBVH() {
+    let keys = data.map((d) => d[0]);
+    let xinc = width / xPartitions;
+    let yinc = height / yPartitions;
+    let BVH = {
+      width: width,
+      height: height,
+      xinc: xinc,
+      yinc: yinc,
+      keys: keys,
+      BVH: [],
+    };
+
+    for (let i = 0; i < xPartitions; ++i) {
+      BVH.BVH[i] = [];
+      let currentX = i * xinc;
+      for (let j = 0; j < yPartitions; ++j) {
+        let currentY = yinc * j;
+        BVH.BVH[i][j] = {
+          x0: currentX,
+          x1: currentX + xinc,
+          y0: currentY,
+          y1: currentY + yinc,
+          data: new Map(),
+        };
+      }
+    }
+    if (polylines)
+      pupulateBVHPolylines(data, BVH);
+    else
+      populateBVHPoints(data, BVH);
+
     return BVH;
+  }
+
+  function pointIntersection(point, x0, y0, x1, y1) {
+    let [px,py] = [scaleX(x(point)), scaleY(y(point))];
+    return px > x0 && px < x1 && py > y0 && py < y1;
   }
 
   function lineIntersection(line, x0, y0, x1, y1) {
@@ -166,23 +201,22 @@ function BVH({
     let finJ = Math.floor(y1 / BVH.yinc);
 
     let intersections = new Set();
-    for (let i = initI; i <= finI; ++i) {
-      for (let j = initJ; j <= finJ; ++j) {
-        for (const segments of BVH.BVH[i][j].data) {
-          if (!intersections.has(segments[0])) {
-            for (const segment of segments[1]) {
-              let intersect = lineIntersection(segment, x0, y0, x1, y1);
+
+    for (let i = initI; i <= finI; ++i)
+      for (let j = initJ; j <= finJ; ++j)
+        for (const entities of BVH.BVH[i][j].data)
+          if (!intersections.has(entities[0]))
+            for (const entity of entities[1]) {
+              let intersect = polylines ? lineIntersection(entity, x0, y0, x1, y1) : pointIntersection(entity, x0, y0, x1, y1);
               if (intersect) {
-                intersections.add(segments[0]);
+                intersections.add(entities[0]);
                 break;
               }
             }
-          }
-        }
-      }
-    }
+
     return intersections;
-  };
+  }
+
 
   return me;
 }

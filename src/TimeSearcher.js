@@ -16,7 +16,9 @@ function TimeSearcher( data, {
   x = (d) => d.x, // Attribute to show in the X axis (Note that it also supports functions)
   y = (d) => d.y, // Attribute to show in the Y axis (Note that it also supports functions)
   id = (d) => d.id, // Attribute to group the input data (Note that it also supports functions)
-  groupAttr = null, // Specifies the attribute to be used to discriminate the groups (Note that it also supports functions).
+  color = null,  //Specifies the attribute to be used to discriminate the groups (Note that it also supports functions).
+  groupAttr = null, // DEPRECATED use color instead: Specifies the attribute to be used to discriminate the groups (Note that it also supports functions).
+  referenceCurves = null, // Specifies a Json object with the information of the reference lines.
   width = 1200, // Set the desired width of the overview Widget
   detailsWidth = 400, // Set the desired width of the details Widget
   height = 600, // Set the desired height of the overview Widget
@@ -68,7 +70,7 @@ function TimeSearcher( data, {
   yScale = d3.scaleLinear,
   overviewWidth, // Legacy, to be deleted
   overviewHeight, // Legacy, to be deleted
-  value,
+  _this, // pass the object this in order to be able to maintain the state in case of changes in the input
   tsParent, // Set other TimeSearcher parent to connect them.
   fixAxis // When active, the axes will not change when modifying the data.
 } = {}) {
@@ -124,7 +126,7 @@ function TimeSearcher( data, {
   ts.margin = margin;
   ts.colorScale = colorScale;
   ts.brushesColorScale = brushesColorScale;
-  ts.groupAttr = groupAttr;
+  ts.color = color;
   ts.doubleYlegend = doubleYlegend;
   ts.showGrid = showGrid;
   ts.showBrushTooltip = showBrushTooltip;
@@ -143,6 +145,12 @@ function TimeSearcher( data, {
   ts.highlightAlpha = highlightAlpha;
   ts.selectedColorTransform = selectedColorTransform;
 
+  //Backwards compatibility with groupAttr.
+  if (groupAttr) {
+    console.warn("The attribute \"groupAttr\" is deprecated use \"color\" instead");
+    color = groupAttr;
+  }
+
   // Convert attrStrings to functions
   if (typeof x === "string") {
     let _x = x;
@@ -156,9 +164,9 @@ function TimeSearcher( data, {
     let _id = id;
     id = (d) => d[_id];
   }
-  if (groupAttr && typeof groupAttr === "string") {
-    let _groupAttr = groupAttr;
-    groupAttr = (d) => d[_groupAttr];
+  if (color && typeof color === "string") {
+    let _color = color;
+    color = (d) => d[_color];
   }
 
   const formatTime = d3.timeFormat("%Y-%m-%d");
@@ -394,6 +402,7 @@ function TimeSearcher( data, {
           // make the input fit the content
           d3.select(this).style("width", evt.target.value.length + "ch");
           brushes.updateBrushGroupName(d[0], evt.target.value);
+          triggerValueUpdate();
         });
         li.select("#btnRemoveBrushGroup").on("click", (event) => {
           event.stopPropagation();
@@ -493,7 +502,7 @@ function TimeSearcher( data, {
 
     ts.alphaScale.domain([0, groupedData.length]);
 
-    let domainX = fixAxis && value ? value.extent.x : d3.extent(fData, x); // Keep same axes as in the first rendering
+    let domainX = fixAxis && _this ? _this.extent.x : d3.extent(fData, x); // Keep same axes as in the first rendering
     if (xDataType === "object" && x(fData[0]) instanceof Date) {
       // X is Date
       hasScaleTime = true;
@@ -512,7 +521,7 @@ function TimeSearcher( data, {
       //.nice();
     }
 
-    let domainY = fixAxis && value ? value.extent.y : d3.extent(fData, y); // Keep same axes as in the first rendering
+    let domainY = fixAxis && _this ? _this.extent.y : d3.extent(fData, y); // Keep same axes as in the first rendering
 
     overviewY = ts
       .yScale()
@@ -552,7 +561,7 @@ function TimeSearcher( data, {
       height: height,
       x,
       y,
-      groupAttr,
+      groupAttr: color,
       overviewX,
       overviewY
     });
@@ -692,8 +701,8 @@ function TimeSearcher( data, {
       .attr("stroke", "#9ca5aecf") // line color
       .attr("stroke-dasharray", "4"); // make it dashed;
 
-    if (groupAttr) {
-      fData.forEach((d) => selectedGroupData.add(groupAttr(d)));
+    if (color) {
+      fData.forEach((d) => selectedGroupData.add(color(d)));
       nGroupsData = selectedGroupData.size;
     }
 
@@ -737,7 +746,7 @@ function TimeSearcher( data, {
       selectionCallback: onSelectionChange,
       groupsCallback: onBrushGroupsChange,
       changeSelectedCoordinatesCallback: updateBrushSpinBox,
-      selectedBrushCallback: onChangeSelectedBrush
+      selectedBrushCallback: onChangeSelectedBrush,
     });
 
     gGroupBrushes
@@ -852,7 +861,7 @@ function TimeSearcher( data, {
   }
 
   function generateDataSelectionDiv() {
-    if (groupAttr) {
+    if (color) {
       divData.node().innerHTML = "";
       divData.append("span").text("Data groups: ");
 
@@ -893,12 +902,12 @@ function TimeSearcher( data, {
     let dataNotSelectedF = dataNotSelected;
     for (let d of dataSelectedF) {
       let filtered = d[1].filter((d) =>
-        selectedGroupData.has(groupAttr(d[1][0]))
+        selectedGroupData.has(color(d[1][0]))
       );
       dataSelectedF.set(d[0], filtered);
     }
     dataNotSelectedF = dataNotSelectedF.filter((d) =>
-      selectedGroupData.has(groupAttr(d[1][0]))
+      selectedGroupData.has(color(d[1][0]))
     );
 
     return [dataSelectedF, dataNotSelectedF];
@@ -1236,7 +1245,7 @@ function TimeSearcher( data, {
     dataNotSelected = newDataNotSelected;
 
     // Filter data with active dataGroups
-    if (groupAttr) {
+    if (color) {
       [renderSelected, renderNotSelected] = filterDatabyDataGroups(
         dataSelected,
         dataNotSelected
@@ -1266,8 +1275,8 @@ function TimeSearcher( data, {
   }
 
   // Function called to recreate the selection when dataInput change.
-  function recreateBrushes(value) {
-    brushes.recreate(value);
+  function recreateBrushes(_this) {
+    brushes.recreate(_this.brushGroups);
     sentSelection(renderSelected, true);
   }
 
@@ -1298,31 +1307,35 @@ function TimeSearcher( data, {
   }
 
   // Triggers the update of the selection calls callback and dispatches input event
-  function triggerValueUpdate(sel = divOverview.value) {
-    if (!sel) {
-      log("Return selection with empty selection", sel);
-      return;
-    }
-    updateCallback(sel);
-
+  function triggerValueUpdate(sel) {
     let value = new Map();
+    let status = new Map();
+
     for (let [id, brushGroup] of brushes.getBrushesGroup()) {
-      let object = {
-        selection: sel.get(id),
+      let groupMap = new Map();
+      sel.get(id).forEach(d => groupMap.set(d[0],d[1]));
+      value.set(brushGroup.name, groupMap);
+
+      let Gstatus = {
+        id: id,
         name: brushGroup.name,
         isActive: brushGroup.isActive,
         isEnable: brushGroup.isEnable,
         brushes: brushGroup.brushes
       };
-      value.set(id, object);
+      status.set(brushGroup.name, Gstatus);
     }
 
+    statusCallback(value);
+
     divOverview.value = value;
-    divOverview.value.nonSelected = dataNotSelected;
-    divOverview.value.extent = {
+    divOverview.value.nonSelectedIds = dataNotSelected.map(d => d[0]);
+    divOverview.value.status = status;
+    divOverview.extent = {
       x: overviewX.domain(),
       y: overviewY.domain()
     };
+    divOverview.brushGroups = brushes.getBrushesGroup();
     divOverview.dispatchEvent(new Event("input", { bubbles: true }));
   }
 
@@ -1545,6 +1558,10 @@ function TimeSearcher( data, {
   } */
 
   ts.addReferenceCurves = function(curves) {
+    if (!Array.isArray(curves)) {
+      throw new Error("The reference curves must be an array of Objects");
+    }
+
     curves.forEach((c) => {
       let [xmin, xmax] = overviewX.domain();
       let [ymin, ymax] = overviewY.domain();
@@ -1636,7 +1653,7 @@ function TimeSearcher( data, {
     timelineOverview.setScales({
       data: fData,
       xDataType,
-      extent: fixAxis && value ? value.extent : null
+      extent: fixAxis && _this ? _this.extent : null
     });
     timelineOverview.data(groupedData);
 
@@ -1650,7 +1667,7 @@ function TimeSearcher( data, {
     dataNotSelected = groupedData;
     renderNotSelected = dataNotSelected;
 
-    if (value) recreateBrushes(value);
+    if (_this) recreateBrushes(_this);
 
     onSelectionChange();
     //render(renderSelected, renderNotSelected, brushes.hasSelection());
@@ -1673,6 +1690,10 @@ function TimeSearcher( data, {
   // If we receive the data on initialization call ts.Data
   if (data) {
     ts.data(data);
+  }
+
+  if (referenceCurves) {
+    ts.addReferenceCurves(referenceCurves)
   }
 
   // To allow a message from the outside to rerender
