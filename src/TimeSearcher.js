@@ -1693,7 +1693,7 @@ function TimeSearcher( data, {
   }
 
   if (referenceCurves) {
-    ts.addReferenceCurves(referenceCurves)
+    ts.addReferenceCurves(referenceCurves);
   }
 
   // To allow a message from the outside to rerender
