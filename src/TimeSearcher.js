@@ -7,7 +7,7 @@ import TimelineDetails from "./TimelineDetails.js";
 import TimeLineOverview from "./TimeLineOverview";
 import brushInteraction from "./BrushInteraction";
 
-function TimeSearcher( data,{
+function TimeSearcher( data, {
   target = document.createElement("div"), // pass a html element where you want to render
   detailsElement, // pass a html element where you want to render the details
   coordinatesElement = document.createElement("div"), // pass a html element where you want to render the brush coordinates Input.
@@ -57,6 +57,7 @@ function TimeSearcher( data,{
   margin = { left: 50, top: 30, bottom: 50, right: 20 },
   colorScale = d3.scaleOrdinal(d3.schemeAccent), // The color scale to be used to display the different groups defined by the "groupAttr" attribute.
   brushesColorScale = d3.scaleOrdinal(d3.schemeCategory10), // The color scale to be used to display the brushes
+  selectedColorTransform = (color, groupId) => d3.color(color).darker(groupId) , // Function to be applied to the color of the selected group. It only has effect when "groupAttr" is defined.
   doubleYlegend = false, // Allows the y-axis legend to be displayed on both sides of the chart.
   showGrid = false, // If active, a reference grid is displayed.
   showBrushTooltip = true, // Allows to display a tooltip on the brushes containing its coordinates.
@@ -140,6 +141,7 @@ function TimeSearcher( data,{
   ts.medianMinRecordsPerBin = medianMinRecordsPerBin;
   ts.yScale = yScale;
   ts.highlightAlpha = highlightAlpha;
+  ts.selectedColorTransform = selectedColorTransform;
 
   // Convert attrStrings to functions
   if (typeof x === "string") {

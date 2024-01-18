@@ -115,12 +115,19 @@ function TimeLineOverview({
 
       dataSelected.forEach((data, group) => {
         let selectedColor = computeColor(group, childPosition);
+        console.log(
+          "Render selected selectedColor",
+          selectedColor,
+          group,
+          childPosition
+        );
 
         // Render selected
         renderOverviewCanvasSubset(
           data,
           ts.selectedAlpha,
-          selectedColor.toString()
+          selectedColor.toString(),
+          group
         );
       });
 
@@ -150,7 +157,8 @@ function TimeLineOverview({
           renderOverviewCanvasSubset(
             childSelections[positionTs].get(groupId),
             ts.highlightAlpha,
-            color
+            color,
+            groupId
           );
         }
       }
@@ -186,12 +194,24 @@ function TimeLineOverview({
     return ts.brushesColorScale(groupId);
   }
 
-  function renderOverviewCanvasSubset(dataSubset, alpha, color) {
+  // Pass a groupId when rendering a highlighted selection for a group
+  function renderOverviewCanvasSubset(
+    dataSubset,
+    alpha,
+    color,
+    groupId = null
+  ) {
     //context.save();
     // Compute the transparency with respect to the number of lines drawn
     // Min 0.05, then adjust by the expected alpha divided by 10% of the number of lines
     // context.globalAlpha = 0.05 + alpha / (dataSubset.length * 0.1);
     context.globalAlpha = alpha * ts.alphaScale(dataSubset.length);
+
+    console.log(
+      "renderOverviewCanvasSubset groupId and saturation diff",
+      groupId,
+      ts.brushesColorScale(groupId)
+    );
 
     for (let d of dataSubset) {
       let path = paths.get(d[0]);
@@ -199,7 +219,30 @@ function TimeLineOverview({
         console.log("renderOverviewCanvasSubset error finding path", d[0], d);
         return;
       }
-      context.strokeStyle = groupAttr ? ts.colorScale(path.group) : color;
+      let strokeColor = color;
+      if (groupAttr) {
+        const baseGroupColor = ts.colorScale(path.group);
+        strokeColor = ts.selectedColorTransform(baseGroupColor, groupId);
+
+        // const { h, c, l, opacity } = d3.lch(baseGroupColor);
+        // strokeColor = d3.lch(l + ts.brushesColorScale(groupId), c, h, opacity);
+        // console.log(
+        //   "group",
+        //   groupId,
+
+        //   "baseGroupColor",
+        //   baseGroupColor,
+        //   h,
+        //   s,
+        //   l,
+        //   o,
+
+        //   "after",
+        //   strokeColor
+        // );
+      }
+      // context.strokeStyle = groupAttr ? ts.colorScale(path.group) : color;
+      context.strokeStyle = "" + strokeColor;
       context.stroke(path.path);
     }
   }
