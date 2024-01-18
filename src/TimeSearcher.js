@@ -58,7 +58,7 @@ function TimeSearcher( data, {
   hasDetails = false, // Determines whether detail data will be displayed or not. Disabling it saves preprocessing time if detail data is not to be displayed.
   margin = { left: 50, top: 30, bottom: 50, right: 20 },
   colorScale = d3.scaleOrdinal(d3.schemeAccent), // The color scale to be used to display the different groups defined by the "groupAttr" attribute.
-  brushesColorScale = d3.scaleOrdinal(d3.schemeCategory10), // The color scale to be used to display the brushes
+  brushesColorScale = d3.scaleOrdinal(d3.schemeGreys[5]), // The color scale to be used to display the brushes
   selectedColorTransform = (color, groupId) => d3.color(color).darker(groupId) , // Function to be applied to the color of the selected group. It only has effect when "groupAttr" is defined.
   doubleYlegend = false, // Allows the y-axis legend to be displayed on both sides of the chart.
   showGrid = false, // If active, a reference grid is displayed.
