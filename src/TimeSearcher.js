@@ -1307,7 +1307,7 @@ function TimeSearcher( data, {
   }
 
   // Triggers the update of the selection calls callback and dispatches input event
-  function triggerValueUpdate(sel) {
+  function triggerValueUpdate(sel = renderSelected) {
     let value = new Map();
     let status = new Map();
 
