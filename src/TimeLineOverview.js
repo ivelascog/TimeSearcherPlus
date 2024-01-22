@@ -86,6 +86,7 @@ function TimeLineOverview({
 
   function renderOvwerview(
     dataSelected,
+    groupSelected,
     dataNotSelected,
     medians,
     hasSelection,
@@ -114,22 +115,32 @@ function TimeLineOverview({
       );
 
       dataSelected.forEach((data, group) => {
-        let selectedColor = computeColor(group, childPosition);
-        console.log(
-          "Render selected selectedColor",
-          selectedColor,
-          group,
-          childPosition
-        );
+        if (group != groupSelected) {
+          let selectedColor = computeColor(group, childPosition);
+          console.log(
+            "Render selected selectedColor",
+            selectedColor,
+            group,
+            childPosition
+          );
 
-        // Render selected
-        renderOverviewCanvasSubset(
-          data,
-          ts.selectedAlpha,
-          selectedColor.toString(),
-          group
-        );
+          // Render selected
+          renderOverviewCanvasSubset(
+            data,
+            ts.selectedAlpha,
+            selectedColor.toString(),
+            group
+          );
+        }
       });
+      
+      renderOverviewCanvasSubset(
+        dataSelected.get(groupSelected),
+        ts.selectedAlpha,
+        computeColor(groupSelected, childPosition).toString(),
+        groupSelected
+      );
+      
 
       // TODO configs for this
       /*childSelections.forEach((selection, childIx) => {

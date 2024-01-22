@@ -1165,6 +1165,7 @@ function TimeSearcher( data, {
 
     timelineOverview.render(
       mDataSelected,
+      brushes.getBrushGroupSelected(),
       showNonSelected ? dataNotSelected : [],
       medians,
       hasSelection,
