@@ -1,13 +1,16 @@
 import { log } from "./utils.js";
+import d3 from "d3";
 
+/*Data is an array of the next form
+[
+  [id,[[x0,y0],[x1,y1]...]]
+  .
+  .
+  .
+]
+ */
 function BVH({
   data,
-  x,
-  y,
-  width,
-  height,
-  scaleX,
-  scaleY,
   xPartitions,
   yPartitions,
   polylines = true,
@@ -24,11 +27,11 @@ function BVH({
       let lastYindex = -1;
       for (let i = 0; i < d[1].length; ++i) {
         let current = d[1][i];
-        let xCoor = scaleX(x(current));
-        let yCoor = scaleY(y(current));
+        let xCoor = current[0];
+        let yCoor = current[1];
         if (xCoor != null && yCoor != null) {
-          let xIndex = Math.floor(xCoor / xinc);
-          let yIndex = Math.floor(yCoor / yinc);
+          let xIndex = Math.min(Math.floor(xCoor / xinc),xPartitions - 1);
+          let yIndex = Math.min(Math.floor(yCoor / yinc), yPartitions -1);
 
           if (i === 0) {
             BVH.BVH[xIndex][yIndex].data.set(key, [[current]]);
@@ -77,7 +80,7 @@ function BVH({
     data.forEach(d => {
       let key = d[0];
       for (let point of d[1]) {
-        let [x,y] = [scaleX(x(point)), scaleY(y(point))];
+        let [x, y] = point;
         let Iindex = Math.floor(x / xinc);
         let Jindex = Math.floor(y / yinc);
         let cell = BVH.BVH[Iindex][Jindex];
@@ -93,6 +96,11 @@ function BVH({
 
   function makeBVH() {
     let keys = data.map((d) => d[0]);
+    let allValues = data.map(d => d[1]).flat();
+    let extentX = d3.extent(allValues, d => d[0]);
+    let extentY = d3.extent(allValues, d => d[1]);
+    let width = extentX[1] - extentX[0];
+    let height = extentY[1] - extentY[0];
     let xinc = width / xPartitions;
     let yinc = height / yPartitions;
     let BVH = {
@@ -127,62 +135,96 @@ function BVH({
   }
 
   function pointIntersection(point, x0, y0, x1, y1) {
-    let [px,py] = [scaleX(x(point)), scaleY(y(point))];
+    let [px,py] = point;
     return px > x0 && px < x1 && py > y0 && py < y1;
   }
 
+  //Calculate the intersection with the first vertical line of the box.
+  function intersectX0(initPoint, finalPoint, x0, y0, x1, y1) {
+    let intersectX0 =
+      (initPoint[0] <= x0 && finalPoint[0] >= x0) ||
+      (initPoint[0] >= x0 && finalPoint[0] <= x0);
+    if (intersectX0) {
+      let m = (finalPoint[1] - initPoint[1]) / (finalPoint[0] - initPoint[0]);
+      let y = m * (x0 - initPoint[0]) + initPoint[1];
+      return y >= y0 && y <= y1;
+    }
+    return false;
+  }
+
+  function intersectX1(initPoint, finalPoint, x0, y0, x1, y1) {
+    let intersectX1 =
+      (initPoint[0] <= x1 && finalPoint[0]) >= x1 ||
+      (initPoint[0] >= x1 && finalPoint[0] <= x1);
+    if (intersectX1) {
+      let m = (finalPoint[1] - initPoint[1]) / (finalPoint[0] - initPoint[0]);
+      let y = m * (x1 - initPoint[0]) + initPoint[1];
+      return y >= y0 && y <= y1;
+    }
+    return false;
+  }
+
+  function intersectY0(initPoint, finalPoint, x0, y0, x1, y1) {
+    let intersectY0 =
+      (initPoint[1] <= y0 && finalPoint[1] >= y0) ||
+      (initPoint[1] >= y0 && finalPoint[1] <= y0);
+    if (intersectY0) {
+      let m = (finalPoint[1] - initPoint[1]) / (finalPoint[0] - initPoint[0]);
+      let x = (y0 - initPoint[1]) / m + initPoint[0];
+      return x >= x0 && x <= x1;
+    }
+    return false;
+  }
+
+  function intersectY1(initPoint, finalPoint, x0, y0, x1, y1) {
+    let intersectY1 =
+      (initPoint[1] >= y1 && finalPoint[1] <= y1) ||
+      (initPoint[1] <= y1 && finalPoint[1] >= y1);
+    if (intersectY1) {
+      let m = (finalPoint[1] - initPoint[1]) / (finalPoint[0] - initPoint[0]);
+      let x = (y1 - initPoint[1]) / m + initPoint[0];
+      return x >= x0 && x <= x1;
+    }
+    return false;
+  }
+
   function lineIntersection(line, x0, y0, x1, y1) {
-    line = line.map((d) => [scaleX(x(d)), scaleY(y(d))]);
     let initPoint = line[0];
 
     for (let index = 1; index < line.length; ++index) {
       let finalPoint = line[index];
-      let intersectX0 =
-        (initPoint[0] <= x0 && finalPoint[0] >= x0) ||
-        (initPoint[0] >= x0 && finalPoint[0] <= x0);
-      if (intersectX0) {
-        let m = (finalPoint[1] - initPoint[1]) / (finalPoint[0] - initPoint[0]);
-        let y = m * (x0 - initPoint[0]) + initPoint[1];
-        let intersect = y >= y0 && y <= y1;
-        if (intersect) return true;
-      }
-
-      let intersectX1 =
-        (initPoint[0] <= x1 && finalPoint[0]) >= x1 ||
-        (initPoint[0] >= x1 && finalPoint[0] <= x1);
-      if (intersectX1) {
-        let m = (finalPoint[1] - initPoint[1]) / (finalPoint[0] - initPoint[0]);
-        let y = m * (x1 - initPoint[0]) + initPoint[1];
-        let intersect = y >= y0 && y <= y1;
-        if (intersect) return true;
-      }
-
-      let intersectY0 =
-        (initPoint[1] <= y0 && finalPoint[1] >= y0) ||
-        (initPoint[1] >= y0 && finalPoint[1] <= y0);
-      if (intersectY0) {
-        let m = (finalPoint[1] - initPoint[1]) / (finalPoint[0] - initPoint[0]);
-        let x = (y0 - initPoint[1]) / m + initPoint[0];
-        let intersect = x >= x0 && x <= x1;
-        if (intersect) return true;
-      }
-
-      let intersectY1 =
-        (initPoint[1] >= y1 && finalPoint[1] <= y1) ||
-        (initPoint[1] <= y1 && finalPoint[1] >= y1);
-      if (intersectY1) {
-        let m = (finalPoint[1] - initPoint[1]) / (finalPoint[0] - initPoint[0]);
-        let x = (y1 - initPoint[1]) / m + initPoint[0];
-        let intersect = x >= x0 && x <= x1;
-        if (intersect) return true;
-      }
-
+      if (intersectX0(initPoint, finalPoint, x0, y0, x1, y1)) return true;
+      if (intersectX1(initPoint, finalPoint, x0, y0, x1, y1)) return true;
+      if (intersectY0(initPoint, finalPoint, x0, y0, x1, y1)) return true;
+      if (intersectY1(initPoint, finalPoint, x0, y0, x1, y1)) return true;
       initPoint = finalPoint;
     }
     return false;
   }
 
-  me.intersect = function (x0, y0, x1, y1) {
+  function containIntersection(line, x0, y0, x1, y1) {
+    let initPoint = line[0];
+    let isIntersectX0 = false;
+    let isIntersectX1 = false;
+
+    for (let index = 1; index < line.length; ++index) {
+      let finalPoint = line[index];
+      if (isIntersectX0 || intersectX0(initPoint, finalPoint, x0, y0, x1, y1)) isIntersectX0 = true;
+      if (isIntersectX1 || intersectX1(initPoint, finalPoint, x0, y0, x1, y1)) isIntersectX1 = true;
+      if (intersectY0(initPoint, finalPoint, x0, y0, x1, y1)) return false;
+      if (intersectY1(initPoint, finalPoint, x0, y0, x1, y1)) return false;
+    }
+
+    let isAllLineInside = !isIntersectX0 && !isIntersectX1;
+    if (isAllLineInside) {
+      return pointIntersection(line[0], x0, y0, x1, y1);
+    }
+
+    return true;
+  }
+
+  // Returns the range of cells that collide with the given box. The result is of the form [[InitI,EndI],[INiJ, EndJ]]]
+  function getCollidingCells(x0, y0, x1, y1) {
     if (x1 > BVH.width || y1 > BVH.height || x0 < 0 || y0 < 0)
       log("👁️ BVH is called off limits", [
         [x0, y0],
@@ -199,6 +241,13 @@ function BVH({
     let finI = Math.floor(x1 / BVH.xinc);
     let initJ = Math.floor(y0 / BVH.yinc);
     let finJ = Math.floor(y1 / BVH.yinc);
+    return [[initI, finI], [initJ, finJ]];
+  }
+
+  // Returns all the polylines that satisfy the function "testFunc". The function testFunct must be as follows
+  // TestFunc( Entity, x0, x1,y0,y1). Where entity is a polyline.
+  function testsEntities(x0, y0, x1, y1, testFunc) {
+    let [[initI, finI], [initJ, finJ]] = getCollidingCells(x0, y0, x1, y1);
 
     let intersections = new Set();
 
@@ -207,7 +256,7 @@ function BVH({
         for (const entities of BVH.BVH[i][j].data)
           if (!intersections.has(entities[0]))
             for (const entity of entities[1]) {
-              let intersect = polylines ? lineIntersection(entity, x0, y0, x1, y1) : pointIntersection(entity, x0, y0, x1, y1);
+              let intersect = testFunc(entity, x0, y0, x1, y1);
               if (intersect) {
                 intersections.add(entities[0]);
                 break;
@@ -217,6 +266,15 @@ function BVH({
     return intersections;
   }
 
+  me.contains = function(x0, y0, x1, y1) {
+    return testsEntities(x0, y0, x1, y1, containIntersection);
+  };
+
+
+  me.intersect = function(x0, y0, x1, y1) {
+    return testsEntities(x0, y0, x1, y1, lineIntersection);
+
+  };
 
   return me;
 }

@@ -60,14 +60,13 @@ function brushInteraction({
   brushesGroup = new Map();
   brushCount = 0;
   brushSize = 0;
+  let BVHData = data.map(d => {
+    let polyline = d[1].map(d => [scaleX(x(d)), scaleY(y(d))])
+    return [d[0], polyline];
+  });
+
   BVH_ = BVH({
-    data,
-    x,
-    y,
-    width,
-    height,
-    scaleX,
-    scaleY,
+    data: BVHData,
     xPartitions,
     yPartitions,
   });

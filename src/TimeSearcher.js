@@ -175,7 +175,6 @@ function TimeSearcher( data, {
     .select(target)
     .style("display", "flex")
     .style("flex-wrap", "wrap")
-    .style("flex-wrap", "wrap")
     .style("position", "relative")
     .style("top", "0px")
     .style("left", "0px")
