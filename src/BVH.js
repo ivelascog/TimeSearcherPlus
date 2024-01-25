@@ -1,5 +1,6 @@
 import { log } from "./utils.js";
-import d3 from "d3";
+import * as d3 from "d3";
+
 
 /*Data is an array of the next form
 [
@@ -11,8 +12,8 @@ import d3 from "d3";
  */
 function BVH({
   data,
-  xPartitions,
-  yPartitions,
+  xPartitions = 10,
+  yPartitions = 10,
   polylines = true,
 }) {
   let me = {};
