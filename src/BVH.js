@@ -137,7 +137,7 @@ function BVH({
 
   function pointIntersection(point, x0, y0, x1, y1) {
     let [px,py] = point;
-    return px > x0 && px < x1 && py > y0 && py < y1;
+    return px >= x0 && px <= x1 && py >= y0 && py <= y1;
   }
 
   //Calculate the intersection with the first vertical line of the box.
@@ -200,7 +200,7 @@ function BVH({
       if (intersectY1(initPoint, finalPoint, x0, y0, x1, y1)) return true;
       initPoint = finalPoint;
     }
-    return false;
+    return pointIntersection(initPoint, x0, y0, x1, y1);
   }
 
   function containIntersection(line, x0, y0, x1, y1) {

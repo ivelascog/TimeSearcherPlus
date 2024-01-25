@@ -51,3 +51,10 @@ test("Only Bottom Intersection", () => {
   let inters = _BVH.intersect(0, 3, 2, 10);
   expect(inters).toEqual(new Set(["line1"]));
 });
+
+test("All Line Inside", () => {
+  let data = [["line1", [[1, 5], [2, 5]]], baselineBottom, baseLineTop];
+  let _BVH = BVH({ data });
+  let inters = _BVH.intersect(1, 1, 3, 6);
+  expect(inters).toEqual(new Set(["line1"]));
+});
