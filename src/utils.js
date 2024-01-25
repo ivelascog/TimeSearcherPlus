@@ -26,7 +26,7 @@ export function compareSets(set1, set2) {
   return true;
 }
 
-export const eventType = {
+export const eventType = Object.freeze({
   changeSelection: "changeSelection",
   addBrushGroup: "newBrushGroup",
   removeBrushGroup: "deleteBrushGroup",
@@ -36,4 +36,16 @@ export const eventType = {
   deselectAllBrushes: "deselectAllBrushes",
   highlightSelection: "highlightSelection",
   update: "update",
-};
+});
+
+export const BrushModes = Object.freeze({
+  Intersect: "intersect",
+  Contains: "contains"
+});
+
+export const BrushAggregation = Object.freeze({
+  And: "and",
+  Or: "OR"
+});
+
+

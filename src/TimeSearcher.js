@@ -7,7 +7,7 @@ import TimelineDetails from "./TimelineDetails.js";
 import TimeLineOverview from "./TimeLineOverview";
 import brushInteraction from "./BrushInteraction";
 
-function TimeSearcher( data, {
+function TimeSearcher(data, {
   target = document.createElement("div"), // pass a html element where you want to render
   detailsElement, // pass a html element where you want to render the details
   coordinatesElement = document.createElement("div"), // pass a html element where you want to render the brush coordinates Input.
@@ -59,7 +59,7 @@ function TimeSearcher( data, {
   margin = { left: 50, top: 30, bottom: 50, right: 20 },
   colorScale = d3.scaleOrdinal(d3.schemeAccent), // The color scale to be used to display the different groups defined by the "groupAttr" attribute.
   brushesColorScale = d3.scaleOrdinal(d3.schemeGreys[5]), // The color scale to be used to display the brushes
-  selectedColorTransform = (color, groupId) => d3.color(color).darker(groupId) , // Function to be applied to the color of the selected group. It only has effect when "groupAttr" is defined.
+  selectedColorTransform = (color, groupId) => d3.color(color).darker(groupId), // Function to be applied to the color of the selected group. It only has effect when "groupAttr" is defined.
   doubleYlegend = false, // Allows the y-axis legend to be displayed on both sides of the chart.
   showGrid = false, // If active, a reference grid is displayed.
   showBrushTooltip = true, // Allows to display a tooltip on the brushes containing its coordinates.
@@ -342,7 +342,7 @@ function TimeSearcher( data, {
       .data(brushes.getBrushesGroup(), (d) => d[0])
       .join("li")
       .attr("class", "brushControl")
-      .each(function(d) {
+      .each(function (d) {
         const li = d3.select(this);
         let groupName = d[1].name;
         let groupCount = renderSelected.has(d[0])
@@ -391,7 +391,7 @@ function TimeSearcher( data, {
           </div>
         `;
 
-        li.select("input#groupName").on("input", function(evt) {
+        li.select("input#groupName").on("input", function (evt) {
           // Only update the name on change
 
           // make the input fit the content
@@ -435,7 +435,7 @@ function TimeSearcher( data, {
       .select("#brushesList")
       .append("li")
       .attr("class", "nonSelectedControl")
-      .each(function() {
+      .each(function () {
         const li = d3.select(this);
         let groupName = "Non selected";
         let groupCount = renderNotSelected.length;
@@ -482,7 +482,7 @@ function TimeSearcher( data, {
       )
       .style("stroke", "black")
       .style("fill", (d) => computeBrushColor(d[0]))
-      .on("click", function() {
+      .on("click", function () {
         let id = d3.select(this).attr("id").substr("11");
         onSelectBrushGroup(+id);
       });
@@ -729,6 +729,7 @@ function TimeSearcher( data, {
       element: gBrushes.node(),
       data: groupedData,
       tooltipTarget: divRender.node(),
+      contextMenuTarget: divRender.node(),
       width,
       height,
       xPartitions,
@@ -745,7 +746,7 @@ function TimeSearcher( data, {
       selectionCallback: onSelectionChange,
       groupsCallback: onBrushGroupsChange,
       changeSelectedCoordinatesCallback: updateBrushSpinBox,
-      selectedBrushCallback: onChangeSelectedBrush,
+      selectedBrushCallback: onChangeSelectedBrush
     });
 
     gGroupBrushes
@@ -774,8 +775,8 @@ function TimeSearcher( data, {
 
         sx0.node().value = hasScaleTime ? formatTime(x0) : fmtX(x0);
         sx1.node().value = hasScaleTime ? formatTime(x1) : fmtX(x1);
-        sy0.node().value = fmtY(y1).replace("\u2212","-"); // Change D3 minus sign to parseable minus
-        sy1.node().value = fmtY(y0).replace("\u2212","-");
+        sy0.node().value = fmtY(y1).replace("\u2212", "-"); // Change D3 minus sign to parseable minus
+        sy1.node().value = fmtY(y0).replace("\u2212", "-");
       } else {
         log(
           "updateBrushSpinBox called, but brushSpinBoxes not ready ",
@@ -880,7 +881,7 @@ function TimeSearcher( data, {
         .style("width", `${ts.brushGroupSize}px`)
         .style("height", `${ts.brushGroupSize}px`)
         .style("background-color", (d) => ts.colorScale(d))
-        .on("click", function(event, d) {
+        .on("click", function (event, d) {
           if (selectedGroupData.has(d)) {
             selectedGroupData.delete(d);
             d3.select(this).style("border", "solid transparent");
@@ -923,7 +924,7 @@ function TimeSearcher( data, {
       if (!detailsElement) {
         detailsElement =
           d3.select(target).select("#details").node() ||
-          d3.create("div").attr("id","#details").node();
+          d3.create("div").attr("id", "#details").node();
       }
 
       // TimelineDetails object
@@ -959,15 +960,15 @@ function TimeSearcher( data, {
 
     if (hasScaleTime) {
       x0 = new Date(sx0.node().value);
-      x1 =  new Date(sx1.node().value);
+      x1 = new Date(sx1.node().value);
       if (x0 >= x1) {
         if (sourceEvent.target === sx0.node()) {
           x1 = add(x0, ts.stepX);
-          x1 = Math.min(x1,domainX[1]);
+          x1 = Math.min(x1, domainX[1]);
           sx1.node().value = formatTime(x1);
         } else {
           x0 = sub(x1, ts.stepX);
-          x0 = Math.max(x0,domainX[0]);
+          x0 = Math.max(x0, domainX[0]);
           sx0.node().value = formatTime(x0);
         }
       }
@@ -1313,7 +1314,7 @@ function TimeSearcher( data, {
 
     for (let [id, brushGroup] of brushes.getBrushesGroup()) {
       let groupMap = new Map();
-      sel.get(id).forEach(d => groupMap.set(d[0],d[1]));
+      sel.get(id).forEach(d => groupMap.set(d[0], d[1]));
       value.set(brushGroup.name, groupMap);
 
       let Gstatus = {
@@ -1557,7 +1558,7 @@ function TimeSearcher( data, {
     return outMap;
   } */
 
-  ts.addReferenceCurves = function(curves) {
+  ts.addReferenceCurves = function (curves) {
     if (!Array.isArray(curves)) {
       throw new Error("The reference curves must be an array of Objects");
     }
@@ -1593,17 +1594,17 @@ function TimeSearcher( data, {
       .style("opacity", (c) => c.opacity);
   };
 
-  ts.updateCallback = function(_) {
+  ts.updateCallback = function (_) {
     return arguments.length ? ((updateCallback = _), ts) : updateCallback;
   };
 
-  ts.statusCallback = function(_) {
+  ts.statusCallback = function (_) {
     return arguments.length ? ((statusCallback = _), ts) : statusCallback;
   };
 
   // Notify a parent timeSearcher the presence of a child, and calculate the total
   // TimeSearcher linked and the position of each of them.
-  ts.notifyParent = function(linkedTs, childs) {
+  ts.notifyParent = function (linkedTs, childs) {
     linkedTs.unshift(target);
     if (tsParent) tsElements = tsParent.notifyParent(linkedTs, childs + 1);
     else tsElements = linkedTs;
@@ -1616,7 +1617,7 @@ function TimeSearcher( data, {
     return tsElements;
   };
 
-  ts.data = function(_data) {
+  ts.data = function (_data) {
     data = _data;
     log(" Processing data: ... ", data.length);
     // Ignore null values. Shouldn't be y(d) && x(d) because y(d) can be 0
