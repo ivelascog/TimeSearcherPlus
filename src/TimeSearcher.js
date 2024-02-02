@@ -46,9 +46,9 @@ function TimeSearcher(data, {
   medianMinRecordsPerBin = 5, // Min number of records each bin must have to be considered
   xPartitions = 10, // Partitions performed on the X-axis for the collision acceleration algorithm.
   yPartitions = 10, // Partitions performed on the Y-axis for the collision acceleration algorithm.
-  defaultAlpha = 1, // Default transparency (when no selection is active) of drawn lines
-  selectedAlpha = 1, // Transparency of selected lines
-  noSelectedAlpha = 0.6, // Transparency of unselected lines
+  defaultAlpha = 0.7, // Default transparency (when no selection is active) of drawn lines
+  selectedAlpha = 1.0, // Transparency of selected lines
+  noSelectedAlpha = 0.1, // Transparency of unselected lines
   highlightAlpha = 1, // Transparency oh the highlighted lines (lines selected in other TS)
   alphaScale = d3.scalePow().exponent(0.25).range([1, 1]), // A scale to adjust the alpha by the number of rendering elements
   backgroundColor = "#ffffff",
@@ -58,7 +58,7 @@ function TimeSearcher(data, {
   hasDetails = false, // Determines whether detail data will be displayed or not. Disabling it saves preprocessing time if detail data is not to be displayed.
   margin = { left: 50, top: 30, bottom: 50, right: 20 },
   colorScale = d3.scaleOrdinal(d3.schemeAccent), // The color scale to be used to display the different groups defined by the "groupAttr" attribute.
-  brushesColorScale = d3.scaleOrdinal(d3.schemeGreys[5]), // The color scale to be used to display the brushes
+  brushesColorScale = color ? d3.scaleOrdinal(d3.schemeGreys[3].reverse()) : d3.scaleOrdinal(d3.schemeTableau10), // The color scale to be used to display the brushes
   selectedColorTransform = (color, groupId) => d3.color(color).darker(groupId), // Function to be applied to the color of the selected group. It only has effect when "groupAttr" is defined.
   doubleYlegend = false, // Allows the y-axis legend to be displayed on both sides of the chart.
   showGrid = false, // If active, a reference grid is displayed.
