@@ -133,14 +133,13 @@ function TimeLineOverview({
           );
         }
       });
-      
+
       renderOverviewCanvasSubset(
         dataSelected.get(groupSelected),
         ts.selectedAlpha,
         computeColor(groupSelected, childPosition).toString(),
         groupSelected
       );
-      
 
       // TODO configs for this
       /*childSelections.forEach((selection, childIx) => {
@@ -212,17 +211,18 @@ function TimeLineOverview({
     color,
     groupId = null
   ) {
+    if (!dataSubset) {
+      console.log("🚫 Error renderOverviewCanvasSubset called with no dataSubset", dataSubset);
+      return;
+    }
+
     //context.save();
     // Compute the transparency with respect to the number of lines drawn
     // Min 0.05, then adjust by the expected alpha divided by 10% of the number of lines
     // context.globalAlpha = 0.05 + alpha / (dataSubset.length * 0.1);
     context.globalAlpha = alpha * ts.alphaScale(dataSubset.length);
 
-    console.log(
-      "renderOverviewCanvasSubset groupId and saturation diff",
-      groupId,
-      ts.brushesColorScale(groupId)
-    );
+    
 
     for (let d of dataSubset) {
       let path = paths.get(d[0]);
