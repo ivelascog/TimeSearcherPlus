@@ -115,7 +115,7 @@ function TimeLineOverview({
       );
 
       dataSelected.forEach((data, group) => {
-        if (group != groupSelected) {
+        if (group !== groupSelected) {
           let selectedColor = computeColor(group, childPosition);
           console.log(
             "Render selected selectedColor",

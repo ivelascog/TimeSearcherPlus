@@ -107,6 +107,7 @@ function brushInteraction({
     brush[1].mode = mode;
     brush[1].aggregation = aggregation;
     updateBrush(brush);
+    brushFilter();
   }
 
   const onBrushStart = (e, brushObject) => {
@@ -281,8 +282,14 @@ function brushInteraction({
 
     let intersect = true;
     for (const brush of group.values()) {
-      intersect =
-        intersect && (!brush.intersections || brush.intersections.has(data[0]));
+      switch (brush.aggregation) {
+        case BrushAggregation.And:
+          intersect =
+            intersect && (!brush.intersections || brush.intersections.has(data[0]));
+          break;
+        case BrushAggregation.Or:
+          if (brush.intersections.has(data[0])) return true;
+      }
     }
     return intersect;
   }
@@ -314,8 +321,6 @@ function brushInteraction({
       );
       return;
     }
-
-    log("moveSelectedBrushes");
 
     const [triggerId, triggerBrush] = trigger;
     if (!selection || !triggerBrush.isSelected) return;

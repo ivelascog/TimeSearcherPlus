@@ -209,8 +209,8 @@ function BVH({
     let isIntersectX0 = false;
     let isIntersectX1 = false;
 
-    if (initPoint[0] < x0 && finalPoint[0] < x0) return true;
-    if (initPoint[0] > x1 && finalPoint[0] > x1) return true;
+    if (initPoint[0] < x0 && finalPoint[0] < x0) return undefined;
+    if (initPoint[0] > x1 && finalPoint[0] > x1) return undefined;
 
     for (let index = 1; index < line.length; ++index) {
       let finalPoint = line[index];
@@ -251,7 +251,7 @@ function BVH({
   }
 
   // Returns all the polylines that satisfy the function "testFunc" for a complete polyline. The function testFunct must be as follows
-  // TestFunc( Entity, x0, x1,y0,y1). Where entity is a polyline.
+  // TestFunc( Entity, x0, x1,y0,y1). Where entity is a polyline and return true, false or undefined if the result of the cuerrent entity dosent matter
   function testsEntitiesAll(x0, y0, x1, y1, testFunc) {
     let [[initI, finI], [initJ, finJ]] = getCollidingCells(x0, y0, x1, y1);
 
@@ -265,10 +265,12 @@ function BVH({
           if (!notContains.has(entities[0])){
             for (const entity of entities[1]) {
               let intersect = testFunc(entity, x0, y0, x1, y1);
-              if (intersect) {
-                contains.add(entities[0]);
-              } else {
-                notContains.add(entities[0]);
+              if (intersect !== undefined) {
+                if (intersect) {
+                  contains.add(entities[0]);
+                } else {
+                  notContains.add(entities[0]);
+                }
               }
             }
           }
