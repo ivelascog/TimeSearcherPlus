@@ -58,3 +58,77 @@ test("All Line Inside", () => {
   let inters = _BVH.intersect(1, 1, 3, 6);
   expect(inters).toEqual(new Set(["line1"]));
 });
+
+test("Contains All Inside", () => {
+  let data = [["line1", [
+    [1, 5],
+    [2, 6],
+    [3, 7]
+  ]], baselineBottom, baseLineTop];
+
+  let _BVH = BVH({ data });
+  let inters = _BVH.contains(0, 4, 4, 8);
+  expect(inters).toEqual(new Set(["line1"]));
+});
+
+test("Contains Normal", () => {
+  let data = [["line1", [
+    [1, 6],
+    [2, 6],
+    [3, 6],
+    [4, 6]
+  ]], baselineBottom, baseLineTop];
+  let _BVH = BVH({ data });
+  let inters = _BVH.contains(2, 3, 3, 7);
+  expect(inters).toEqual(new Set(["line1"]));
+});
+
+test("Contains Only Rigth", () => {
+  let data = [["line1", [
+    [1, 5],
+    [2, 5],
+    [3, 5]
+  ]], baselineBottom, baseLineTop];
+  let _BVH = BVH({ data });
+  let inters = _BVH.contains(2, 4, 5, 6);
+  expect(inters).toEqual(new Set(["line1"]));
+});
+
+test("Contains Only Left", () => {
+  let data = [["line1", [
+    [4, 5],
+    [5, 5],
+    [7, 5]
+  ]], baselineBottom, baseLineTop];
+  let _BVH = BVH({ data });
+  let inters = _BVH.contains(5, 4, 5, 6);
+  expect(inters).toEqual(new Set(["line1"]));
+});
+
+test("Contains fail bottom", () => {
+  let data = [["line1", [
+    [1, 5],
+    [2, 5],
+    [3, 6],
+    [4, 4],
+    [5, 5],
+    [6, 5]
+  ]], baselineBottom, baseLineTop];
+  let _BVH = BVH({ data });
+  let inters = _BVH.contains(1, 5, 7, 8);
+  expect(inters).toEqual(new Set());
+});
+
+test("Contains fail top", () => {
+  let data = [["line1", [
+    [1, 5],
+    [2, 5],
+    [3, 6],
+    [4, 4],
+    [5, 5],
+    [6, 5]
+  ]], baselineBottom, baseLineTop];
+  let _BVH = BVH({ data });
+  let inters = _BVH.contains(1, 2, 4, 5);
+  expect(inters).toEqual(new Set());
+});

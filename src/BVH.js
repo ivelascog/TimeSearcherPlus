@@ -205,8 +205,12 @@ function BVH({
 
   function containIntersection(line, x0, y0, x1, y1) {
     let initPoint = line[0];
+    let finalPoint = line[line.length - 1];
     let isIntersectX0 = false;
     let isIntersectX1 = false;
+
+    if (initPoint[0] < x0 && finalPoint[0] < x0) return true;
+    if (initPoint[0] > x1 && finalPoint[0] > x1) return true;
 
     for (let index = 1; index < line.length; ++index) {
       let finalPoint = line[index];
@@ -214,6 +218,7 @@ function BVH({
       if (isIntersectX1 || intersectX1(initPoint, finalPoint, x0, y0, x1, y1)) isIntersectX1 = true;
       if (intersectY0(initPoint, finalPoint, x0, y0, x1, y1)) return false;
       if (intersectY1(initPoint, finalPoint, x0, y0, x1, y1)) return false;
+      initPoint = finalPoint;
     }
 
     let isAllLineInside = !isIntersectX0 && !isIntersectX1;
@@ -245,9 +250,38 @@ function BVH({
     return [[initI, finI], [initJ, finJ]];
   }
 
-  // Returns all the polylines that satisfy the function "testFunc". The function testFunct must be as follows
+  // Returns all the polylines that satisfy the function "testFunc" for a complete polyline. The function testFunct must be as follows
   // TestFunc( Entity, x0, x1,y0,y1). Where entity is a polyline.
-  function testsEntities(x0, y0, x1, y1, testFunc) {
+  function testsEntitiesAll(x0, y0, x1, y1, testFunc) {
+    let [[initI, finI], [initJ, finJ]] = getCollidingCells(x0, y0, x1, y1);
+
+    let contains = new Set();
+    let notContains = new Set();
+
+
+    for (let i = initI; i <= finI; ++i)
+      for (let j = initJ; j <= finJ; ++j)
+        for (const entities of BVH.BVH[i][j].data)
+          if (!notContains.has(entities[0])){
+            for (const entity of entities[1]) {
+              let intersect = testFunc(entity, x0, y0, x1, y1);
+              if (intersect) {
+                contains.add(entities[0]);
+              } else {
+                notContains.add(entities[0]);
+              }
+            }
+          }
+
+    notContains.forEach(d => contains.delete(d));
+
+    return contains;
+
+  }
+
+  // Returns all the polylines that satisfy the function "testFunc" for any piece of polyline. The function testFunct must be as follows
+  // TestFunc( Entity, x0, x1,y0,y1). Where entity is a polyline.
+  function testsEntitiesAny(x0, y0, x1, y1, testFunc) {
     let [[initI, finI], [initJ, finJ]] = getCollidingCells(x0, y0, x1, y1);
 
     let intersections = new Set();
@@ -268,12 +302,12 @@ function BVH({
   }
 
   me.contains = function(x0, y0, x1, y1) {
-    return testsEntities(x0, y0, x1, y1, containIntersection);
+    return testsEntitiesAll(x0, y0, x1, y1, containIntersection);
   };
 
 
   me.intersect = function(x0, y0, x1, y1) {
-    return testsEntities(x0, y0, x1, y1, lineIntersection);
+    return testsEntitiesAny(x0, y0, x1, y1, lineIntersection);
 
   };
 
