@@ -281,17 +281,20 @@ function brushInteraction({
       return false;
 
     let intersect = true;
-    for (const brush of group.values()) {
-      switch (brush.aggregation) {
-        case BrushAggregation.And:
-          intersect =
-            intersect && (!brush.intersections || brush.intersections.has(data[0]));
-          break;
-        case BrushAggregation.Or:
-          if (brush.intersections.has(data[0])) return true;
+    let anyAnd = false;
+    for (const brush of group.values())
+      if (brush.intersections) { //initialize brush only
+        switch (brush.aggregation) {
+          case BrushAggregation.And:
+            intersect =
+              intersect && brush.intersections.has(data[0]);
+            anyAnd = true;
+            break;
+          case BrushAggregation.Or:
+            if (brush.intersections.has(data[0])) return true;
+        }
       }
-    }
-    return intersect;
+    return intersect && anyAnd;
   }
 
   // Update the intersection of all selected brushes
