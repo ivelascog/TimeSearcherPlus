@@ -15,11 +15,11 @@
     <!-- Load the libraries -->
     <script src="https://d3js.org/d3.v7.js"></script>
     <!-- <script src="https://unpkg.com/htl@0.3.1/dist/htl.min.js"></script> -->
-    <!-- <script src="../dist/TimeSearcher.js"></script> -->
-    <script src="https://unpkg.com/time_searcher/dist/TimeSearcher.min.js"></script>
+    <script src="../dist/TimeSearcher.js"></script>
+    <!-- <script src="https://unpkg.com/time_searcher/dist/TimeSearcher.min.js"></script> -->
 
     <script>
-      d3.csv("./Stocks.csv", d3.autoType).then((data) => {
+      d3.csv("./Stocks.csv", type).then((data) => {
         // let data = [
         //   { Date: "01/01/2023", Open: 250, id: "Apple", group: "Technology" },
         //   { Date: "01/02/2023", Open: 240, id: "Apple", group: "Technology" },
@@ -36,14 +36,15 @@
         );
 
         ts.addEventListener("input", () => {
-          document.getElementById("selected").innerHTML = html`${[
-            ...ts.value,
-          ].map(
-            ([groupName, groupSelectedMap]) =>
-              html`<h3>${groupName}</h3><div>${[...groupSelectedMap.keys()].map(
-                (stock) => html`<div>${stock}</div>`
-              )}</div>`
-          )}`;
+          document.getElementById("selected").innerText = JSON.stringify(ts.value, null, 2);
+          //  html`${[
+          //   ...ts.value,
+          // ].map(
+          //   ([groupName, groupSelectedMap]) =>
+          //     html`<h3>${groupName}</h3><div>${[...groupSelectedMap.keys()].map(
+          //       (stock) => html`<div>${stock}</div>`
+          //     )}</div>`
+          // )}`;
           console.log("Selected", ts.value);
         });
 
@@ -104,18 +105,18 @@
       //   target.ts.data(data.filter((d) => d.stock !== "BRK-A"));
       // });
 
-      // var fmt = d3.timeParse("%Y-%m-%d");
-      // function type(row) {
-      //   row.Id = +row.Id;
-      //   row.Date = fmt(row.Date);
-      //   row.Low = +row.Low;
-      //   row.Open = +row.Open;
-      //   row.Volume = +row.Volume;
-      //   row.High = +row.High;
-      //   row.Close = +row.Close;
-      //   row["Adjusted Close"] = +row["Adjusted Close"];
-      //   return row;
-      // }
+      var fmt = d3.timeParse("%Y-%m-%d");
+      function type(row) {
+        row.Id = +row.Id;
+        row.Date = fmt(row.Date);
+        row.Low = +row.Low;
+        row.Open = +row.Open;
+        row.Volume = +row.Volume;
+        row.High = +row.High;
+        row.Close = +row.Close;
+        row["Adjusted Close"] = +row["Adjusted Close"];
+        return row;
+      }
     </script>
   </body>
 </html>
