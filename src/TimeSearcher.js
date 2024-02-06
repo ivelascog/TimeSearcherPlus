@@ -12,7 +12,7 @@ function TimeSearcher(data, {
   detailsElement, // pass a html element where you want to render the details
   coordinatesElement = document.createElement("div"), // pass a html element where you want to render the brush coordinates Input.
   groupsElement, // pass a html element where you want to have the brushes controls.
-  showBrushesControls = false, // If false you can still use brushesControlsElement to show the control on a different element on your app
+  showBrushesControls = true, // If false you can still use brushesControlsElement to show the control on a different element on your app
   x = (d) => d.x, // Attribute to show in the X axis (Note that it also supports functions)
   y = (d) => d.y, // Attribute to show in the Y axis (Note that it also supports functions)
   id = (d) => d.id, // Attribute to group the input data (Note that it also supports functions)
