@@ -1,6 +1,5 @@
 {
   "dependencies": {
-    "@popperjs/core": "^2.11.6",
     "d3": "^7.8.2",
     "date-fns": "^2.29.3",
     "htl": "^0.3.1",
@@ -24,7 +23,7 @@
   },
   "keywords": [],
   "author": {
-    "name": "Iván Velasco González",
+    "name": "Iván Velasco González & John Alexis Guerra Gómez",
     "url": ""
   },
   "description": "",

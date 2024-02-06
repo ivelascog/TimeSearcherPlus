@@ -7,73 +7,77 @@ import TimelineDetails from "./TimelineDetails.js";
 import TimeLineOverview from "./TimeLineOverview";
 import brushInteraction from "./BrushInteraction";
 
-function TimeSearcher(data, {
-  target = document.createElement("div"), // pass a html element where you want to render
-  detailsElement, // pass a html element where you want to render the details
-  coordinatesElement = document.createElement("div"), // pass a html element where you want to render the brush coordinates Input.
-  groupsElement, // pass a html element where you want to have the brushes controls.
-  showBrushesControls = true, // If false you can still use brushesControlsElement to show the control on a different element on your app
-  x = (d) => d.x, // Attribute to show in the X axis (Note that it also supports functions)
-  y = (d) => d.y, // Attribute to show in the Y axis (Note that it also supports functions)
-  id = (d) => d.id, // Attribute to group the input data (Note that it also supports functions)
-  color = null,  //Specifies the attribute to be used to discriminate the groups (Note that it also supports functions).
-  groupAttr = null, // DEPRECATED use color instead: Specifies the attribute to be used to discriminate the groups (Note that it also supports functions).
-  referenceCurves = null, // Specifies a Json object with the information of the reference lines.
-  width = 1200, // Set the desired width of the overview Widget
-  detailsWidth = 400, // Set the desired width of the details Widget
-  height = 600, // Set the desired height of the overview Widget
-  detailsHeight = 300, // Set the desired height of the overview Widget
-  detailsContainerHeight = 400,
-  detailsMargin = null, // Margin options for details view, d3 common format, leave null for using the overview margin
-  updateCallback = () => {
-  }, // (data) => doSomethingWithData
-  statusCallback = () => {
-  }, // (status) => doSomethingWithStatus
-  fmtX = d3.format(".1f"), // Function, how to format x points in the tooltip
-  fmtY = d3.format(".1f"), // Function, how to format x points in the tooltip
-  yLabel = "",
-  xLabel = "",
-  filters = [], // Array of filters to use, format [[x1, y1], [x2, y2], ...]
-  brushShadow = "drop-shadow( 2px 2px 2px rgba(0, 0, 0, .7))",
-  maxDetailsRecords = 10, // How many results to show in the detail view
-  maxTimelines = null, // Set to a value to limit the number of distinct timelines to show
-  showGroupMedian = true, // If active show a line with the median of the enabled groups.
-  medianNumBins = 10, // Number of bins used to compute the group median.
-  medianLineDash = [7], // Selected group median line dash pattern canvas style
-  medianLineAlpha = 1, // Selected group median line opacity
-  medianLineWidth = 2, // Selected group median line width
-  medianFn = d3.median, // Function to use when showing the median
-  medianMinRecordsPerBin = 5, // Min number of records each bin must have to be considered
-  xPartitions = 10, // Partitions performed on the X-axis for the collision acceleration algorithm.
-  yPartitions = 10, // Partitions performed on the Y-axis for the collision acceleration algorithm.
-  defaultAlpha = 0.7, // Default transparency (when no selection is active) of drawn lines
-  selectedAlpha = 1.0, // Transparency of selected lines
-  noSelectedAlpha = 0.1, // Transparency of unselected lines
-  highlightAlpha = 1, // Transparency oh the highlighted lines (lines selected in other TS)
-  alphaScale = d3.scalePow().exponent(0.25).range([1, 1]), // A scale to adjust the alpha by the number of rendering elements
-  backgroundColor = "#ffffff",
-  defaultColor = "#aaa", // Default color (when no selection is active) of the drawn lines. It only has effect when "groupAttr" is not defined.
-  selectedColor = "#aaa", // Color of selected lines. It only has effect when "groupAttr" is not defined.
-  noSelectedColor = "#dce0e5", // Color of unselected lines. It only has effect when "groupAttr" is not defined.
-  hasDetails = false, // Determines whether detail data will be displayed or not. Disabling it saves preprocessing time if detail data is not to be displayed.
-  margin = { left: 50, top: 30, bottom: 50, right: 20 },
-  colorScale = d3.scaleOrdinal(d3.schemeAccent), // The color scale to be used to display the different groups defined by the "groupAttr" attribute.
-  brushesColorScale = color ? d3.scaleOrdinal(d3.schemeGreys[3].reverse()) : d3.scaleOrdinal(d3.schemeTableau10), // The color scale to be used to display the brushes
-  selectedColorTransform = (color, groupId) => d3.color(color).darker(groupId), // Function to be applied to the color of the selected group. It only has effect when "groupAttr" is defined.
-  doubleYlegend = false, // Allows the y-axis legend to be displayed on both sides of the chart.
-  showGrid = false, // If active, a reference grid is displayed.
-  showBrushTooltip = true, // Allows to display a tooltip on the brushes containing its coordinates.
-  autoUpdate = true, // Allows to decide whether changes in brushes are processed while moving, or only at the end of the movement.
-  brushGroupSize = 15, //Controls the size of the colored rectangles used to select the different brushGroups.
-  stepX = { days: 10 }, // Defines the step used, both in the spinboxes and with the arrows on the X axis.
-  stepY = 1, // // Defines the step used, both in the spinboxes and with the arrows on the Y axis.
-  yScale = d3.scaleLinear,
-  overviewWidth, // Legacy, to be deleted
-  overviewHeight, // Legacy, to be deleted
-  _this, // pass the object this in order to be able to maintain the state in case of changes in the input
-  tsParent, // Set other TimeSearcher parent to connect them.
-  fixAxis // When active, the axes will not change when modifying the data.
-} = {}) {
+function TimeSearcher(
+  data,
+  {
+    target = document.createElement("div"), // pass a html element where you want to render
+    detailsElement, // pass a html element where you want to render the details
+    coordinatesElement = document.createElement("div"), // pass a html element where you want to render the brush coordinates Input.
+    groupsElement, // pass a html element where you want to have the brushes controls.
+    showBrushesControls = true, // If false you can still use brushesControlsElement to show the control on a different element on your app
+    x = (d) => d.x, // Attribute to show in the X axis (Note that it also supports functions)
+    y = (d) => d.y, // Attribute to show in the Y axis (Note that it also supports functions)
+    id = (d) => d.id, // Attribute to group the input data (Note that it also supports functions)
+    color = null, //Specifies the attribute to be used to discriminate the groups (Note that it also supports functions).
+    groupAttr = null, // DEPRECATED use color instead: Specifies the attribute to be used to discriminate the groups (Note that it also supports functions).
+    referenceCurves = null, // Specifies a Json object with the information of the reference lines.
+    width = 1200, // Set the desired width of the overview Widget
+    detailsWidth = 400, // Set the desired width of the details Widget
+    height = 600, // Set the desired height of the overview Widget
+    detailsHeight = 300, // Set the desired height of the overview Widget
+    detailsContainerHeight = 400,
+    detailsMargin = null, // Margin options for details view, d3 common format, leave null for using the overview margin
+    updateCallback = () => {}, // (data) => doSomethingWithData
+    statusCallback = () => {}, // (status) => doSomethingWithStatus
+    fmtX = d3.format(".1f"), // Function, how to format x points in the tooltip
+    fmtY = d3.format(".1f"), // Function, how to format x points in the tooltip
+    yLabel = "",
+    xLabel = "",
+    filters = [], // Array of filters to use, format [[x1, y1], [x2, y2], ...]
+    brushShadow = "drop-shadow( 2px 2px 2px rgba(0, 0, 0, .7))",
+    maxDetailsRecords = 10, // How many results to show in the detail view
+    maxTimelines = null, // Set to a value to limit the number of distinct timelines to show
+    showGroupMedian = true, // If active show a line with the median of the enabled groups.
+    medianNumBins = 10, // Number of bins used to compute the group median.
+    medianLineDash = [7], // Selected group median line dash pattern canvas style
+    medianLineAlpha = 1, // Selected group median line opacity
+    medianLineWidth = 2, // Selected group median line width
+    medianFn = d3.median, // Function to use when showing the median
+    medianMinRecordsPerBin = 5, // Min number of records each bin must have to be considered
+    xPartitions = 10, // Partitions performed on the X-axis for the collision acceleration algorithm.
+    yPartitions = 10, // Partitions performed on the Y-axis for the collision acceleration algorithm.
+    defaultAlpha = 0.7, // Default transparency (when no selection is active) of drawn lines
+    selectedAlpha = 1.0, // Transparency of selected lines
+    noSelectedAlpha = 0.1, // Transparency of unselected lines
+    highlightAlpha = 1, // Transparency oh the highlighted lines (lines selected in other TS)
+    alphaScale = d3.scalePow().exponent(0.25).range([1, 1]), // A scale to adjust the alpha by the number of rendering elements
+    backgroundColor = "#ffffff",
+    defaultColor = "#aaa", // Default color (when no selection is active) of the drawn lines. It only has effect when "groupAttr" is not defined.
+    selectedColor = "#aaa", // Color of selected lines. It only has effect when "groupAttr" is not defined.
+    noSelectedColor = "#dce0e5", // Color of unselected lines. It only has effect when "groupAttr" is not defined.
+    hasDetails = false, // Determines whether detail data will be displayed or not. Disabling it saves preprocessing time if detail data is not to be displayed.
+    margin = { left: 50, top: 30, bottom: 50, right: 20 },
+    colorScale = d3.scaleOrdinal(d3.schemeAccent), // The color scale to be used to display the different groups defined by the "groupAttr" attribute.
+    brushesColorScale = color
+      ? d3.scaleOrdinal(d3.schemeGreys[3].reverse())
+      : d3.scaleOrdinal(d3.schemeTableau10), // The color scale to be used to display the brushes
+    selectedColorTransform = (color, groupId) =>
+      d3.color(color).darker(groupId), // Function to be applied to the color of the selected group. It only has effect when "groupAttr" is defined.
+    doubleYlegend = false, // Allows the y-axis legend to be displayed on both sides of the chart.
+    showGrid = false, // If active, a reference grid is displayed.
+    showBrushTooltip = true, // Allows to display a tooltip on the brushes containing its coordinates.
+    autoUpdate = true, // Allows to decide whether changes in brushes are processed while moving, or only at the end of the movement.
+    brushGroupSize = 15, //Controls the size of the colored rectangles used to select the different brushGroups.
+    stepX = { days: 10 }, // Defines the step used, both in the spinboxes and with the arrows on the X axis.
+    stepY = 1, // // Defines the step used, both in the spinboxes and with the arrows on the Y axis.
+    yScale = d3.scaleLinear,
+    overviewWidth, // Legacy, to be deleted
+    overviewHeight, // Legacy, to be deleted
+    _this, // pass the object this in order to be able to maintain the state in case of changes in the input
+    tsParent, // Set other TimeSearcher parent to connect them.
+    fixAxis, // When active, the axes will not change when modifying the data.
+  } = {}
+) {
   width = overviewWidth || width;
   height = overviewHeight || height;
   detailsMargin = detailsMargin || margin;
@@ -147,7 +151,7 @@ function TimeSearcher(data, {
 
   //Backwards compatibility with groupAttr.
   if (groupAttr) {
-    console.warn("The attribute \"groupAttr\" is deprecated use \"color\" instead");
+    console.warn('The attribute "groupAttr" is deprecated use "color" instead');
     color = groupAttr;
   }
 
@@ -230,8 +234,8 @@ function TimeSearcher(data, {
     if (tsElements) {
       let event = new CustomEvent("timeSearcher", {
         detail: {
-          type: eventType.addBrushGroup
-        }
+          type: eventType.addBrushGroup,
+        },
       });
       sentEvent(event);
     }
@@ -245,9 +249,9 @@ function TimeSearcher(data, {
         detail: {
           type: eventType.changeNonSelected,
           data: {
-            newState: newState
-          }
-        }
+            newState: newState,
+          },
+        },
       });
       sentEvent(event);
     }
@@ -263,9 +267,9 @@ function TimeSearcher(data, {
           type: eventType.changeBrushGroupState,
           data: {
             id: id,
-            newState: newState
-          }
-        }
+            newState: newState,
+          },
+        },
       });
       sentEvent(event);
     }
@@ -279,8 +283,8 @@ function TimeSearcher(data, {
       let event = new CustomEvent("timeSearcher", {
         detail: {
           type: eventType.removeBrushGroup,
-          data: id
-        }
+          data: id,
+        },
       });
 
       sentEvent(event);
@@ -294,8 +298,8 @@ function TimeSearcher(data, {
       let event = new CustomEvent("timeSearcher", {
         detail: {
           type: eventType.selectBrushGroup,
-          data: id
-        }
+          data: id,
+        },
       });
 
       sentEvent(event);
@@ -307,8 +311,8 @@ function TimeSearcher(data, {
       if (brush) {
         let event = new CustomEvent("timeSearcher", {
           detail: {
-            type: eventType.deselectAllBrushes
-          }
+            type: eventType.deselectAllBrushes,
+          },
         });
         sentEvent(event);
       }
@@ -320,15 +324,15 @@ function TimeSearcher(data, {
             type: eventType.highlightSelection,
             data: {
               positionTs: positionTs,
-              groupId: brush[1].group
-            }
-          }
+              groupId: brush[1].group,
+            },
+          },
         });
       } else {
         event = new CustomEvent("timeSearcher", {
           detail: {
-            type: eventType.highlightSelection
-          }
+            type: eventType.highlightSelection,
+          },
         });
       }
       sentEvent(event);
@@ -362,8 +366,8 @@ function TimeSearcher(data, {
               }
             </style>
             <input type="checkbox" id="checkBoxShowBrushGroup" ${
-  d[1].isEnable ? "checked" : ""
-} ></input>                        
+              d[1].isEnable ? "checked" : ""
+            } ></input>                        
             <div 
               id="groupColor"
               style="
@@ -372,8 +376,8 @@ function TimeSearcher(data, {
               height: ${ts.brushGroupSize}px;
               background-color: ${computeBrushColor(d[0])};
               border-width: ${
-  d[0] === brushes.getBrushGroupSelected() ? 2 : 0
-}px;
+                d[0] === brushes.getBrushGroupSelected() ? 2 : 0
+              }px;
               border-color: black;
               border-style: solid;
               margin-right: 5px;
@@ -382,8 +386,8 @@ function TimeSearcher(data, {
             <input 
               id="groupName"
               style="margin-right: 5px; border: none;outline: none; width: ${
-  groupName.length
-}ch;"
+                groupName.length
+              }ch;"
               contenteditable="true" 
               value="${groupName}"></input>
             <span id="groupSize" style="margin-right: 5px;">(${groupCount})</span>
@@ -446,12 +450,12 @@ function TimeSearcher(data, {
             align-items: center;
           ">
             <input type="checkbox" id="checkBoxShowBrushGroup" ${
-  showNonSelected ? "checked" : ""
-} ></input>                        
+              showNonSelected ? "checked" : ""
+            } ></input>                        
             <output 
               style="margin-right: 0px; border: none;outline: none; width: ${
-  groupName.length
-}ch;"
+                groupName.length
+              }ch;"
               >${groupName}</output>
             <span id="groupSize" style="margin-right: 5px;">(${groupCount})</span>
           </div>
@@ -494,7 +498,7 @@ function TimeSearcher(data, {
     log("Sorting data");
     groupedData.map((d) => [
       d[0],
-      d[1].sort((a, b) => d3.ascending(x(a), x(b)))
+      d[1].sort((a, b) => d3.ascending(x(a), x(b))),
     ]);
 
     log("Sorting data: done");
@@ -516,8 +520,8 @@ function TimeSearcher(data, {
       overviewX = d3
         .scaleLinear()
         .domain(domainX)
-        .range([0, width - ts.margin.right - ts.margin.left]);
-      //.nice();
+        .range([0, width - ts.margin.right - ts.margin.left])
+        .nice();
     }
 
     let domainY = fixAxis && _this ? _this.extent.y : d3.extent(fData, y); // Keep same axes as in the first rendering
@@ -526,6 +530,9 @@ function TimeSearcher(data, {
       .yScale()
       .domain(domainY)
       .range([height - ts.margin.top - ts.margin.bottom, 0]);
+
+    overviewX.nice && (overviewX = overviewX.nice());
+    overviewY.nice && (overviewY = overviewY.nice());
   }
 
   function init() {
@@ -562,7 +569,7 @@ function TimeSearcher(data, {
       y,
       groupAttr: color,
       overviewX,
-      overviewY
+      overviewY,
     });
 
     svg = divRender
@@ -746,7 +753,7 @@ function TimeSearcher(data, {
       selectionCallback: onSelectionChange,
       groupsCallback: onBrushGroupsChange,
       changeSelectedCoordinatesCallback: updateBrushSpinBox,
-      selectedBrushCallback: onChangeSelectedBrush
+      selectedBrushCallback: onChangeSelectedBrush,
     });
 
     gGroupBrushes
@@ -856,7 +863,7 @@ function TimeSearcher(data, {
 
     brushSpinBoxes = [
       [x0, y0],
-      [x1, y1]
+      [x1, y1],
     ];
   }
 
@@ -901,9 +908,7 @@ function TimeSearcher(data, {
     let dataSelectedF = new Map(dataSelected);
     let dataNotSelectedF = dataNotSelected;
     for (let d of dataSelectedF) {
-      let filtered = d[1].filter((d) =>
-        selectedGroupData.has(color(d[1][0]))
-      );
+      let filtered = d[1].filter((d) => selectedGroupData.has(color(d[1][0])));
       dataSelectedF.set(d[0], filtered);
     }
     dataNotSelectedF = dataNotSelectedF.filter((d) =>
@@ -937,7 +942,7 @@ function TimeSearcher(data, {
         detailsHeight,
         x,
         y,
-        margin: detailsMargin
+        margin: detailsMargin,
       });
     }
 
@@ -972,7 +977,6 @@ function TimeSearcher(data, {
           sx0.node().value = formatTime(x0);
         }
       }
-
     } else {
       let x0 = +sx0.node().value;
       let x1 = +sx1.node().value;
@@ -996,12 +1000,11 @@ function TimeSearcher(data, {
         y1 = y0 - ts.stepY;
         sy0.node().value = y1;
       }
-
     }
 
     brushes.moveSelectedBrush([
       [x0, y0],
-      [x1, y1]
+      [x1, y1],
     ]);
   }
 
@@ -1034,10 +1037,13 @@ function TimeSearcher(data, {
       }
     }
 
-    brushes.moveSelectedBrush([
-      [x0, y0],
-      [x1, y1]
-    ], true);
+    brushes.moveSelectedBrush(
+      [
+        [x0, y0],
+        [x1, y1],
+      ],
+      true
+    );
   }
 
   function onArrowLeft() {
@@ -1069,10 +1075,13 @@ function TimeSearcher(data, {
       }
     }
 
-    brushes.moveSelectedBrush([
-      [x0, y0],
-      [x1, y1]
-    ], true);
+    brushes.moveSelectedBrush(
+      [
+        [x0, y0],
+        [x1, y1],
+      ],
+      true
+    );
   }
 
   function onArrowDown() {
@@ -1092,10 +1101,13 @@ function TimeSearcher(data, {
     } else {
       y0 -= ts.stepY;
     }
-    brushes.moveSelectedBrush([
-      [x0, y0],
-      [x1, y1]
-    ], true);
+    brushes.moveSelectedBrush(
+      [
+        [x0, y0],
+        [x1, y1],
+      ],
+      true
+    );
   }
 
   function onArrowUp() {
@@ -1116,10 +1128,13 @@ function TimeSearcher(data, {
       y1 += ts.stepY;
     }
 
-    brushes.moveSelectedBrush([
-      [x0, y0],
-      [x1, y1]
-    ], true);
+    brushes.moveSelectedBrush(
+      [
+        [x0, y0],
+        [x1, y1],
+      ],
+      true
+    );
   }
 
   // To render the overview and detailed view based on the selectedData
@@ -1209,7 +1224,7 @@ function TimeSearcher(data, {
         bins.push({
           x0: cx,
           x1: cx + binW,
-          data: []
+          data: [],
         });
         cx += binW;
       }
@@ -1314,7 +1329,7 @@ function TimeSearcher(data, {
 
     for (let [id, brushGroup] of brushes.getBrushesGroup()) {
       let groupMap = new Map();
-      sel.get(id).forEach(d => groupMap.set(d[0], d[1]));
+      sel.get(id).forEach((d) => groupMap.set(d[0], d[1]));
       value.set(brushGroup.name, groupMap);
 
       let Gstatus = {
@@ -1322,7 +1337,7 @@ function TimeSearcher(data, {
         name: brushGroup.name,
         isActive: brushGroup.isActive,
         isEnable: brushGroup.isEnable,
-        brushes: brushGroup.brushes
+        brushes: brushGroup.brushes,
       };
       status.set(brushGroup.name, Gstatus);
     }
@@ -1330,11 +1345,11 @@ function TimeSearcher(data, {
     statusCallback(value);
 
     divOverview.value = value;
-    divOverview.value.nonSelectedIds = dataNotSelected.map(d => d[0]);
+    divOverview.value.nonSelectedIds = dataNotSelected.map((d) => d[0]);
     divOverview.value.status = status;
     divOverview.extent = {
       x: overviewX.domain(),
-      y: overviewY.domain()
+      y: overviewY.domain(),
     };
     divOverview.brushGroups = brushes.getBrushesGroup();
     divOverview.dispatchEvent(new Event("input", { bubbles: true }));
@@ -1345,8 +1360,8 @@ function TimeSearcher(data, {
     let eventSelection = new CustomEvent("timeSearcher", {
       detail: {
         type: eventType.changeSelection,
-        data: brushes.hasSelection() ? selection : null
-      }
+        data: brushes.hasSelection() ? selection : null,
+      },
     });
 
     sentEvent(eventSelection);
@@ -1354,8 +1369,8 @@ function TimeSearcher(data, {
     if (update) {
       let eventUpdate = new CustomEvent("timeSearcher", {
         detail: {
-          type: eventType.update
-        }
+          type: eventType.update,
+        },
       });
       sentEvent(eventUpdate);
     }
@@ -1413,7 +1428,7 @@ function TimeSearcher(data, {
         if (eventData.data) {
           otherSelectionToHightlight = {
             positionTs: eventData.data.positionTs,
-            groupId: eventData.data.groupId
+            groupId: eventData.data.groupId,
           };
         } else {
           otherSelectionToHightlight = null;
@@ -1456,7 +1471,7 @@ function TimeSearcher(data, {
     if (!tsElementsSelection || positionTs === 0) {
       return {
         renderSelected: dataSelected,
-        renderNotSelected: dataNotSelected
+        renderNotSelected: dataNotSelected,
       };
     }
 
@@ -1512,12 +1527,12 @@ function TimeSearcher(data, {
       );
       return {
         renderSelected: fDataSelected,
-        renderNotSelected: fDataNotSelected
+        renderNotSelected: fDataNotSelected,
       };
     } else {
       return {
         renderSelected: dataSelected,
-        renderNotSelected: dataNotSelected
+        renderNotSelected: dataNotSelected,
       };
     }
   }
@@ -1654,7 +1669,7 @@ function TimeSearcher(data, {
     timelineOverview.setScales({
       data: fData,
       xDataType,
-      extent: fixAxis && _this ? _this.extent : null
+      extent: fixAxis && _this ? _this.extent : null,
     });
     timelineOverview.data(groupedData);
 
