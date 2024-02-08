@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Document</title>
+  </head>
+  <body>
+    <!-- target for the main Widget -->
+    <h1>Stock Prices</h1>
+    <div id="target"></div>
+
+    <!-- Load the libraries -->
+    <!-- <script src="../dist/TimeSearcher.js"></script> -->
+    <script src="https://d3js.org/d3.v7.js"></script>
+    <script src="../dist/TimeSearcher.js"></script>
+    <!-- <script src="https://unpkg.com/time_searcher/dist/TimeSearcher.min.js"></script> -->
+
+    <script>
+      let data = [
+        { Date: new Date("01/01/2023"), Open: 250, id: "Apple", group: "Technology" },
+        { Date: new Date("01/02/2023"), Open: 240, id: "Apple", group: "Technology" },
+        { Date: new Date("01/03/2023"), Open: 260, id: "Apple", group: "Technology" },
+      ];
+
+      let ts = TimeSearcher(
+        data,
+        {
+          x: "Date", // Attribute to show in the X axis (Note that it also supports functions)
+          y: "Open", // Attribute to show in the Y axis (Note that it also supports functions)
+          id: "stock", // Attribute to group the input data (Note that it also supports functions)
+        }
+      );
+
+      ts.addEventListener("input", () => {
+        console.log("Selected", ts.value);
+      });
+
+      document.getElementById("target").appendChild(ts);
+    </script>
+  </body>
+</html>

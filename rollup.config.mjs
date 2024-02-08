@@ -6,11 +6,9 @@ import injectProcessEnv from "rollup-plugin-inject-process-env";
 import meta from "./package.json" assert { type: "json" };
 import { babel } from "@rollup/plugin-babel";
 
-
 const copyright = `// ${meta.homepage} v${
   meta.version
 } Copyright ${new Date().getFullYear()} ${meta.author.name}`;
-
 
 export default [
   {
@@ -32,7 +30,7 @@ export default [
       }),
       nodeResolve(),
     ],
-    external: ["d3", "@popperjs"],
+    external: ["d3"],
     output: {
       extend: true,
       banner: copyright,
@@ -63,7 +61,7 @@ export default [
       }),
       nodeResolve(),
     ],
-    external: ["d3", "@popperjs"],
+    external: ["d3"],
     output: {
       extend: true,
       banner: copyright,
@@ -93,7 +91,7 @@ export default [
       ascii(),
       terser({ output: { preamble: copyright } }),
     ],
-    external: ["d3", "@popperjs"],
+    external: ["d3"],
     output: {
       extend: true,
       file: "dist/TimeSearcher.min.js",
