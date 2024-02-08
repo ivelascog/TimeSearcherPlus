@@ -57,28 +57,9 @@ function TimeLineOverview({
     });
   };
 
-  me.setScales = function ({ data, xDataType, extent }) {
-    let extentX = extent ? extent.x : d3.extent(data, x);
-    if (xDataType === "object" && x(data[0]) instanceof Date) {
-      overviewX = d3
-        .scaleTime()
-        .domain(extentX)
-        .range([0, width - ts.margin.right - ts.margin.left]);
-      log("Using date scale for x", overviewX.domain(), overviewX.range());
-    } else {
-      overviewX = d3
-        .scaleLinear()
-        .domain(extentX)
-        .range([0, width - ts.margin.right - ts.margin.left]);
-      log("Using linear scale for x", overviewX.domain(), overviewX.range());
-    }
-
-    let extentY = extent ? extent.y : d3.extent(data, y);
-
-    overviewY = ts
-      .yScale()
-      .domain(extentY)
-      .range([height - ts.margin.top - ts.margin.bottom, 0]);
+  me.setScales = function ({ scaleX, scaleY }) {
+    overviewX = scaleX;
+    overviewY = scaleY;
 
     line = line.x((d) => overviewX(+x(d))).y((d) => overviewY(y(d)));
     linem = linem.x((d) => overviewX(d[0])).y((d) => overviewY(d[1]));
