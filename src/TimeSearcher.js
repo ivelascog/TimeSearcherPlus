@@ -946,7 +946,7 @@ function TimeSearcher(
       });
     }
 
-    ts.hasDetails && timelineDetails.setScales({ xDataType, fData });
+    ts.hasDetails && timelineDetails.setScales({ xDataType, fData, yScale });
   }
 
   // Callback that is called when the value of the spinboxes is modified.

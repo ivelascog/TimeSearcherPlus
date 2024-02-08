@@ -1,7 +1,6 @@
 import * as d3 from "d3";
 
 // import { log } from "./utils.js";
-
 import Timeline from "./Timeline.js";
 
 function TimelineDetails({
@@ -30,7 +29,7 @@ function TimelineDetails({
 
   let detailsX, detailsY;
 
-  me.setScales = function ({ fData, xDataType }) {
+  me.setScales = function ({ fData, xDataType, yScale }) {
     if (xDataType === "object" && x(fData[0]) instanceof Date) {
       detailsX = d3
         .scaleTime()
@@ -43,10 +42,14 @@ function TimelineDetails({
         .range([0, detailsWidth - margin.right - margin.left]);
     }
 
-    detailsY = ts
-      .yScale()
-      .domain(d3.extent(fData, y))
-      .range([detailsHeight - margin.top - margin.bottom, 0]);
+    detailsY = yScale;
+    if (yScale.domain()[0] === 0 && yScale.domain()[1] === 1) { //Default Domain
+      detailsY.domain(d3.extent(fData, y));
+    }
+    
+    detailsY.range([detailsHeight - margin.top - margin.bottom, 0])
+      .nice()
+      .clamp(true);
 
     line.x((d) => detailsX(+x(d))).y((d) => detailsY(y(d)));
   };
