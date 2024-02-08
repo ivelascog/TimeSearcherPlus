@@ -31,8 +31,8 @@ function BVH({
         let xCoor = current[0];
         let yCoor = current[1];
         if (xCoor != null && yCoor != null) {
-          let xIndex = Math.min(Math.floor(xCoor / xinc),xPartitions - 1);
-          let yIndex = Math.min(Math.floor(yCoor / yinc), yPartitions -1);
+          let xIndex = Math.floor(xCoor / xinc);
+          let yIndex = Math.floor(yCoor / yinc);
 
           if (i === 0) {
             BVH.BVH[xIndex][yIndex].data.set(key, [[current]]);
@@ -100,8 +100,8 @@ function BVH({
     let allValues = data.map(d => d[1]).flat();
     let extentX = d3.extent(allValues, d => d[0]);
     let extentY = d3.extent(allValues, d => d[1]);
-    let width = extentX[1] - extentX[0];
-    let height = extentY[1] - extentY[0];
+    let width = (extentX[1] - extentX[0]) + 1;
+    let height = (extentY[1] - extentY[0]) + 1;
     let xinc = width / xPartitions;
     let yinc = height / yPartitions;
     let BVH = {
@@ -109,6 +109,8 @@ function BVH({
       height: height,
       xinc: xinc,
       yinc: yinc,
+      offsetX: extentX[0],
+      offsetY: extentY[0],
       keys: keys,
       BVH: [],
     };
@@ -127,6 +129,11 @@ function BVH({
         };
       }
     }
+
+    // Move the data to start at coordinates [0,0]
+    data = data.map(([k, v]) => [k, v.map(([x, y]) => [x - BVH.offsetX, y - BVH.offsetY])]);
+
+
     if (polylines)
       pupulateBVHPolylines(data, BVH);
     else
@@ -250,9 +257,15 @@ function BVH({
     return [[initI, finI], [initJ, finJ]];
   }
 
+  //
+  function applyOffsets(x0, y0, x1, y1) {
+    return [x0 - BVH.offsetX, y0 - BVH.offsetY, x1 - BVH.offsetX, y1 - BVH.offsetY];
+  }
+
   // Returns all the polylines that satisfy the function "testFunc" for a complete polyline. The function testFunct must be as follows
   // TestFunc( Entity, x0, x1,y0,y1). Where entity is a polyline and return true, false or undefined if the result of the cuerrent entity dosent matter
   function testsEntitiesAll(x0, y0, x1, y1, testFunc) {
+    [x0, y0, x1, y1] = applyOffsets(x0, y0, x1, y1);
     let [[initI, finI], [initJ, finJ]] = getCollidingCells(x0, y0, x1, y1);
 
     let contains = new Set();
@@ -284,6 +297,7 @@ function BVH({
   // Returns all the polylines that satisfy the function "testFunc" for any piece of polyline. The function testFunct must be as follows
   // TestFunc( Entity, x0, x1,y0,y1). Where entity is a polyline.
   function testsEntitiesAny(x0, y0, x1, y1, testFunc) {
+    [x0, y0, x1, y1] = applyOffsets(x0, y0, x1, y1);
     let [[initI, finI], [initJ, finJ]] = getCollidingCells(x0, y0, x1, y1);
 
     let intersections = new Set();

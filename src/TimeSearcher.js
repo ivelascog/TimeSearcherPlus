@@ -70,7 +70,7 @@ function TimeSearcher(
     brushGroupSize = 15, //Controls the size of the colored rectangles used to select the different brushGroups.
     stepX = { days: 10 }, // Defines the step used, both in the spinboxes and with the arrows on the X axis.
     stepY = 1, // // Defines the step used, both in the spinboxes and with the arrows on the Y axis.
-    yScale = d3.scaleLinear,
+    yScale = d3.scaleLinear(),
     overviewWidth, // Legacy, to be deleted
     overviewHeight, // Legacy, to be deleted
     _this, // pass the object this in order to be able to maintain the state in case of changes in the input
@@ -526,13 +526,14 @@ function TimeSearcher(
 
     let domainY = fixAxis && _this ? _this.extent.y : d3.extent(fData, y); // Keep same axes as in the first rendering
 
-    overviewY = ts
-      .yScale()
-      .domain(domainY)
-      .range([height - ts.margin.top - ts.margin.bottom, 0]);
+    overviewY = yScale;
+    if (yScale.domain()[0] === 0 && yScale.domain()[1] === 1) { //Default Domain
+      overviewY.domain(domainY);
+    }
 
-    overviewX.nice && (overviewX = overviewX.nice());
-    overviewY.nice && (overviewY = overviewY.nice());
+    overviewY.range([height - ts.margin.top - ts.margin.bottom, 0])
+      .nice()
+      .clamp(true);
   }
 
   function init() {
@@ -1667,9 +1668,8 @@ function TimeSearcher(
     g = init();
 
     timelineOverview.setScales({
-      data: fData,
-      xDataType,
-      extent: fixAxis && _this ? _this.extent : null,
+      scaleX: overviewX,
+      scaleY: overviewY
     });
     timelineOverview.data(groupedData);
 
