@@ -611,6 +611,7 @@ function brushInteraction({
 
     updateStatus();
     updateGroups();
+    selectionCallback(dataSelected, dataNotSelected, brushSize !== 0);
   };
   me.changeBrushGroupState = function(id, newState) {
     if (brushesGroup.get(id).isEnable === newState) return; //same state so no update needed
