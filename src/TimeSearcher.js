@@ -752,6 +752,7 @@ function TimeSearcher(
       updateTime: 150,
       tsLevel: positionTs,
       selectionCallback: onSelectionChange,
+      groupsCallback: onBrushGroupsChange,
       changeSelectedCoordinatesCallback: updateBrushSpinBox,
       selectedBrushCallback: onChangeSelectedBrush,
     });
@@ -1296,6 +1297,13 @@ function TimeSearcher(
     sentSelection(renderSelected, true);
   }
 
+  // Called every time the brushGroups changes
+  function onBrushGroupsChange() {
+    render(renderSelected, renderNotSelected, brushes.hasSelection());
+    renderBrushesControls();
+    triggerValueUpdate();
+  }
+
   function updateStatus() {
     // TODO
     /* // exportColors
@@ -1340,6 +1348,8 @@ function TimeSearcher(
 
     divOverview.value = value;
     divOverview.value.nonSelectedIds = dataNotSelected.map((d) => d[0]);
+    divOverview.value.selectedIds = dataSelected.get(brushes.getBrushGroupSelected()).map(d => d[0]);
+    divOverview.value.selectedGroup = brushes.getBrushesGroup().get(brushes.getBrushGroupSelected()).name;
     divOverview.value.status = status;
     divOverview.extent = {
       x: overviewX.domain(),
