@@ -389,7 +389,7 @@ function brushInteraction({
 
   function deselectAllBrushes() {
     for (let brushGroup of brushesGroup.values()) {
-      for (let brush of brushGroup) {
+      for (let brush of brushGroup.brushes) {
         brush[1].isSelected = false;
       }
     }
@@ -611,6 +611,7 @@ function brushInteraction({
 
     updateStatus();
     updateGroups();
+    selectionCallback(dataSelected, dataNotSelected, brushSize !== 0);
   };
   me.changeBrushGroupState = function(id, newState) {
     if (brushesGroup.get(id).isEnable === newState) return; //same state so no update needed
@@ -630,7 +631,13 @@ function brushInteraction({
   };
 
   me.selectBrushGroup = function(id) {
-    brushesGroup.get(brushGroupSelected).isActive = false;
+    if (brushGroupSelected === id) return;
+
+    let oldBrushGroupSelected = brushesGroup.get(brushGroupSelected);
+    oldBrushGroupSelected.isActive = false;
+    deselectAllBrushes();
+
+    brushesGroup.get();
     brushGroupSelected = id;
     brushesGroup.get(id).isActive = true;
     brushesGroup.get(id).isEnable = true;

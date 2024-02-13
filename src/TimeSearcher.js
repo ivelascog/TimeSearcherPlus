@@ -151,7 +151,7 @@ function TimeSearcher(
 
   //Backwards compatibility with groupAttr.
   if (groupAttr) {
-    console.warn('The attribute "groupAttr" is deprecated use "color" instead');
+    console.warn("The attribute \"groupAttr\" is deprecated use \"color\" instead");
     color = groupAttr;
   }
 
@@ -366,8 +366,8 @@ function TimeSearcher(
               }
             </style>
             <input type="checkbox" id="checkBoxShowBrushGroup" ${
-              d[1].isEnable ? "checked" : ""
-            } ></input>                        
+  d[1].isEnable ? "checked" : ""
+} ></input>                        
             <div 
               id="groupColor"
               style="
@@ -376,8 +376,8 @@ function TimeSearcher(
               height: ${ts.brushGroupSize}px;
               background-color: ${computeBrushColor(d[0])};
               border-width: ${
-                d[0] === brushes.getBrushGroupSelected() ? 2 : 0
-              }px;
+  d[0] === brushes.getBrushGroupSelected() ? 2 : 0
+}px;
               border-color: black;
               border-style: solid;
               margin-right: 5px;
@@ -386,8 +386,8 @@ function TimeSearcher(
             <input 
               id="groupName"
               style="margin-right: 5px; border: none;outline: none; width: ${
-                groupName.length
-              }ch;"
+  groupName.length
+}ch;"
               contenteditable="true" 
               value="${groupName}"></input>
             <span id="groupSize" style="margin-right: 5px;">(${groupCount})</span>
@@ -450,12 +450,12 @@ function TimeSearcher(
             align-items: center;
           ">
             <input type="checkbox" id="checkBoxShowBrushGroup" ${
-              showNonSelected ? "checked" : ""
-            } ></input>                        
+  showNonSelected ? "checked" : ""
+} ></input>                        
             <output 
               style="margin-right: 0px; border: none;outline: none; width: ${
-                groupName.length
-              }ch;"
+  groupName.length
+}ch;"
               >${groupName}</output>
             <span id="groupSize" style="margin-right: 5px;">(${groupCount})</span>
           </div>
@@ -947,7 +947,7 @@ function TimeSearcher(
       });
     }
 
-    ts.hasDetails && timelineDetails.setScales({ xDataType, fData });
+    ts.hasDetails && timelineDetails.setScales({ xDataType, fData, yScale });
   }
 
   // Callback that is called when the value of the spinboxes is modified.
@@ -1301,6 +1301,7 @@ function TimeSearcher(
   function onBrushGroupsChange() {
     render(renderSelected, renderNotSelected, brushes.hasSelection());
     renderBrushesControls();
+    triggerValueUpdate();
   }
 
   function updateStatus() {
@@ -1347,6 +1348,8 @@ function TimeSearcher(
 
     divOverview.value = value;
     divOverview.value.nonSelectedIds = dataNotSelected.map((d) => d[0]);
+    divOverview.value.selectedIds = dataSelected.get(brushes.getBrushGroupSelected()).map(d => d[0]);
+    divOverview.value.selectedGroup = brushes.getBrushesGroup().get(brushes.getBrushGroupSelected()).name;
     divOverview.value.status = status;
     divOverview.extent = {
       x: overviewX.domain(),
