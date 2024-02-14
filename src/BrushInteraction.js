@@ -7,32 +7,6 @@ import { compareSets, darken } from "./utils.js";
 
 import { BrushAggregation, BrushModes, log } from "./utils";
 
-  me.invertQuery = function (brushGroup) {
-    let brushes = brushesGroup.get(brushGroup).brushes;
-    let miny = Number.MAX_VALUE;
-    let maxy = Number.MIN_VALUE;
-    brushes.forEach(brush => {
-      if (!brush.selection) return;
-      miny = Math.min(brush.selection[0][1],miny);
-      maxy = Math.max(brush.selection[1][1],maxy);
-    });
-    let midPointQuery = (maxy - miny)/ 2 + miny;
-    brushes.forEach( (brush, brushId) => {
-      if (!brush.selection) return;
-      let brushHeight  = brush.selection[1][1] - brush.selection[0][1];
-      let brushMidPoint = brushHeight/ 2 + brush.selection[0][1];
-      let distY = midPointQuery - brushMidPoint;
-      moveBrush([brushId,brush], 0, distY * 2);
-    });
-
-    tUpdateSelection();
-
-  };
-
-  me.invertQuerySelectedGroup = function () {
-    me.invertQuery(brushGroupSelected);
-  };
-
 function brushInteraction({
   ts,
   data,
@@ -745,36 +719,25 @@ function brushInteraction({
   };
 
   me.recreate = function(brushesGroups_) {
-    let filters = [];
-    for (let [groupId, group] of brushesGroups_) {
-      // Create or update the brushGroup
-      if (!brushesGroup.has(groupId)) {
-        let brushGroup = {
-          isEnable: group.isEnable,
-          isActive: group.isActive,
-          name: group.name,
-          brushes: new Map()
-        };
-        brushesGroup.set(groupId, brushGroup);
-        dataSelected.set(groupId, []);
-      } else {
-        let brushGroup = brushesGroup.get(groupId);
-        brushGroup.isEnable = group.isEnable;
-        brushGroup.isActive = group.isActive;
-        brushGroup.name = group.name;
-      }
+    let groups = {};
 
-      for (let [brushId, brush] of group.brushes) {
-        let filter = {
-          id: brushId,
-          groupId: groupId,
-          selectionDomain: getSelectionDomain(brush.selection)
-        };
+    for (let [, brushGroup] of brushesGroups_) {
+      let brushGroupName = brushGroup.name;
+
+      let filters = [];
+      for (let [, brush] of brushGroup.brushes) {
+        let filter = generateFilter({
+          mode: brush.mode,
+          aggregation: brush.aggregation,
+          groupId: brush.groupId,
+          selectionDomain: brush.selectionDomain
+        });
         filters.push(filter);
       }
+      groups[brushGroupName] = filters;
     }
 
-    me.addFilters(filters);
+    me.addFilters(groups, true);
     drawBrushes();
   };
 
@@ -906,7 +869,31 @@ function brushInteraction({
       initialSelection: initialSelection
     };
   }
+  me.invertQuery = function (brushGroup) {
+    let brushes = brushesGroup.get(brushGroup).brushes;
+    let miny = Number.MAX_VALUE;
+    let maxy = Number.MIN_VALUE;
+    brushes.forEach(brush => {
+      if (!brush.selection) return;
+      miny = Math.min(brush.selection[0][1],miny);
+      maxy = Math.max(brush.selection[1][1],maxy);
+    });
+    let midPointQuery = (maxy - miny)/ 2 + miny;
+    brushes.forEach( (brush, brushId) => {
+      if (!brush.selection) return;
+      let brushHeight  = brush.selection[1][1] - brush.selection[0][1];
+      let brushMidPoint = brushHeight/ 2 + brush.selection[0][1];
+      let distY = midPointQuery - brushMidPoint;
+      moveBrush([brushId,brush], 0, distY * 2);
+    });
 
+    tUpdateSelection();
+
+  };
+
+  me.invertQuerySelectedGroup = function () {
+    me.invertQuery(brushGroupSelected);
+  };
 
   me.addFilters = function(filters, wipeAll = false) {
     if (filters.length === 0) return;
