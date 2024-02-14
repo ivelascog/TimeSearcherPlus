@@ -7,6 +7,31 @@ import { compareSets, darken } from "./utils.js";
 
 import { BrushAggregation, BrushModes, log } from "./utils";
 
+  me.invertQuery = function (brushGroup) {
+    let brushes = brushesGroup.get(brushGroup).brushes;
+    let miny = Number.MAX_VALUE;
+    let maxy = Number.MIN_VALUE;
+    brushes.forEach(brush => {
+      if (!brush.selection) return;
+      miny = Math.min(brush.selection[0][1],miny);
+      maxy = Math.max(brush.selection[1][1],maxy);
+    });
+    let midPointQuery = (maxy - miny)/ 2 + miny;
+    brushes.forEach( (brush, brushId) => {
+      if (!brush.selection) return;
+      let brushHeight  = brush.selection[1][1] - brush.selection[0][1];
+      let brushMidPoint = brushHeight/ 2 + brush.selection[0][1];
+      let distY = midPointQuery - brushMidPoint;
+      moveBrush([brushId,brush], 0, distY * 2);
+    });
+
+    tUpdateSelection();
+
+  };
+
+  me.invertQuerySelectedGroup = function () {
+    me.invertQuery(brushGroupSelected);
+  };
 
 function brushInteraction({
   ts,
@@ -313,6 +338,23 @@ function brushInteraction({
     }
   }
 
+  function moveBrush([brushId, brush], distX, distY) {
+    let [[x0, y0], [x1, y1]] = brush.selection;
+    x0 += distX;
+    x1 += distX;
+    y0 += distY;
+    y1 += distY;
+    gBrushes.selectAll("#brush-" + brushId).call(brush.brush.move, [
+      [x0, y0],
+      [x1, y1]
+    ]);
+    brush.selection = [
+      [x0, y0],
+      [x1, y1]
+    ];
+    brush.selectionDomain = getSelectionDomain(brush.selection);
+  }
+
   // Move all selected brushes the same amount of the triggerBrush
   function moveSelectedBrushes({ selection, sourceEvent }, trigger) {
     // dont execute this method when move brushes programatically
@@ -336,20 +378,7 @@ function brushInteraction({
     for (const brushGroup of brushesGroup.values()) {
       for (const [brushId, brush] of brushGroup.brushes) {
         if (brush.isSelected && !(triggerId === brushId)) {
-          let [[x0, y0], [x1, y1]] = brush.selection;
-          x0 += distX;
-          x1 += distX;
-          y0 += distY;
-          y1 += distY;
-          gBrushes.selectAll("#brush-" + brushId).call(brush.brush.move, [
-            [x0, y0],
-            [x1, y1]
-          ]);
-          brush.selection = [
-            [x0, y0],
-            [x1, y1]
-          ];
-          brush.selectionDomain = getSelectionDomain(brush.selection);
+          moveBrush([brushId, brush], distX, distY, brushId);
         }
       }
     }

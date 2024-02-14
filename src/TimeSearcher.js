@@ -612,6 +612,9 @@ function TimeSearcher(
           case "ArrowDown":
             onArrowDown(e);
             break;
+          case "i":
+            brushes.invertQuerySelectedGroup();
+            break;
         }
       });
 
