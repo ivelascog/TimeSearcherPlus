@@ -96,12 +96,29 @@ or right in the html like in the example below.
 ```
 3. **Create a TimeSearcher+ Instance**
 ```js
-   let target = TimeSearcher({
-      target: d3.select("#target").node(), // Target to render the overview Widget
-      detailedElement: d3.select("#targetDetailed").node(), // Target to render the detailed Widget (Optional)
+
+  let data = [
+    { Date: "01/01/2023", Open: 250, id: "Apple", group: "Technology" }
+    { Date: "01/02/2023", Open: 240, id: "Apple", group: "Technology" }
+    { Date: "01/03/2023", Open: 260, id: "Apple", group: "Technology" }
+  ];
+
+   let target = TimeSearcher(data, {        
       x: "Date", // Atribute to show in the X axis (Note that it also supports functions)
       y:  "Open", // Atribute to show in the Y axis (Note that it also supports functions)
-      id: "stock", // / Atribute to group the input data (Note that it also supports functions)
+      id: "stock", // Atribute to group the input data (Note that it also supports functions)
+      color: "Group", // (Optional) Attribute to color by
+   });
+
+  target.addEventListener("input", () => {console.log("Selected", target.value.selectedIds)})
+```
+
+
+
+```js
+
+    detailedElement: document.getElementById("targetDetailed"), // Target to render the detailed Widget (Optional)
+target: document.getElementById("targetDetailed"), // (Optional) If ignored, then target will return  Target to render the overview Widget
       // More configuration parameters
       overviewWidth: 1200, // Set the desired width of the overview Widget
       detailedWidth: 1200 - 20, // Set the desired width of the detailed Widget
