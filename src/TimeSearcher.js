@@ -612,6 +612,9 @@ function TimeSearcher(
           case "ArrowDown":
             onArrowDown(e);
             break;
+          case "i":
+            brushes.invertQuerySelectedGroup();
+            break;
         }
       });
 
@@ -1694,7 +1697,7 @@ function TimeSearcher(
     //triggerValueUpdate(new Map().set(0, groupedData));
 
     // Create initial filters
-    if (filters && filters.length > 0) brushes.addFilters(filters);
+    if (filters) brushes.addFilters(filters, true);
 
     // Change brushName if multiple TS TODO
     // changeBrushNames();
