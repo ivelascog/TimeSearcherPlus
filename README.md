@@ -19,6 +19,16 @@ You can test timeSearcher+ right now with your **own CSV data** (less than 200MB
 | --- |
 |TODO GIF and noteBook |
 
+## Examples of functionalities.
+- [Basic Example](https://observablehq.com/d/ff2f8dc4992114e2?collection=@ivelascog/timesearcherplus)
+- [Moving Patterns, Predefined TimeBoxes, Invert Queries](https://observablehq.com/d/29228e86855505e2?collection=@ivelascog/timesearcherplus)
+- [References Curves](https://observablehq.com/d/249a32b214a2684d?collection=@ivelascog/timesearcherplus)
+- [Make custom layouts](https://observablehq.com/@ivelascog/timesearcher-make-a-custom-layout?collection=@ivelascog/timesearcherplus)
+- [Maintaining the state](https://observablehq.com/d/9f28a6538b332cd3?collection=@ivelascog/timesearcherplus)
+- [Aggregation and Selection modes](https://observablehq.com/d/e7e7b8a69f571200?collection=@ivelascog/timesearcherplus)
+
+## Real World Examples. 
+
 ## Install
 
 ```js
@@ -132,13 +142,12 @@ or right in the html like in the example below.
    target.ts.noSelectedAlpha = 0.4; // Transparency of unselected lines
    target.ts.backgroundColor = "#ffffff";
    target.ts.defaultColor = "#aaa"; // Default color (when no selection is active) of the drawn lines. It only has effect when "groupAttr" is not defined.
-   target.ts.selectedColor = "#aaa"; // Color of selected lines. It only has effect when "groupAttr" is not defined.
-   target.ts.noSelectedColor = "#ddd"; // Color of unselected lines. It only has effect when "groupAttr" is not defined.
+   target.ts.selectedColor = "#aaa"; // Color of selected lines. It only has effect when "color" is not defined.
+   target.ts.noSelectedColor = "#ddd"; // Color of unselected lines. It only has effect when "color" is not defined.
    target.ts.hasDetailed = true; // Determines whether detail data will be displayed or not. Disabling it saves preprocessing time if detail data is not to be displayed.
    target.ts.margin = { left: 50, top: 30, bottom: 50, right: 20 };
-   target.ts.colorScale = d3.scaleOrdinal(d3.schemeCategory10); // The color scale to be used to display the different groups defined by the "groupAttr" attribute.
+   target.ts.colorScale = d3.scaleOrdinal(d3.schemeCategory10); // The color scale to be used to display the different groups defined by the "color" attribute.
    target.ts.brushesColorScale = d3.scaleOrdinal(d3.schemeCategory10); // The color scale to be used to display the brushes
-   target.ts.groupAttr = null; // Specifies the attribute to be used to discriminate the groups.
    target.ts.doubleYlegend = false; // Allows the y-axis legend to be displayed on both sides of the chart.
    target.ts.showGrid = false; // If active, a reference grid is displayed.
    target.ts.showBrushTooltip = true; // Allows to display a tooltip on the brushes containing its coordinates.
@@ -173,7 +182,71 @@ The file containing the reference lines will be a json file with the following d
 ]  
  ```
 
-
+## Options
+This section will show all possible options grouped by categories.
+### Elements
+ - **target**: pass a html element  where you want to render
+ -  **detailsElement**:  pass a html element  where you want to render the details
+ -  **coordinatesElement**: pass a html element where you want to render the brush coordinates Input.
+ -  **groupsElement**: pass a html element where you want to have the brushes controls.
+ -  **showBrushesControls**:If true, the brush control is displayed in the default location. If false you can still use brushesControlsElement to show the control on a different element on your app
+ -  **showBrushTooltip**: Allows to display a tooltip on the brushes containing its coordinates.
+### Data
+ - **x**:  Attribute to show in the X axis (Note that it also supports functions)
+ - **y**:  Attribute to show in the Y axis (Note that it also supports functions)
+ - **id**: Attribute to group the input data (Note that it also supports functions)
+ - **color**: Specifies the attribute to be used to discriminate the groups (Note that it also supports functions).
+ - **referenceCurves**:  Specifies a Json object with the information of the reference lines.
+ - **fmtX**: Function, how to format x points in the tooltip. Note that it must conform to the data type provided in X.
+ - **fmtY**: Function, how to format x points in the tooltip. Note that it must conform to the data type provided in Y.
+ - **xLabel**: Label to show in the X axis
+ - **yLabel**: Label to show in the Y axis
+ - **filters**: Array of predefined TimeGroups and TimeBoxes. [Example](https://observablehq.com/d/29228e86855505e2?collection=@ivelascog/timesearcherplus)
+### Color Configuration
+ - **defaultAlpha**: Default transparency (when no selection is active) of drawn lines
+ - **selectedAlpha**: Transparency of selected lines
+ - **noSelectedAlpha**: Transparency of unselected lines
+ - **alphaScale**: A scale to adjust the alpha by the number of rendering elements
+ - **backgroundColor**: 
+ - **defaultColor**: Default color (when no selection is active) of the drawn lines. It only has effect when "color" is not defined.
+ - **selectedColor**: Color of selected lines. It only has effect when "color" is not defined.
+ - **noSelectedColor**: Color of unselected lines. It only has effect when "color" is not defined.
+ - **colorScale**: The color scale to be used to display the different groups defined by the "color" attribute. Typically a [categorical scale of D3](https://observablehq.com/@d3/color-schemes)
+ - **brushesColorScale**: The color scale to be used to display the brushes typically a [categorical scale of D3](https://observablehq.com/@d3/color-schemes)
+ - **selectedColorTransform**: Function to be applied to the color of the selected group. It only has effect when "color" is defined.
+### size Configuration
+ - **width**: Set the desired width of the overview Widget
+ - **height**: Set the desired height of the overview Widget
+ - **detailsContainerHeight**: Set the desired height of the details container Widget
+ - **detailsWidth**: Set the desired width of the individual details visualization
+ - **detailsHeight**: Set the desired height of the individual details visualization
+ - **margin**: Set the desired margin for overview Widget, d3 common format ( ```{ left: 50, top: 30, bottom: 50, right: 20 }```)
+ - **detailsMargin**:  Margin options for details view, d3 common format, leave null for using the overview margin
+### CallBacks
+ - **updateCallback**: (data) => doSomethingWithData
+ - **statusCallback**: (status) => doSomethingWithStatus
+### Rendering
+ - **brushShadow**: Determines how the shadow will be applied to the TimeBoxes belonging to the active TimeGroup.
+ - **showGroupMedian**: If active show a line with the median of the enabled groups.
+ - **hasDetails**: Determines whether detail data will be displayed or not. Disabling it saves preprocessing time if detail data is not to be displayed.
+ - **doubleYlegend**: Allows the y-axis legend to be displayed on both sides of the chart.
+ - **showGrid**: If active, a reference grid is displayed.
+ - **brushGroupSize**: Controls the size of the colored rectangles used to select the different brushGroups.
+### Performance
+ - **maxDetailsRecords**: How many results to show in the detail view
+ - **maxTimelines**: Set to a value to limit the number of distinct timelines to show
+ - **xPartitions**: Partitions performed on the X-axis for the collision acceleration algorithm.
+ - **yPartitions**: Partitions performed on the Y-axis for the collision acceleration algorithm.
+### Options
+ - **medianNumBins**: Number of bins used to compute the group median.
+ - **medianLineDash**: Selected group median line dash pattern canvas style
+ - **medianLineAlpha**: Selected group median line opacity
+ - **medianLineWidth**: Selected group median line width
+ - **medianFn**: Function to use when showing the median
+ - **medianMinRecordsPerBin**: Min number of records each bin must have to be considered
+ - **autoUpdate**: Allows to decide whether changes in brushes are processed while moving, or only at the end of the movement.
+ - **_this**: pass the object this in order to be able to maintain the state in case of changes in the input
+ - **fixAxis**: When active, the axes will not change when modifying the data.
 
 ## License
 
