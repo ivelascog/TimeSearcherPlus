@@ -6,6 +6,7 @@ function BrushContextMenu({ target, callback }) {
   const containsE = htl.html`<input type="radio" name="mode" id="__ts_c_contains" value="contains">`;
   const andE = htl.html`<input type="radio" name="aggregation" id="__ts_c_and" value="and">`;
   const orE = htl.html`<input type="radio" name="aggregation" id="__ts_c_or" value="or">`;
+  const closeBtn = htl.html`<button style="position: absolute; right: 0; top: 0; padding: 0; margin: 0; border: none; background: none; cursor: pointer; font-size: 0.8rem; color: #444; line-height: 1; padding: 2px 2px;">&times;</button>`;
 
   intersectE.onchange = onChange;
   containsE.onchange = onChange;
@@ -15,17 +16,17 @@ function BrushContextMenu({ target, callback }) {
   let _brush;
 
   let contextMenu = htl.html`<div class="__ts_contextMenu" style="display: none; z-index: 2; position: absolute" >
-      
+        ${closeBtn}
       
         <div class="__ts_option_label"><strong>Mode</strong></div>
         <div class="__ts_option_values">
           <div>
             ${intersectE}
-            <label for="__ts_c_intersect">Intersect</label>
+            <label for="__ts_c_intersect" title="Search for timelines that touch any part of the timebox">Intersect</label>
           </div>
           <div>
             ${containsE}
-            <label for="__ts_c_contains">Contains</label>
+            <label for="__ts_c_contains" title="Search for timelines that are fully contained in the timebox">Contains</label>
           </div>
         </div>
       
@@ -48,7 +49,7 @@ function BrushContextMenu({ target, callback }) {
       <style> 
         .__ts_contextMenu { 
             border-radius: 3px;
-            padding: 4px;
+            padding: 4px 14px 4px 4px;
             position: absolute; 
             width: max-content;
             background: #f6f6f6;
@@ -74,7 +75,20 @@ function BrushContextMenu({ target, callback }) {
 
   target.appendChild(contextMenu);
 
-  contextMenu.onmouseleave = () => contextMenu.__hide();
+  // To keep track of the hiding timeout
+  let toHide = null;
+  // If the mouse leaves the context menu, hide it after 1s
+  contextMenu.onmouseleave = () =>
+    (toHide = setTimeout(() => {
+      contextMenu.__hide();
+      toHide = null;
+    }, 1000));
+  // But if the mouse re-enters the context menu, cancel the hiding
+  contextMenu.onmouseenter = () => {
+    toHide && clearTimeout(toHide);
+    toHide = null;
+  };
+  closeBtn.onclick = () => contextMenu.__hide();
 
   function onChange() {
     let brushMode = intersectE.checked
