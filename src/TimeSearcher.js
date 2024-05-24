@@ -10,72 +10,82 @@ import brushInteraction from "./BrushInteraction";
 function TimeSearcher(
   data,
   {
+    /** Elements **/ 
     target = document.createElement("div"), // pass a html element where you want to render
     detailsElement, // pass a html element where you want to render the details
     coordinatesElement = document.createElement("div"), // pass a html element where you want to render the brush coordinates Input.
     groupsElement, // pass a html element where you want to have the brushes controls.
     showBrushesControls = true, // If false you can still use brushesControlsElement to show the control on a different element on your app
+    showBrushTooltip = true, // Allows to display a tooltip on the brushes containing its coordinates.
+    /** Data **/
     x = (d) => d.x, // Attribute to show in the X axis (Note that it also supports functions)
     y = (d) => d.y, // Attribute to show in the Y axis (Note that it also supports functions)
     id = (d) => d.id, // Attribute to group the input data (Note that it also supports functions)
     color = null, //Specifies the attribute to be used to discriminate the groups (Note that it also supports functions).
-    groupAttr = null, // DEPRECATED use color instead: Specifies the attribute to be used to discriminate the groups (Note that it also supports functions).
     referenceCurves = null, // Specifies a Json object with the information of the reference lines.
-    width = 1200, // Set the desired width of the overview Widget
-    detailsWidth = 400, // Set the desired width of the details Widget
-    height = 600, // Set the desired height of the overview Widget
-    detailsHeight = 300, // Set the desired height of the overview Widget
-    detailsContainerHeight = 400,
-    detailsMargin = null, // Margin options for details view, d3 common format, leave null for using the overview margin
-    updateCallback = () => {}, // (data) => doSomethingWithData
-    statusCallback = () => {}, // (status) => doSomethingWithStatus
     fmtX = d3.format(".1f"), // Function, how to format x points in the tooltip
     fmtY = d3.format(".1f"), // Function, how to format x points in the tooltip
+    stepX = { days: 10 }, // Defines the step used, both in the spinboxes and with the arrows on the X axis.
+    stepY = 1, // // Defines the step used, both in the spinboxes and with the arrows on the Y axis.
+    yScale = d3.scaleLinear(),
     yLabel = "",
     xLabel = "",
     filters = [], // Array of filters to use, format [[x1, y1], [x2, y2], ...]
+    /** Color Configuration **/
+    defaultAlpha = 0.7, // Default transparency (when no selection is active) of drawn lines
+    selectedAlpha = 1.0, // Transparency of selected lines
+    noSelectedAlpha = 0.1, // Transparency of unselected lines
+    alphaScale = d3.scalePow().exponent(0.25).range([1, 1]), // A scale to adjust the alpha by the number of rendering elements
+    backgroundColor = "#ffffff",
+    defaultColor = "#aaa", // Default color (when no selection is active) of the drawn lines. It only has effect when "color" is not defined.
+    selectedColor = "#aaa", // Color of selected lines. It only has effect when "color" is not defined.
+    noSelectedColor = "#dce0e5", // Color of unselected lines. It only has effect when "color" is not defined.
+    colorScale = d3.scaleOrdinal(d3.schemeAccent), // The color scale to be used to display the different groups defined by the "color" attribute.
+    brushesColorScale = color
+      ? d3.scaleOrdinal(d3.schemeGreys[3].reverse())
+      : d3.scaleOrdinal(d3.schemeTableau10), // The color scale to be used to display the brushes
+    selectedColorTransform = (color, groupId) =>
+      d3.color(color).darker(groupId), // Function to be applied to the color of the selected group. It only has effect when "color" is defined.
+    /** Size Configuration **/
+    width = 1200, // Set the desired width of the overview Widget
+    detailsWidth = 400, // Set the desired width of the details Widget
+    height = 600, // Set the desired height of the overview Widget
+    detailsHeight = 300, // Set the desired height of the details Widget
+    detailsContainerHeight = 400, // Set the desired height of the details Widget
+    margin = { left: 50, top: 30, bottom: 50, right: 20 },
+    detailsMargin = null, // Margin options for details view, d3 common format, leave null for using the overview margin
+    /** CallBacks **/
+    updateCallback = () => {}, // (data) => doSomethingWithData
+    statusCallback = () => {}, // (status) => doSomethingWithStatus
+    /** Rendering **/
     brushShadow = "drop-shadow( 2px 2px 2px rgba(0, 0, 0, .7))",
+    showGroupMedian = true, // If active show a line with the median of the enabled groups.
+    hasDetails = false, // Determines whether detail data will be displayed or not. Disabling it saves preprocessing time if detail data is not to be displayed.
+    doubleYlegend = false, // Allows the y-axis legend to be displayed on both sides of the chart.
+    showGrid = false, // If active, a reference grid is displayed.
+    brushGroupSize = 15, //Controls the size of the colored rectangles used to select the different brushGroups.
+    /** Performance **/
     maxDetailsRecords = 10, // How many results to show in the detail view
     maxTimelines = null, // Set to a value to limit the number of distinct timelines to show
-    showGroupMedian = true, // If active show a line with the median of the enabled groups.
+    xPartitions = 10, // Partitions performed on the X-axis for the collision acceleration algorithm.
+    yPartitions = 10, // Partitions performed on the Y-axis for the collision acceleration algorithm.
+    /** Options **/
     medianNumBins = 10, // Number of bins used to compute the group median.
     medianLineDash = [7], // Selected group median line dash pattern canvas style
     medianLineAlpha = 1, // Selected group median line opacity
     medianLineWidth = 2, // Selected group median line width
     medianFn = d3.median, // Function to use when showing the median
     medianMinRecordsPerBin = 5, // Min number of records each bin must have to be considered
-    xPartitions = 10, // Partitions performed on the X-axis for the collision acceleration algorithm.
-    yPartitions = 10, // Partitions performed on the Y-axis for the collision acceleration algorithm.
-    defaultAlpha = 0.7, // Default transparency (when no selection is active) of drawn lines
-    selectedAlpha = 1.0, // Transparency of selected lines
-    noSelectedAlpha = 0.1, // Transparency of unselected lines
-    highlightAlpha = 1, // Transparency oh the highlighted lines (lines selected in other TS)
-    alphaScale = d3.scalePow().exponent(0.25).range([1, 1]), // A scale to adjust the alpha by the number of rendering elements
-    backgroundColor = "#ffffff",
-    defaultColor = "#aaa", // Default color (when no selection is active) of the drawn lines. It only has effect when "groupAttr" is not defined.
-    selectedColor = "#aaa", // Color of selected lines. It only has effect when "groupAttr" is not defined.
-    noSelectedColor = "#dce0e5", // Color of unselected lines. It only has effect when "groupAttr" is not defined.
-    hasDetails = false, // Determines whether detail data will be displayed or not. Disabling it saves preprocessing time if detail data is not to be displayed.
-    margin = { left: 50, top: 30, bottom: 50, right: 20 },
-    colorScale = d3.scaleOrdinal(d3.schemeAccent), // The color scale to be used to display the different groups defined by the "groupAttr" attribute.
-    brushesColorScale = color
-      ? d3.scaleOrdinal(d3.schemeGreys[3].reverse())
-      : d3.scaleOrdinal(d3.schemeTableau10), // The color scale to be used to display the brushes
-    selectedColorTransform = (color, groupId) =>
-      d3.color(color).darker(groupId), // Function to be applied to the color of the selected group. It only has effect when "groupAttr" is defined.
-    doubleYlegend = false, // Allows the y-axis legend to be displayed on both sides of the chart.
-    showGrid = false, // If active, a reference grid is displayed.
-    showBrushTooltip = true, // Allows to display a tooltip on the brushes containing its coordinates.
     autoUpdate = true, // Allows to decide whether changes in brushes are processed while moving, or only at the end of the movement.
-    brushGroupSize = 15, //Controls the size of the colored rectangles used to select the different brushGroups.
-    stepX = { days: 10 }, // Defines the step used, both in the spinboxes and with the arrows on the X axis.
-    stepY = 1, // // Defines the step used, both in the spinboxes and with the arrows on the Y axis.
-    yScale = d3.scaleLinear(),
+    _this, // pass the object this in order to be able to maintain the state in case of changes in the input
+    fixAxis, // When active, the axes will not change when modifying the data.
+    /** Legacy or to be deleted **/
+    groupAttr = null, // DEPRECATED use color instead: Specifies the attribute to be used to discriminate the groups (Note that it also supports functions).
     overviewWidth, // Legacy, to be deleted
     overviewHeight, // Legacy, to be deleted
-    _this, // pass the object this in order to be able to maintain the state in case of changes in the input
     tsParent, // Set other TimeSearcher parent to connect them.
-    fixAxis, // When active, the axes will not change when modifying the data.
+      highlightAlpha = 1, // Transparency oh the highlighted lines (lines selected in other TS)
+
   } = {}
 ) {
   width = overviewWidth || width;
