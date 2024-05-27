@@ -10,7 +10,7 @@ import brushInteraction from "./BrushInteraction";
 function TimeSearcher(
   data,
   {
-    /** Elements **/ 
+    /** Elements **/
     target = document.createElement("div"), // pass a html element where you want to render
     detailsElement, // pass a html element where you want to render the details
     coordinatesElement = document.createElement("div"), // pass a html element where you want to render the brush coordinates Input.
@@ -182,8 +182,6 @@ function TimeSearcher(
     let _color = color;
     color = (d) => d[_color];
   }
-
-  const formatTime = d3.timeFormat("%Y-%m-%d");
 
   divOverview = d3
     .select(target)
@@ -518,6 +516,13 @@ function TimeSearcher(
         .scaleTime()
         .domain(domainX)
         .range([0, width - ts.margin.right - ts.margin.left]);
+
+      if (!fmtX) { // It is a function of type d3.timeFormat. I don't like the way to check that it is a function of that type, but I don't know a better one.
+        fmtX = d3.timeFormat("%Y-%m-%d");
+      } else if (fmtX.name === "M") {
+        console.log("👁️t has been detected that the parameter fmtX formats numerical data, while the data selected for " +
+          "the X-axis is a date. The function d3.timeFormat(\"%Y-%m-%d\") will be used as fmtX; ");
+      }
     } else {
       // We if x is something else overviewX won't be assigned
       // if (xDataType === "number") {
@@ -527,6 +532,10 @@ function TimeSearcher(
         .domain(domainX)
         .range([0, width - ts.margin.right - ts.margin.left])
         .nice();
+
+      if (!fmtX) {
+        fmtX = d3.format(".1f");
+      }
     }
 
     let domainY = fixAxis && _this ? _this.extent.y : d3.extent(fData, y); // Keep same axes as in the first rendering
@@ -754,8 +763,8 @@ function TimeSearcher(
       x,
       y,
       brushShadow,
-      fmtX,
       fmtY,
+      fmtX: fmtX,
       scaleX: overviewX,
       scaleY: overviewY,
       updateTime: 150,
@@ -790,8 +799,8 @@ function TimeSearcher(
       if (brushSpinBoxes) {
         let [[sx0, sy0], [sx1, sy1]] = brushSpinBoxes;
 
-        sx0.node().value = hasScaleTime ? formatTime(x0) : fmtX(x0);
-        sx1.node().value = hasScaleTime ? formatTime(x1) : fmtX(x1);
+        sx0.node().value = fmtX(x0);
+        sx1.node().value = fmtX(x1);
         sy0.node().value = fmtY(y1).replace("\u2212", "-"); // Change D3 minus sign to parseable minus
         sy1.node().value = fmtY(y0).replace("\u2212", "-");
       } else {
@@ -826,8 +835,8 @@ function TimeSearcher(
     let x0 = divInputX
       .append("input")
       .attr("type", hasScaleTime ? "Date" : "number")
-      .attr("min", hasScaleTime ? formatTime(domainX[0]) : domainX[0])
-      .attr("max", hasScaleTime ? formatTime(domainX[1]) : domainX[1])
+      .attr("min", hasScaleTime ? fmtX(domainX[0]) : domainX[0])
+      .attr("max", hasScaleTime ? fmtX(domainX[1]) : domainX[1])
       .attr("step", ts.stepX)
       .attr("width", "50%")
       // .style("background-color", ts.backgroundColor)
@@ -836,8 +845,8 @@ function TimeSearcher(
     let x1 = divInputX
       .append("input")
       .attr("type", hasScaleTime ? "Date" : "number")
-      .attr("min", hasScaleTime ? formatTime(domainX[0]) : domainX[0])
-      .attr("max", hasScaleTime ? formatTime(domainX[1]) : domainX[1])
+      .attr("min", hasScaleTime ? fmtX(domainX[0]) : domainX[0])
+      .attr("max", hasScaleTime ? fmtX(domainX[1]) : domainX[1])
       .attr("width", "50%")
       .attr("step", ts.stepX)
       // .style("background-color", ts.backgroundColor)
@@ -980,11 +989,11 @@ function TimeSearcher(
         if (sourceEvent.target === sx0.node()) {
           x1 = add(x0, ts.stepX);
           x1 = Math.min(x1, domainX[1]);
-          sx1.node().value = formatTime(x1);
+          sx1.node().value = fmtX(x1);
         } else {
           x0 = sub(x1, ts.stepX);
           x0 = Math.max(x0, domainX[0]);
-          sx0.node().value = formatTime(x0);
+          sx0.node().value = fmtX(x0);
         }
       }
     } else {
@@ -1663,6 +1672,7 @@ function TimeSearcher(
     /*log(
       `Processing data: grouping done ${groupedData.length} timelines out of ${data.length} records`
     );*/
+
 
     // Limit the number of timelines
     if (maxTimelines) groupedData = groupedData.slice(0, maxTimelines);
