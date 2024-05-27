@@ -535,6 +535,20 @@ function brushInteraction({
     }
   }
 
+  function selectBrushGroup(id) {
+    if (brushGroupSelected === id) return;
+
+    let oldBrushGroupSelected = brushesGroup.get(brushGroupSelected);
+    oldBrushGroupSelected.isActive = false;
+    deselectAllBrushes();
+
+    brushesGroup.get();
+    brushGroupSelected = id;
+    brushesGroup.get(id).isActive = true;
+    brushesGroup.get(id).isEnable = true;
+    drawBrushes();
+  }
+
   function computeColor(groupId) {
     // Not do if(tsLevel) because if(0) is false.
     if (tsLevel !== undefined) return ts.brushesColorScale[groupId](tsLevel);
@@ -641,11 +655,11 @@ function brushInteraction({
 
     brushesGroup.set(newId, brushGroup);
     dataSelected.set(newId, []);
-    me.selectBrushGroup(newId);
+    selectBrushGroup(newId);
 
+    selectionCallback(dataSelected, dataNotSelected, brushSize !== 0);
     updateStatus();
     updateGroups();
-    selectionCallback(dataSelected, dataNotSelected, brushSize !== 0);
   };
 
   me.changeBrushGroupState = function (id, newState) {
@@ -666,19 +680,13 @@ function brushInteraction({
   };
 
   me.selectBrushGroup = function (id) {
-    if (brushGroupSelected === id) return;
-
-    let oldBrushGroupSelected = brushesGroup.get(brushGroupSelected);
-    oldBrushGroupSelected.isActive = false;
-    deselectAllBrushes();
-
-    brushesGroup.get();
-    brushGroupSelected = id;
-    brushesGroup.get(id).isActive = true;
-    brushesGroup.get(id).isEnable = true;
-    drawBrushes();
+    selectedBrush(id);
     updateStatus();
     updateGroups();
+  };
+  
+  me.getBrushesGroupSize = function () {
+    return brushesGroup.length;
   };
 
   me.removeBrushGroup = function (id) {
@@ -693,12 +701,12 @@ function brushInteraction({
     for (let [id, brush] of brushGroupToDelete.brushes.entries()) {
       // delete all brushes of the group to be deleted, except the brush prepared to create a new timeBox
       if (brush.selection !== null) {
-        removeBrush(brush);
+        removeBrush([id,brush]);
       } else {
         // Change the brush prepared to create a new timeBox to another group
         brush.group = newId;
         brushesGroup.get(newId).brushes.set(id, brush);
-        brushGroupToDelete.delete(id);
+        brushGroupToDelete.brushes.delete(id);
       }
     }
 

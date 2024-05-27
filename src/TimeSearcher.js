@@ -356,7 +356,9 @@ function TimeSearcher(
       .data(brushes.getBrushesGroup(), (d) => d[0])
       .join("li")
       .attr("class", "brushControl")
-      .each(function (d) {
+      .each(function (d, i , n) {
+        let groupsSize = n.length;
+
         const li = d3.select(this);
         let groupName = d[1].name;
         let groupCount = renderSelected.has(d[0])
@@ -367,14 +369,6 @@ function TimeSearcher(
             flex-wrap: nowrap;        
             align-items: center;
           ">
-            <style>
-              li #btnRemoveBrushGroup {
-                display: none;
-              }
-              li:hover #btnRemoveBrushGroup {
-                display: block;
-              }
-            </style>
             <input type="checkbox" id="checkBoxShowBrushGroup" ${
   d[1].isEnable ? "checked" : ""
 } ></input>                        
@@ -401,7 +395,8 @@ function TimeSearcher(
               contenteditable="true" 
               value="${groupName}"></input>
             <span id="groupSize" style="margin-right: 5px;">(${groupCount})</span>
-            <button style="display" id="btnRemoveBrushGroup">-</button>
+           <button style="color: red;font-weight: bold; border:none; background:none;
+            display:${groupsSize > 1 ? "block" : "none"}" id="btnRemoveBrushGroup">&cross;</button>
           </div>
         `;
 
@@ -605,6 +600,7 @@ function TimeSearcher(
         switch (e.key) {
           case "r":
           case "Backspace":
+          case "Delete":
             brushes.removeSelectedBrush();
             break;
           case "+":
