@@ -48,6 +48,8 @@ function brushInteraction({
     brushTooltip,
     brushContextMenu;
 
+  if (!data) return;
+
   gBrushes = d3.select(element);
   gBrushes.node().innerHTML = "";
 

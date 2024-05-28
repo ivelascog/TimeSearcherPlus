@@ -18,16 +18,17 @@ function TimeSearcher(
     showBrushesControls = true, // If false you can still use brushesControlsElement to show the control on a different element on your app
     showBrushTooltip = true, // Allows to display a tooltip on the brushes containing its coordinates.
     /** Data **/
-    x = (d) => d.x, // Attribute to show in the X axis (Note that it also supports functions)
-    y = (d) => d.y, // Attribute to show in the Y axis (Note that it also supports functions)
-    id = (d) => d.id, // Attribute to group the input data (Note that it also supports functions)
+    x, // Attribute to show in the X axis (Note that it also supports functions)
+    y, // Attribute to show in the Y axis (Note that it also supports functions)
+    id,// Attribute to group the input data (Note that it also supports functions)
     color = null, //Specifies the attribute to be used to discriminate the groups (Note that it also supports functions).
     referenceCurves = null, // Specifies a Json object with the information of the reference lines.
     fmtX = d3.format(".1f"), // Function, how to format x points in the tooltip
     fmtY = d3.format(".1f"), // Function, how to format x points in the tooltip
     stepX = { days: 10 }, // Defines the step used, both in the spinboxes and with the arrows on the X axis.
     stepY = 1, // // Defines the step used, both in the spinboxes and with the arrows on the Y axis.
-    yScale = d3.scaleLinear(),
+    yScale = d3.scaleLinear(), 
+    xScale,
     yLabel = "",
     xLabel = "",
     filters = [], // Array of filters to use, format [[x1, y1], [x2, y2], ...]
@@ -84,7 +85,7 @@ function TimeSearcher(
     overviewWidth, // Legacy, to be deleted
     overviewHeight, // Legacy, to be deleted
     tsParent, // Set other TimeSearcher parent to connect them.
-      highlightAlpha = 1, // Transparency oh the highlighted lines (lines selected in other TS)
+    highlightAlpha = 1, // Transparency oh the highlighted lines (lines selected in other TS)
 
   } = {}
 ) {
@@ -156,6 +157,7 @@ function TimeSearcher(
   ts.alphaScale = alphaScale;
   ts.medianMinRecordsPerBin = medianMinRecordsPerBin;
   ts.yScale = yScale;
+  ts.xScale = xScale;
   ts.highlightAlpha = highlightAlpha;
   ts.selectedColorTransform = selectedColorTransform;
 
@@ -508,15 +510,10 @@ function TimeSearcher(
 
     ts.alphaScale.domain([0, groupedData.length]);
 
-    let domainX = fixAxis && _this ? _this.extent.x : d3.extent(fData, x); // Keep same axes as in the first rendering
     if (xDataType === "object" && x(fData[0]) instanceof Date) {
       // X is Date
       hasScaleTime = true;
-      overviewX = d3
-        .scaleTime()
-        .domain(domainX)
-        .range([0, width - ts.margin.right - ts.margin.left]);
-
+      if (!xScale) xScale = d3.scaleTime();
       if (!fmtX) { // It is a function of type d3.timeFormat. I don't like the way to check that it is a function of that type, but I don't know a better one.
         fmtX = d3.timeFormat("%Y-%m-%d");
       } else if (fmtX.name === "M") {
@@ -527,16 +524,22 @@ function TimeSearcher(
       // We if x is something else overviewX won't be assigned
       // if (xDataType === "number") {
       // X is number
-      overviewX = d3
-        .scaleLinear()
-        .domain(domainX)
-        .range([0, width - ts.margin.right - ts.margin.left])
-        .nice();
-
+      if (!xScale) xScale = d3.scaleLinear();
       if (!fmtX) {
         fmtX = d3.format(".1f");
       }
     }
+
+    let domainX = fixAxis && _this ? _this.extent.x : d3.extent(fData, x); // Keep same axes as in the first rendering
+    overviewX = xScale;
+    if (xScale.domain()[0] === 0 && xScale.domain()[1] === 1) { //Default Domain
+      overviewX.domain(domainX);
+
+    }
+
+    overviewX 
+      .range([0, width - ts.margin.right - ts.margin.left])
+      .nice();
 
     let domainY = fixAxis && _this ? _this.extent.y : d3.extent(fData, y); // Keep same axes as in the first rendering
 
@@ -671,7 +674,7 @@ function TimeSearcher(
       .data([1])
       .join("g")
       .attr("class", "mainXAxis")
-      .call(d3.axisBottom(overviewX))
+      .call(d3.axisBottom(overviewX ? overviewX : g))
       .attr(
         "transform",
         `translate(0, ${height - ts.margin.top - ts.margin.bottom})`
@@ -1596,6 +1599,7 @@ function TimeSearcher(
   } */
 
   ts.addReferenceCurves = function (curves) {
+    if (!overviewX) return;
     if (!Array.isArray(curves)) {
       throw new Error("The reference curves must be an array of Objects");
     }
@@ -1611,6 +1615,7 @@ function TimeSearcher(
           point[1] >= ymin
         );
       });
+      c.data.sort((a, b) => d3.ascending(x(a), x(b)));
     });
 
     let line2 = d3
@@ -1726,8 +1731,18 @@ function TimeSearcher(
   }
 
   // If we receive the data on initialization call ts.Data
-  if (data) {
+  if (data && x && y && id) {
     ts.data(data);
+  } else {
+    overviewX = d3
+      .scaleLinear()
+      .range([0, width - ts.margin.right - ts.margin.left]);
+
+    overviewY = d3.scaleLinear()
+      .range([height - ts.margin.top - ts.margin.bottom, 0])
+      .nice()
+      .clamp(true);
+    init();
   }
 
   if (referenceCurves) {
