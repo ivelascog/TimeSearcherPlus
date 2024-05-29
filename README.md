@@ -266,8 +266,7 @@ This section will show all possible options grouped by categories.
  - **fixAxis**: When active, the axes will not change when modifying the data.
 
 ## Custom Formats
-This section details the different formats used by the application for some parameters. Note that the fields marked with
-"/**/" are optional and if missing, a default value will be used.### Reference Lines
+This section details the different formats used by the application for some parameters. Note that the fields marked as optional are not mandatory and if not provided a default value will be used.
 
 ### Reference lines
 
@@ -281,7 +280,7 @@ filters: [
         brushes: [
             {
                 selectionDomain: [
-                  [1.5,-7] /*[x0,y0]*/
+                  [1.5,-7], /*[x0,y0]*/
                   [2.5, -17] /*[x1,y1]*/  
                 ],
                 mode: "intersect", /* or "contains". Optional*/
