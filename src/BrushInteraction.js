@@ -788,29 +788,6 @@ function brushInteraction({
     brushFilter();
   };
 
-  me.recreate = function (brushesGroups_) {
-    let groups = {};
-
-    for (let [, brushGroup] of brushesGroups_) {
-      let brushGroupName = brushGroup.name;
-
-      let filters = [];
-      for (let [, brush] of brushGroup.brushes) {
-        let filter = generateFilter({
-          mode: brush.mode,
-          aggregation: brush.aggregation,
-          groupId: brush.groupId,
-          selectionDomain: brush.selectionDomain,
-        });
-        filters.push(filter);
-      }
-      groups[brushGroupName] = filters;
-    }
-
-    me.addFilters(groups, true);
-    drawBrushes();
-  };
-
   me.moveBrush = function (
     [brushID, brushValue],
     selection,
@@ -918,21 +895,6 @@ function brushInteraction({
     return processedFilters;
   }
 
-  function generateFiltersArray(filters) {
-    let groupId = getUnusedIdBrushGroup();
-    let processedBrushGroup = new Map();
-    processedBrushGroup.set("Group " + groupId, procesFilters(filters));
-    return processedBrushGroup;
-  }
-
-  function generateFiltersObject(filters) {
-    let processedBrushGroups = new Map();
-    for (const [groupName, groupData] of Object.entries(filters)) {
-      processedBrushGroups.set(groupName, procesFilters(groupData));
-    }
-    return processedBrushGroups;
-  }
-
   function generateFilter({
     groupId,
     selectionDomain,
@@ -998,15 +960,6 @@ function brushInteraction({
   me.addFilters = function (filters, wipeAll = false) {
     if (filters.length === 0) return;
 
-    let proccessedFilters;
-    if (Array.isArray(filters)) {
-      proccessedFilters = generateFiltersArray(filters);
-    } else if (filters.constructor === Object) {
-      proccessedFilters = generateFiltersObject(filters);
-    } else {
-      throw new Error("Filters parameter only accept an array or an object");
-    }
-
     if (wipeAll) {
       brushesGroup.clear();
     } else {
@@ -1018,18 +971,18 @@ function brushInteraction({
       });
     }
 
-    for (let [grouName, brushes] of proccessedFilters) {
+    for (let group of filters) {
       let groupId = getUnusedIdBrushGroup();
       let brushGroup = {
-        isEnable: true,
-        isActive: false,
-        name: grouName,
+        isEnable: group.isEnable ? group.isEnable : true,
+        isActive: group.isActive ? group.isActive : false,
+        name: group.name,
         brushes: new Map(),
       };
       brushesGroup.set(groupId, brushGroup);
       dataSelected.set(groupId, []);
 
-      for (const brush of brushes) {
+      for (const brush of group.brushes) {
         newBrush(brush.mode, brush.aggregation, groupId, brush.selectionDomain);
         brushSize++; // The brushSize will not be increased in onStartBrush
         // because the last brush added will be the one set for a new Brush.

@@ -265,6 +265,38 @@ This section will show all possible options grouped by categories.
  - **_this**: pass the object this in order to be able to maintain the state in case of changes in the input
  - **fixAxis**: When active, the axes will not change when modifying the data.
 
+## Custom Formats
+This section details the different formats used by the application for some parameters. Note that the fields marked with
+"/**/" are optional and if missing, a default value will be used.### Reference Lines
+
+### Reference lines
+
+### Filters
+```js
+filters: [
+    {
+        name: Group1,
+        IsEnable: true, /*Optional*/
+        isActive: false, /*Optional*/
+        brushes: [
+            {
+                selectionDomain: [
+                  [1.5,-7] /*[x0,y0]*/
+                  [2.5, -17] /*[x1,y1]*/  
+                ],
+                mode: "intersect", /* or "contains". Optional*/
+                aggregation: "and", /* or "or". Optional */
+            }
+        ]
+    },
+    {
+        Another BrushGroup
+    }
+]
+```
+
+
+
 ## License
 
 TimeSearcher+.js is licensed under the MIT license. (http://opensource.org/licenses/MIT)
