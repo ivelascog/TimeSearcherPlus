@@ -1312,11 +1312,6 @@ function TimeSearcher(
     sentSelection(renderSelected, update);
   }
 
-  // Function called to recreate the selection when dataInput change.
-  function recreateBrushes(_this) {
-    brushes.recreate(_this.brushGroups);
-    sentSelection(renderSelected, true);
-  }
 
   // Called every time the brushGroups changes
   function onBrushGroupsChange() {
@@ -1605,8 +1600,6 @@ function TimeSearcher(
     }
 
     curves.forEach((c) => {
-      let [xmin, xmax] = overviewX.domain();
-      let [ymin, ymax] = overviewY.domain();
       c.data.sort((a, b) => d3.ascending(x(a), x(b)));
     });
 
@@ -1702,18 +1695,10 @@ function TimeSearcher(
     dataNotSelected = groupedData;
     renderNotSelected = dataNotSelected;
 
-    if (_this) recreateBrushes(_this);
+    if (_this) brushes.addFilters(_this.value.status, true);
+    else if (filters) brushes.addFilters(filters, true);
 
     onSelectionChange();
-    //render(renderSelected, renderNotSelected, brushes.hasSelection());
-    //renderBrushesControls();
-    //triggerValueUpdate(new Map().set(0, groupedData));
-
-    // Create initial filters
-    if (filters) brushes.addFilters(filters, true);
-
-    // Change brushName if multiple TS TODO
-    // changeBrushNames();
   };
 
   if (tsParent) {

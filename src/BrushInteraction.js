@@ -958,6 +958,11 @@ function brushInteraction({
   };
 
   me.addFilters = function (filters, wipeAll = false) {
+    if (filters instanceof Map) {
+      filters = Array.from(filters.values());
+      filters.forEach(f => f.brushes = Array.from(f.brushes.values()));
+    }
+
     if (filters.length === 0) return;
 
     if (wipeAll) {

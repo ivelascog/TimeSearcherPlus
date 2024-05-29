@@ -253,7 +253,7 @@ This section details the different formats used by the application for some para
 ```js
 filters: [
     {
-        name: Group1,
+        name: "Group 1",
         IsEnable: true, /*Optional*/
         isActive: false, /*Optional*/
         brushes: [
