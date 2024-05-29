@@ -1607,14 +1607,6 @@ function TimeSearcher(
     curves.forEach((c) => {
       let [xmin, xmax] = overviewX.domain();
       let [ymin, ymax] = overviewY.domain();
-      c.data = c.data.filter((point) => {
-        return (
-          point[0] <= xmax &&
-          point[0] >= xmin &&
-          point[1] <= ymax &&
-          point[1] >= ymin
-        );
-      });
       c.data.sort((a, b) => d3.ascending(x(a), x(b)));
     });
 
