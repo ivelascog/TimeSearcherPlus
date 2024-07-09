@@ -15,9 +15,11 @@ works as a reactive widget that can be added to other applications, returning th
 ## Try it!
 
 You can test timeSearcher+ right now with your **own CSV data** (less than 200MB), using:
-| Obervable Notebook |
-| --- |
-|TODO GIF and noteBook |
+
+| Obervable Notebook                                                                                                                                                            |
+|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| <a href="https://observablehq.com/d/37b572175ef5af3a"><img src="https://raw.githubusercontent.com/ivelascog/TimeSearcherPlus/main/imgs/timeSearcher_dataObservable.gif"/></a> |
+
 
 ## Examples of functionalities.
 - [Basic Example](https://observablehq.com/d/ff2f8dc4992114e2?collection=@ivelascog/timesearcherplus)
@@ -28,6 +30,11 @@ You can test timeSearcher+ right now with your **own CSV data** (less than 200MB
 - [Aggregation and Selection modes](https://observablehq.com/d/e7e7b8a69f571200?collection=@ivelascog/timesearcherplus)
 
 ## Real World Examples. 
+ - [Tweets](https://observablehq.com/@john-guerra/timesearcher-tweets-example)
+ - [Global Temperatures by Country](https://observablehq.com/@john-guerra/global-temperatures-by-country)
+ - [Unemployement](https://observablehq.com/@john-guerra/timesearcher-example)
+ - [Rent prices in Spain](https://observablehq.com/d/12800330b7979627)
+ - [Pollution of Madrid](https://observablehq.com/d/f55385d1ad171003)
 
 ## Install
 
@@ -176,6 +183,10 @@ This section will show all possible options grouped by categories.
  - **y**:  Attribute to show in the Y axis (Note that it also supports functions)
  - **id**: Attribute to group the input data (Note that it also supports functions)
  - **color**: Specifies the attribute to be used to discriminate the groups (Note that it also supports functions).
+ - **xScale**: It allows to pass a scale of d3 with its parameters, except for the domain which is defined by the xDomain parameter.
+ - **yScale**: It allows to pass a scale of d3 with its parameters, except for the domain which is defined by the yDomain parameter.
+ - **xDomain**: Defines the domain to be used in the x scale.
+ - **yDomain**: Defines the domain to be used in the y scale.
  - **referenceCurves**:  Specifies a Json object with the information of the reference lines.
  - **fmtX**: Function, how to format x points in the tooltip. Note that it must conform to the data type provided in X.
  - **fmtY**: Function, how to format x points in the tooltip. Note that it must conform to the data type provided in Y.

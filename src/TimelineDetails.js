@@ -12,7 +12,7 @@ function TimelineDetails({
   detailsHeight,
   x,
   y,
-  margin = { left: 50, top: 10, bottom: 20, right: 0 },
+  margin = {left: 50, top: 10, bottom: 20, right: 0},
 } = {}) {
   const me = {};
   let prerenderDetails = new Map();
@@ -29,24 +29,11 @@ function TimelineDetails({
 
   let detailsX, detailsY;
 
-  me.setScales = function ({ fData, xDataType, yScale }) {
-    if (xDataType === "object" && x(fData[0]) instanceof Date) {
-      detailsX = d3
-        .scaleTime()
-        .domain(d3.extent(fData, x))
-        .range([0, detailsWidth - margin.right - margin.left]);
-    } else {
-      detailsX = d3
-        .scaleLinear()
-        .domain(d3.extent(fData, x))
-        .range([0, detailsWidth - margin.right - margin.left]);
-    }
+  me.setScales = function ({overviewX, overviewY}) {
+    detailsX = overviewX.copy();
+    detailsX.range([0, detailsWidth - margin.right - margin.left]);
 
-    detailsY = yScale;
-    if (yScale.domain()[0] === 0 && yScale.domain()[1] === 1) { //Default Domain
-      detailsY.domain(d3.extent(fData, y));
-    }
-    
+    detailsY = overviewY.copy();
     detailsY.range([detailsHeight - margin.top - margin.bottom, 0])
       .nice()
       .clamp(true);
@@ -105,7 +92,7 @@ function TimelineDetails({
   //   });
   // }
 
-  function renderDetailsCanvas({ data, brushGroupSelected }) {
+  function renderDetailsCanvas({data, brushGroupSelected}) {
     // let frag = document.createDocumentFragment();
 
     let slicedData = maxDetailsRecords
@@ -220,8 +207,8 @@ function TimelineDetails({
   //     .each(createDetailsChart);
   // };
 
-  me.render = ({ data, brushGroupSelected }) =>
-    renderDetailsCanvas({ data, brushGroupSelected });
+  me.render = ({data, brushGroupSelected}) =>
+    renderDetailsCanvas({data, brushGroupSelected});
 
   return me;
 }

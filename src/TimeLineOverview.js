@@ -22,12 +22,9 @@ function TimeLineOverview({
     .style("left", "0px")
     .style("background-color", ts.backgroundColor);
 
-  let line = d3
-    .line()
-    .defined((d) => y(d) !== undefined && y(d) !== null)
-    .x((d) => overviewX(x(d)))
-    .y((d) => overviewY(+y(d)));
-
+  let line = d3.line()
+    .defined((d) => y(d) !== undefined && y(d) !== null);
+  
   let linem = d3.line();
 
   const canvas = divOverview

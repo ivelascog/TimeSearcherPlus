@@ -1,7 +1,7 @@
 ﻿import * as d3 from "d3";
-import { add, intervalToDuration, sub } from "date-fns";
+import {add, intervalToDuration, sub} from "date-fns";
 
-import { eventType, log } from "./utils.js";
+import {eventType, log} from "./utils.js";
 
 import TimelineDetails from "./TimelineDetails.js";
 import TimeLineOverview from "./TimeLineOverview";
@@ -20,15 +20,17 @@ function TimeSearcher(
     /** Data **/
     x, // Attribute to show in the X axis (Note that it also supports functions)
     y, // Attribute to show in the Y axis (Note that it also supports functions)
-    id,// Attribute to group the input data (Note that it also supports functions)
+    id, // Attribute to group the input data (Note that it also supports functions)
     color = null, //Specifies the attribute to be used to discriminate the groups (Note that it also supports functions).
     referenceCurves = null, // Specifies a Json object with the information of the reference lines.
     fmtX = d3.format(".1f"), // Function, how to format x points in the tooltip
     fmtY = d3.format(".1f"), // Function, how to format x points in the tooltip
-    stepX = { days: 10 }, // Defines the step used, both in the spinboxes and with the arrows on the X axis.
+    stepX = {days: 10}, // Defines the step used, both in the spinboxes and with the arrows on the X axis.
     stepY = 1, // // Defines the step used, both in the spinboxes and with the arrows on the Y axis.
-    yScale = d3.scaleLinear(), 
-    xScale,
+    xScale, //It allows to pass a scale of d3 with its parameters, except for the domain which is defined by the xDomain parameter.
+    yScale = d3.scaleLinear(), //It allows to pass a scale of d3 with its parameters, except for the domain which is defined by the yDomain parameter.
+    xDomain, // Defines the domain to be used in the x scale.
+    yDomain, // Defines the domain to be used in the y scale.
     yLabel = "",
     xLabel = "",
     filters = [], // Array of filters to use, format [[x1, y1], [x2, y2], ...]
@@ -53,11 +55,13 @@ function TimeSearcher(
     height = 600, // Set the desired height of the overview Widget
     detailsHeight = 300, // Set the desired height of the details Widget
     detailsContainerHeight = 400, // Set the desired height of the details Widget
-    margin = { left: 50, top: 30, bottom: 50, right: 20 },
+    margin = {left: 50, top: 30, bottom: 50, right: 20},
     detailsMargin = null, // Margin options for details view, d3 common format, leave null for using the overview margin
     /** CallBacks **/
-    updateCallback = () => {}, // (data) => doSomethingWithData
-    statusCallback = () => {}, // (status) => doSomethingWithStatus
+    updateCallback = () => {
+    }, // (data) => doSomethingWithData
+    statusCallback = () => {
+    }, // (status) => doSomethingWithStatus
     /** Rendering **/
     brushShadow = "drop-shadow( 2px 2px 2px rgba(0, 0, 0, .7))",
     showGroupMedian = true, // If active show a line with the median of the enabled groups.
@@ -86,7 +90,6 @@ function TimeSearcher(
     overviewHeight, // Legacy, to be deleted
     tsParent, // Set other TimeSearcher parent to connect them.
     highlightAlpha = 1, // Transparency oh the highlighted lines (lines selected in other TS)
-
   } = {}
 ) {
   width = overviewWidth || width;
@@ -108,7 +111,6 @@ function TimeSearcher(
     gGroupBrushes,
     gBrushes,
     gReferences,
-    line2,
     brushSpinBoxes = null,
     medianBrushGroups,
     dataSelected,
@@ -197,6 +199,7 @@ function TimeSearcher(
 
   // Listen to customEvent to connect timeSearchers
   d3.select(target).on("timeSearcher", onTimeSearcherEvent);
+  d3.select(target).on("input", onInput);
 
   divBrushesCoordinates = d3.select(coordinatesElement);
   groupsElement =
@@ -285,6 +288,10 @@ function TimeSearcher(
     }
   }
 
+  function onInput() {
+    log("Oninput test");
+  }
+
   function onRemoveBrushGroup(id) {
     brushes.removeBrushGroup(id);
 
@@ -356,7 +363,7 @@ function TimeSearcher(
       .data(brushes.getBrushesGroup(), (d) => d[0])
       .join("li")
       .attr("class", "brushControl")
-      .each(function (d, i , n) {
+      .each(function (d, i, n) {
         let groupsSize = n.length;
 
         const li = d3.select(this);
@@ -396,7 +403,9 @@ function TimeSearcher(
               value="${groupName}"></input>
             <span id="groupSize" style="margin-right: 5px;">(${groupCount})</span>
            <button style="color: red;font-weight: bold; border:none; background:none;
-            display:${groupsSize > 1 ? "block" : "none"}" id="btnRemoveBrushGroup">&cross;</button>
+            display:${
+  groupsSize > 1 ? "block" : "none"
+}" id="btnRemoveBrushGroup">&cross;</button>
           </div>
         `;
 
@@ -497,7 +506,7 @@ function TimeSearcher(
       });
   }
 
-  function initDomains({ xDataType, groupedData, fData }) {
+  function initDomains({xDataType, groupedData, fData}) {
     // Adjust the alpha based on the number of lines
 
     log("Sorting data");
@@ -510,45 +519,50 @@ function TimeSearcher(
 
     ts.alphaScale.domain([0, groupedData.length]);
 
+    if (!xDomain) {
+      xDomain = fixAxis && _this ? _this.extent.x : d3.extent(fData, x); // Keep same axes as in the first rendering
+    }
+
+    overviewX = xScale ? xScale.copy() : undefined;
+
     if (xDataType === "object" && x(fData[0]) instanceof Date) {
       // X is Date
       hasScaleTime = true;
-      if (!xScale) xScale = d3.scaleTime();
-      if (!fmtX) { // It is a function of type d3.timeFormat. I don't like the way to check that it is a function of that type, but I don't know a better one.
+      if (!overviewX) overviewX = d3.scaleTime();
+      overviewX.domain(xDomain);
+      if (!fmtX) {
+        // It is a function of type d3.timeFormat. I don't like the way to check that it is a function of that type, but I don't know a better one.
         fmtX = d3.timeFormat("%Y-%m-%d");
       } else if (fmtX.name === "M") {
-        console.log("👁️t has been detected that the parameter fmtX formats numerical data, while the data selected for " +
-          "the X-axis is a date. The function d3.timeFormat(\"%Y-%m-%d\") will be used as fmtX; ");
+        console.log(
+          "👁️t has been detected that the parameter fmtX formats numerical data, while the data selected for " +
+          "the X-axis is a date. The function d3.timeFormat(\"%Y-%m-%d\") will be used as fmtX; "
+        );
+        fmtX = d3.timeFormat("%Y-%m-%d");
       }
     } else {
       // We if x is something else overviewX won't be assigned
       // if (xDataType === "number") {
       // X is number
-      if (!xScale) xScale = d3.scaleLinear();
+      if (!overviewX) overviewX = d3.scaleLinear();
+      overviewX.domain(xDomain);
       if (!fmtX) {
         fmtX = d3.format(".1f");
       }
     }
 
-    let domainX = fixAxis && _this ? _this.extent.x : d3.extent(fData, x); // Keep same axes as in the first rendering
-    overviewX = xScale;
-    if (xScale.domain()[0] === 0 && xScale.domain()[1] === 1) { //Default Domain
-      overviewX.domain(domainX);
+    overviewX.range([0, width - ts.margin.right - ts.margin.left]).nice();
 
+    if(!yDomain) {
+      yDomain = fixAxis && _this ? _this.extent.y : d3.extent(fData, y); // Keep same axes as in the first rendering
     }
 
-    overviewX 
-      .range([0, width - ts.margin.right - ts.margin.left])
-      .nice();
+    overviewY = yScale.copy();
 
-    let domainY = fixAxis && _this ? _this.extent.y : d3.extent(fData, y); // Keep same axes as in the first rendering
+    overviewY.domain(yDomain);
 
-    overviewY = yScale;
-    if (yScale.domain()[0] === 0 && yScale.domain()[1] === 1) { //Default Domain
-      overviewY.domain(domainY);
-    }
-
-    overviewY.range([height - ts.margin.top - ts.margin.bottom, 0])
+    overviewY
+      .range([height - ts.margin.top - ts.margin.bottom, 0])
       .nice()
       .clamp(true);
   }
@@ -774,7 +788,7 @@ function TimeSearcher(
       tsLevel: positionTs,
       selectionCallback: onSelectionChange,
       groupsCallback: onBrushGroupsChange,
-      changeSelectedCoordinatesCallback: updateBrushSpinBox,
+      changeSelectedCoordinatesCallback: onBrushCoordinatesChange,
       selectedBrushCallback: onChangeSelectedBrush,
     });
 
@@ -794,6 +808,12 @@ function TimeSearcher(
   }
 
   // Callback that is called every time the coordinates of the selected brush are modified.
+  function onBrushCoordinatesChange (selection) {
+    updateBrushSpinBox(selection);
+    updateStatus();
+  }
+
+
   function updateBrushSpinBox(selection) {
     if (selection) {
       let [[x0, y0], [x1, y1]] = selection;
@@ -945,7 +965,7 @@ function TimeSearcher(
     onSelectionChange();
   }
 
-  function initDetails({ xDataType, fData }) {
+  function initDetails({overviewX, overviewY}) {
     if (ts.hasDetails) {
       // see if already exists and element and reutilize it, if not create new div
       if (!detailsElement) {
@@ -953,6 +973,7 @@ function TimeSearcher(
           d3.select(target).select("#details").node() ||
           d3.create("div").attr("id", "#details").node();
       }
+
 
       // TimelineDetails object
       timelineDetails = TimelineDetails({
@@ -966,9 +987,9 @@ function TimeSearcher(
         y,
         margin: detailsMargin,
       });
-    }
 
-    ts.hasDetails && timelineDetails.setScales({ xDataType, fData, yScale });
+      timelineDetails.setScales({overviewX, overviewY});
+    }
   }
 
   // Callback that is called when the value of the spinboxes is modified.
@@ -1042,7 +1063,7 @@ function TimeSearcher(
       x1 = add(x1, ts.stepX);
       if (x1 > maxX) {
         x1 = sub(x1, ts.stepX);
-        let dist = intervalToDuration({ start: x1, end: maxX });
+        let dist = intervalToDuration({start: x1, end: maxX});
         x1 = maxX;
         x0 = add(x0, dist);
       } else {
@@ -1080,7 +1101,7 @@ function TimeSearcher(
       x0 = sub(x0, ts.stepX);
       if (x0 < minX) {
         x0 = add(x0, ts.stepX);
-        let dist = intervalToDuration({ start: minX, end: x0 });
+        let dist = intervalToDuration({start: minX, end: x0});
         x0 = minX;
         x1 = sub(x1, dist);
       } else {
@@ -1214,7 +1235,7 @@ function TimeSearcher(
     if (ts.hasDetails) {
       let brushGroupSelected = brushes.getBrushGroupSelected();
       window.requestAnimationFrame(() =>
-        timelineDetails.render({ data: dataSelected, brushGroupSelected })
+        timelineDetails.render({data: dataSelected, brushGroupSelected})
       );
       // window.requestAnimationFrame(() => renderDetailsCanvas(dataSelected));
     }
@@ -1294,7 +1315,7 @@ function TimeSearcher(
     }
 
     if (tsElements) {
-      ({ renderSelected, renderNotSelected } = filterByExternalSelected(
+      ({renderSelected, renderNotSelected} = filterByExternalSelected(
         renderSelected,
         renderNotSelected
       ));
@@ -1312,7 +1333,6 @@ function TimeSearcher(
     sentSelection(renderSelected, update);
   }
 
-
   // Called every time the brushGroups changes
   function onBrushGroupsChange() {
     render(renderSelected, renderNotSelected, brushes.hasSelection());
@@ -1321,35 +1341,8 @@ function TimeSearcher(
   }
 
   function updateStatus() {
-    // TODO
-    /* // exportColors
-    let colors = [];
-    for (let i of ts.colorScale.domain()) {
-      colors.push({ value: i, color: ts.colorScale(i) });
-    }
-    //Export brushes
-    let brushGroups = [];
-    brushesGroup.forEach((d, i) => {
-      let brushes = [];
-      d.forEach((d) => {
-        if (d.selection) brushes.push(d.selection);
-      });
-      brushGroups.push({ color: ts.brushesColorScale(i), brushes: brushes });
-    });
-
-    statusCallback({ colors: colors, brushGroups: brushGroups }); */
-  }
-
-  // Triggers the update of the selection calls callback and dispatches input event
-  function triggerValueUpdate(sel = renderSelected) {
-    let value = new Map();
     let status = new Map();
-
     for (let [id, brushGroup] of brushes.getBrushesGroup()) {
-      let groupMap = new Map();
-      sel.get(id).forEach((d) => groupMap.set(d[0], d[1]));
-      value.set(brushGroup.name, groupMap);
-
       let Gstatus = {
         id: id,
         name: brushGroup.name,
@@ -1359,20 +1352,34 @@ function TimeSearcher(
       };
       status.set(brushGroup.name, Gstatus);
     }
+    divOverview.value.status = status;
+    divOverview.dispatchEvent(new Event("input", {bubbles: true}));
+  }
 
-    statusCallback(value);
+  // Triggers the update of the selection calls callback and dispatches input event
+  function triggerValueUpdate(sel = renderSelected) {
+    let value = new Map();
+
+    for (let [id, brushGroup] of brushes.getBrushesGroup()) {
+      let groupMap = new Map();
+      sel.get(id).forEach((d) => groupMap.set(d[0], d[1]));
+      value.set(brushGroup.name, groupMap);
+    }
 
     divOverview.value = value;
     divOverview.value.nonSelectedIds = dataNotSelected.map((d) => d[0]);
-    divOverview.value.selectedIds = dataSelected.get(brushes.getBrushGroupSelected()).map(d => d[0]);
-    divOverview.value.selectedGroup = brushes.getBrushesGroup().get(brushes.getBrushGroupSelected()).name;
-    divOverview.value.status = status;
+    divOverview.value.selectedIds = dataSelected
+      .get(brushes.getBrushGroupSelected())
+      .map((d) => d[0]);
+    divOverview.value.selectedGroup = brushes
+      .getBrushesGroup()
+      .get(brushes.getBrushGroupSelected()).name;
     divOverview.extent = {
       x: overviewX.domain(),
       y: overviewY.domain(),
     };
     divOverview.brushGroups = brushes.getBrushesGroup();
-    divOverview.dispatchEvent(new Event("input", { bubbles: true }));
+    updateStatus();
   }
 
   function sentSelection(selection, update) {
@@ -1496,18 +1503,18 @@ function TimeSearcher(
     }
 
     /*
-    // compute a map that contains the data Ids selected in upper levels by brushGroups
-    let flatSelections = new Map();
-    tsElementsSelection.forEach((tsSelection, ix) => {
-      if (positionTs > ix) {
-        tsSelection.forEach((g, gId) => {
-          if (!flatSelections.has(gId)) {
-            flatSelections.set(gId, new Set());
+        // compute a map that contains the data Ids selected in upper levels by brushGroups
+        let flatSelections = new Map();
+        tsElementsSelection.forEach((tsSelection, ix) => {
+          if (positionTs > ix) {
+            tsSelection.forEach((g, gId) => {
+              if (!flatSelections.has(gId)) {
+                flatSelections.set(gId, new Set());
+              }
+              g.forEach((d) => flatSelections.get(gId).add(d[0]));
+            });
           }
-          g.forEach((d) => flatSelections.get(gId).add(d[0]));
-        });
-      }
-    }); */
+        }); */
 
     let allSelected = new Set();
     let previousSelected = new Map();
@@ -1558,40 +1565,40 @@ function TimeSearcher(
   }
 
   /*function brushesToDomain(brushesGroup) {
-    let selectedBrush = brushes.getSelectedBrush();
-    let outMap = new Map();
-    for (let brushGroup of brushesGroup.entries()) {
-      let innerMap = new Map();
-      for (let brush of brushGroup[1].entries()) {
-        if (brush[1].selection !== null) {
-          let nBrush = Object.assign({}, brush[1]);
-
-          // pixels
-          let [[x0, y0], [x1, y1]] = brush[1].selection;
-          nBrush.selectionPixels = [
-            [x0, y0],
-            [x1, y1],
-          ];
-
-          // data domain
-          let [[xi0, yi0], [xi1, yi1]] = brush[1].selection.map(([x, y]) => [
-            overviewX.invert(x),
-            overviewY.invert(y),
-          ]);
-          nBrush.selection = [
-            [xi0, yi0],
-            [xi1, yi1],
-          ];
-
-          nBrush.isActive = !!selectedBrush && selectedBrush[0] === brush[0];
-
-          innerMap.set(brush[0], nBrush);
+      let selectedBrush = brushes.getSelectedBrush();
+      let outMap = new Map();
+      for (let brushGroup of brushesGroup.entries()) {
+        let innerMap = new Map();
+        for (let brush of brushGroup[1].entries()) {
+          if (brush[1].selection !== null) {
+            let nBrush = Object.assign({}, brush[1]);
+  
+            // pixels
+            let [[x0, y0], [x1, y1]] = brush[1].selection;
+            nBrush.selectionPixels = [
+              [x0, y0],
+              [x1, y1],
+            ];
+  
+            // data domain
+            let [[xi0, yi0], [xi1, yi1]] = brush[1].selection.map(([x, y]) => [
+              overviewX.invert(x),
+              overviewY.invert(y),
+            ]);
+            nBrush.selection = [
+              [xi0, yi0],
+              [xi1, yi1],
+            ];
+  
+            nBrush.isActive = !!selectedBrush && selectedBrush[0] === brush[0];
+  
+            innerMap.set(brush[0], nBrush);
+          }
         }
+        outMap.set(brushGroup[0], innerMap);
       }
-      outMap.set(brushGroup[0], innerMap);
-    }
-    return outMap;
-  } */
+      return outMap;
+    } */
 
   ts.addReferenceCurves = function (curves) {
     if (!overviewX) return;
@@ -1656,39 +1663,32 @@ function TimeSearcher(
         x(d) !== null
     );
     /* log(
-      `Processing data: done filtering ${fData.length} left out of ${data.length}`
-    );*/
+          `Processing data: done filtering ${fData.length} left out of ${data.length}`
+        );*/
     groupedData = d3.groups(fData, id);
     /*log(
-      `Processing data: grouping done ${groupedData.length} timelines out of ${data.length} records`
-    );*/
-
+          `Processing data: grouping done ${groupedData.length} timelines out of ${data.length} records`
+        );*/
 
     // Limit the number of timelines
     if (maxTimelines) groupedData = groupedData.slice(0, maxTimelines);
 
     let xDataType = typeof x(fData[0]);
 
-    initDomains({ xDataType, fData, groupedData });
-
-    line2 = d3
-      .line()
-      .defined((d) => y(d) !== undefined && y(d) !== null)
-      .x((d) => overviewX(+x(d)))
-      .y((d) => overviewY(y(d)));
+    initDomains({xDataType, fData, groupedData});
 
     g = init();
 
     timelineOverview.setScales({
       scaleX: overviewX,
-      scaleY: overviewY
+      scaleY: overviewY,
     });
     timelineOverview.data(groupedData);
 
     generateDataSelectionDiv();
     generateBrushCoordinatesDiv();
 
-    initDetails({ xDataType, fData });
+    initDetails({overviewX, overviewY});
 
     dataSelected.set(0, []);
     renderSelected = dataSelected;
@@ -1715,7 +1715,8 @@ function TimeSearcher(
       .scaleLinear()
       .range([0, width - ts.margin.right - ts.margin.left]);
 
-    overviewY = d3.scaleLinear()
+    overviewY = d3
+      .scaleLinear()
       .range([height - ts.margin.top - ts.margin.bottom, 0])
       .nice()
       .clamp(true);
