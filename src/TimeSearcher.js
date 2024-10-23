@@ -1,7 +1,7 @@
 ﻿import * as d3 from "d3";
-import {add, intervalToDuration, sub} from "date-fns";
+import { add, intervalToDuration, sub } from "date-fns";
 
-import {eventType, log} from "./utils.js";
+import { eventType, log } from "./utils.js";
 
 import TimelineDetails from "./TimelineDetails.js";
 import TimeLineOverview from "./TimeLineOverview";
@@ -18,14 +18,14 @@ function TimeSearcher(
     showBrushesControls = true, // If false you can still use brushesControlsElement to show the control on a different element on your app
     showBrushTooltip = true, // Allows to display a tooltip on the brushes containing its coordinates.
     /** Data **/
-    x, // Attribute to show in the X axis (Note that it also supports functions)
-    y, // Attribute to show in the Y axis (Note that it also supports functions)
-    id, // Attribute to group the input data (Note that it also supports functions)
+    x = (d) => d.x, // Attribute to show in the X axis (Note that it also supports functions)
+    y = (d) => d.y, // Attribute to show in the Y axis (Note that it also supports functions)
+    id = (d) => d.id, // Attribute to group the input data (Note that it also supports functions)
     color = null, //Specifies the attribute to be used to discriminate the groups (Note that it also supports functions).
     referenceCurves = null, // Specifies a Json object with the information of the reference lines.
-    fmtX = d3.format(".1f"), // Function, how to format x points in the tooltip
+    fmtX , // Function, how to format x points in the tooltip. If not provided will try to guess if it is a date or a number
     fmtY = d3.format(".1f"), // Function, how to format x points in the tooltip
-    stepX = {days: 10}, // Defines the step used, both in the spinboxes and with the arrows on the X axis.
+    stepX = { days: 10 }, // Defines the step used, both in the spinboxes and with the arrows on the X axis.
     stepY = 1, // // Defines the step used, both in the spinboxes and with the arrows on the Y axis.
     xScale, //It allows to pass a scale of d3 with its parameters, except for the domain which is defined by the xDomain parameter.
     yScale = d3.scaleLinear(), //It allows to pass a scale of d3 with its parameters, except for the domain which is defined by the yDomain parameter.
@@ -55,13 +55,11 @@ function TimeSearcher(
     height = 600, // Set the desired height of the overview Widget
     detailsHeight = 300, // Set the desired height of the details Widget
     detailsContainerHeight = 400, // Set the desired height of the details Widget
-    margin = {left: 50, top: 30, bottom: 50, right: 20},
+    margin = { left: 50, top: 30, bottom: 50, right: 50 },
     detailsMargin = null, // Margin options for details view, d3 common format, leave null for using the overview margin
     /** CallBacks **/
-    updateCallback = () => {
-    }, // (data) => doSomethingWithData
-    statusCallback = () => {
-    }, // (status) => doSomethingWithStatus
+    updateCallback = () => {}, // (data) => doSomethingWithData
+    statusCallback = () => {}, // (status) => doSomethingWithStatus
     /** Rendering **/
     brushShadow = "drop-shadow( 2px 2px 2px rgba(0, 0, 0, .7))",
     showGroupMedian = true, // If active show a line with the median of the enabled groups.
@@ -165,7 +163,7 @@ function TimeSearcher(
 
   //Backwards compatibility with groupAttr.
   if (groupAttr) {
-    console.warn("The attribute \"groupAttr\" is deprecated use \"color\" instead");
+    console.warn('The attribute "groupAttr" is deprecated use "color" instead');
     color = groupAttr;
   }
 
@@ -377,8 +375,8 @@ function TimeSearcher(
             align-items: center;
           ">
             <input type="checkbox" id="checkBoxShowBrushGroup" ${
-  d[1].isEnable ? "checked" : ""
-} ></input>                        
+              d[1].isEnable ? "checked" : ""
+            } ></input>                        
             <div 
               id="groupColor"
               style="
@@ -387,8 +385,8 @@ function TimeSearcher(
               height: ${ts.brushGroupSize}px;
               background-color: ${computeBrushColor(d[0])};
               border-width: ${
-  d[0] === brushes.getBrushGroupSelected() ? 2 : 0
-}px;
+                d[0] === brushes.getBrushGroupSelected() ? 2 : 0
+              }px;
               border-color: black;
               border-style: solid;
               margin-right: 5px;
@@ -397,15 +395,15 @@ function TimeSearcher(
             <input 
               id="groupName"
               style="margin-right: 5px; border: none;outline: none; width: ${
-  groupName.length
-}ch;"
+                groupName.length
+              }ch;"
               contenteditable="true" 
               value="${groupName}"></input>
             <span id="groupSize" style="margin-right: 5px;">(${groupCount})</span>
            <button style="color: red;font-weight: bold; border:none; background:none;
             display:${
-  groupsSize > 1 ? "block" : "none"
-}" id="btnRemoveBrushGroup">&cross;</button>
+              groupsSize > 1 ? "block" : "none"
+            }" id="btnRemoveBrushGroup">&cross;</button>
           </div>
         `;
 
@@ -464,12 +462,12 @@ function TimeSearcher(
             align-items: center;
           ">
             <input type="checkbox" id="checkBoxShowBrushGroup" ${
-  showNonSelected ? "checked" : ""
-} ></input>                        
+              showNonSelected ? "checked" : ""
+            } ></input>                        
             <output 
               style="margin-right: 0px; border: none;outline: none; width: ${
-  groupName.length
-}ch;"
+                groupName.length
+              }ch;"
               >${groupName}</output>
             <span id="groupSize" style="margin-right: 5px;">(${groupCount})</span>
           </div>
@@ -506,7 +504,7 @@ function TimeSearcher(
       });
   }
 
-  function initDomains({xDataType, groupedData, fData}) {
+  function initDomains({ xDataType, groupedData, fData }) {
     // Adjust the alpha based on the number of lines
 
     log("Sorting data");
@@ -525,7 +523,7 @@ function TimeSearcher(
 
     overviewX = xScale ? xScale.copy() : undefined;
 
-    if (xDataType === "object" && x(fData[0]) instanceof Date) {
+    if (xDataType === "object" && x(fData[0]) instanceof Date) {      
       // X is Date
       hasScaleTime = true;
       if (!overviewX) overviewX = d3.scaleTime();
@@ -536,7 +534,7 @@ function TimeSearcher(
       } else if (fmtX.name === "M") {
         console.log(
           "👁️t has been detected that the parameter fmtX formats numerical data, while the data selected for " +
-          "the X-axis is a date. The function d3.timeFormat(\"%Y-%m-%d\") will be used as fmtX; "
+            'the X-axis is a date. The function d3.timeFormat("%Y-%m-%d") will be used as fmtX; '
         );
         fmtX = d3.timeFormat("%Y-%m-%d");
       }
@@ -553,7 +551,7 @@ function TimeSearcher(
 
     overviewX.range([0, width - ts.margin.right - ts.margin.left]).nice();
 
-    if(!yDomain) {
+    if (!yDomain) {
       yDomain = fixAxis && _this ? _this.extent.y : d3.extent(fData, y); // Keep same axes as in the first rendering
     }
 
@@ -808,11 +806,10 @@ function TimeSearcher(
   }
 
   // Callback that is called every time the coordinates of the selected brush are modified.
-  function onBrushCoordinatesChange (selection) {
+  function onBrushCoordinatesChange(selection) {
     updateBrushSpinBox(selection);
     updateStatus();
   }
-
 
   function updateBrushSpinBox(selection) {
     if (selection) {
@@ -965,7 +962,7 @@ function TimeSearcher(
     onSelectionChange();
   }
 
-  function initDetails({overviewX, overviewY}) {
+  function initDetails({ overviewX, overviewY }) {
     if (ts.hasDetails) {
       // see if already exists and element and reutilize it, if not create new div
       if (!detailsElement) {
@@ -973,7 +970,6 @@ function TimeSearcher(
           d3.select(target).select("#details").node() ||
           d3.create("div").attr("id", "#details").node();
       }
-
 
       // TimelineDetails object
       timelineDetails = TimelineDetails({
@@ -988,7 +984,7 @@ function TimeSearcher(
         margin: detailsMargin,
       });
 
-      timelineDetails.setScales({overviewX, overviewY});
+      timelineDetails.setScales({ overviewX, overviewY });
     }
   }
 
@@ -1063,7 +1059,7 @@ function TimeSearcher(
       x1 = add(x1, ts.stepX);
       if (x1 > maxX) {
         x1 = sub(x1, ts.stepX);
-        let dist = intervalToDuration({start: x1, end: maxX});
+        let dist = intervalToDuration({ start: x1, end: maxX });
         x1 = maxX;
         x0 = add(x0, dist);
       } else {
@@ -1101,7 +1097,7 @@ function TimeSearcher(
       x0 = sub(x0, ts.stepX);
       if (x0 < minX) {
         x0 = add(x0, ts.stepX);
-        let dist = intervalToDuration({start: minX, end: x0});
+        let dist = intervalToDuration({ start: minX, end: x0 });
         x0 = minX;
         x1 = sub(x1, dist);
       } else {
@@ -1235,7 +1231,7 @@ function TimeSearcher(
     if (ts.hasDetails) {
       let brushGroupSelected = brushes.getBrushGroupSelected();
       window.requestAnimationFrame(() =>
-        timelineDetails.render({data: dataSelected, brushGroupSelected})
+        timelineDetails.render({ data: dataSelected, brushGroupSelected })
       );
       // window.requestAnimationFrame(() => renderDetailsCanvas(dataSelected));
     }
@@ -1315,7 +1311,7 @@ function TimeSearcher(
     }
 
     if (tsElements) {
-      ({renderSelected, renderNotSelected} = filterByExternalSelected(
+      ({ renderSelected, renderNotSelected } = filterByExternalSelected(
         renderSelected,
         renderNotSelected
       ));
@@ -1353,7 +1349,7 @@ function TimeSearcher(
       status.set(brushGroup.name, Gstatus);
     }
     divOverview.value.status = status;
-    divOverview.dispatchEvent(new Event("input", {bubbles: true}));
+    divOverview.dispatchEvent(new Event("input", { bubbles: true }));
   }
 
   // Triggers the update of the selection calls callback and dispatches input event
@@ -1675,7 +1671,7 @@ function TimeSearcher(
 
     let xDataType = typeof x(fData[0]);
 
-    initDomains({xDataType, fData, groupedData});
+    initDomains({ xDataType, fData, groupedData });
 
     g = init();
 
@@ -1688,7 +1684,7 @@ function TimeSearcher(
     generateDataSelectionDiv();
     generateBrushCoordinatesDiv();
 
-    initDetails({overviewX, overviewY});
+    initDetails({ overviewX, overviewY });
 
     dataSelected.set(0, []);
     renderSelected = dataSelected;
