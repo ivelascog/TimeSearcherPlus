@@ -3,7 +3,7 @@ import { throttle } from "throttle-debounce";
 import BVH from "./BVH";
 import brushTooltipEditable from "./BrushTooltipEditable.js";
 import BrushContextMenu from "./BrushContextMenu.js";
-import { compareSets, darken } from "./utils.js";
+import { compareSets, darken, isInsideDomain } from "./utils.js";
 
 import { BrushAggregation, BrushModes, log } from "./utils";
 
@@ -526,7 +526,6 @@ function brushInteraction({
         );
       });
 
-
     if (ts.showBrushTooltip) {
       d3.select(this)
         .selectAll(":not(.overlay)")
@@ -682,11 +681,11 @@ function brushInteraction({
   };
 
   me.selectBrushGroup = function (id) {
-    selectedBrush(id);
+    selectBrushGroup(id);
     updateStatus();
     updateGroups();
   };
-  
+
   me.getBrushesGroupSize = function () {
     return brushesGroup.length;
   };
@@ -703,7 +702,7 @@ function brushInteraction({
     for (let [id, brush] of brushGroupToDelete.brushes.entries()) {
       // delete all brushes of the group to be deleted, except the brush prepared to create a new timeBox
       if (brush.selection !== null) {
-        removeBrush([id,brush]);
+        removeBrush([id, brush]);
       } else {
         // Change the brush prepared to create a new timeBox to another group
         brush.group = newId;
@@ -960,7 +959,7 @@ function brushInteraction({
   me.addFilters = function (filters, wipeAll = false) {
     if (filters instanceof Map) {
       filters = Array.from(filters.values());
-      filters.forEach(f => f.brushes = Array.from(f.brushes.values()));
+      filters.forEach((f) => (f.brushes = Array.from(f.brushes.values())));
     }
 
     if (filters.length === 0) return;
@@ -988,6 +987,16 @@ function brushInteraction({
       dataSelected.set(groupId, []);
 
       for (const brush of group.brushes) {
+        if (!isInsideDomain(brush.selectionDomain, scaleX, scaleY)) {
+          // If the provided domain is out of bounds use the pixel selection. If not, set default value.
+          if (brush.selection)
+            brush.selectionDomain = getSelectionDomain(brush.selection);
+          else
+            brush.selectionDomain = getSelectionDomain([
+              [0, 100],
+              [0, 100],
+            ]);
+        }
         newBrush(brush.mode, brush.aggregation, groupId, brush.selectionDomain);
         brushSize++; // The brushSize will not be increased in onStartBrush
         // because the last brush added will be the one set for a new Brush.

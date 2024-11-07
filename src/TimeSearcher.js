@@ -23,7 +23,7 @@ function TimeSearcher(
     id = (d) => d.id, // Attribute to group the input data (Note that it also supports functions)
     color = null, //Specifies the attribute to be used to discriminate the groups (Note that it also supports functions).
     referenceCurves = null, // Specifies a Json object with the information of the reference lines.
-    fmtX , // Function, how to format x points in the tooltip. If not provided will try to guess if it is a date or a number
+    fmtX, // Function, how to format x points in the tooltip. If not provided will try to guess if it is a date or a number
     fmtY = d3.format(".1f"), // Function, how to format x points in the tooltip
     stepX = { days: 10 }, // Defines the step used, both in the spinboxes and with the arrows on the X axis.
     stepY = 1, // // Defines the step used, both in the spinboxes and with the arrows on the Y axis.
@@ -45,7 +45,7 @@ function TimeSearcher(
     noSelectedColor = "#dce0e5", // Color of unselected lines. It only has effect when "color" is not defined.
     colorScale = d3.scaleOrdinal(d3.schemeAccent), // The color scale to be used to display the different groups defined by the "color" attribute.
     brushesColorScale = color
-      ? d3.scaleOrdinal(d3.schemeGreys[3].reverse())
+      ? d3.scaleOrdinal(d3.schemeGreys[3].toReversed())
       : d3.scaleOrdinal(d3.schemeTableau10), // The color scale to be used to display the brushes
     selectedColorTransform = (color, groupId) =>
       d3.color(color).darker(groupId), // Function to be applied to the color of the selected group. It only has effect when "color" is defined.
@@ -504,26 +504,14 @@ function TimeSearcher(
       });
   }
 
-  function initDomains({ xDataType, groupedData, fData }) {
-    // Adjust the alpha based on the number of lines
-
-    log("Sorting data");
-    groupedData.map((d) => [
-      d[0],
-      d[1].sort((a, b) => d3.ascending(x(a), x(b))),
-    ]);
-
-    log("Sorting data: done");
-
-    ts.alphaScale.domain([0, groupedData.length]);
-
+  function initDomains({ xDataType, fData }) {
     if (!xDomain) {
       xDomain = fixAxis && _this ? _this.extent.x : d3.extent(fData, x); // Keep same axes as in the first rendering
     }
 
     overviewX = xScale ? xScale.copy() : undefined;
 
-    if (xDataType === "object" && x(fData[0]) instanceof Date) {      
+    if (xDataType === "object" && x(fData[0]) instanceof Date) {
       // X is Date
       hasScaleTime = true;
       if (!overviewX) overviewX = d3.scaleTime();
@@ -1363,6 +1351,7 @@ function TimeSearcher(
     }
 
     divOverview.value = value;
+    divOverview.value.groupsColorScale = brushesColorScale;
     divOverview.value.nonSelectedIds = dataNotSelected.map((d) => d[0]);
     divOverview.value.selectedIds = dataSelected
       .get(brushes.getBrushGroupSelected())
@@ -1601,9 +1590,18 @@ function TimeSearcher(
     if (!Array.isArray(curves)) {
       throw new Error("The reference curves must be an array of Objects");
     }
+    let domainX = overviewX.domain();
+    let domainY = overviewY.domain();
 
     curves.forEach((c) => {
       c.data.sort((a, b) => d3.ascending(x(a), x(b)));
+      c.data = c.data.filter(
+        (p) =>
+          p[0] >= domainX[0] &&
+          p[0] <= domainX[1] &&
+          p[1] >= domainY[0] &&
+          p[1] <= domainY[1]
+      );
     });
 
     let line2 = d3
@@ -1658,20 +1656,26 @@ function TimeSearcher(
         x(d) !== undefined &&
         x(d) !== null
     );
-    /* log(
-          `Processing data: done filtering ${fData.length} left out of ${data.length}`
-        );*/
-    groupedData = d3.groups(fData, id);
-    /*log(
-          `Processing data: grouping done ${groupedData.length} timelines out of ${data.length} records`
-        );*/
-
-    // Limit the number of timelines
-    if (maxTimelines) groupedData = groupedData.slice(0, maxTimelines);
 
     let xDataType = typeof x(fData[0]);
 
-    initDomains({ xDataType, fData, groupedData });
+    initDomains({ xDataType, fData });
+
+    fData = fData.filter(
+      (d) => !isNaN(overviewX(x(d))) && !isNaN(overviewY(y(d)))
+    );
+
+    groupedData = d3.groups(fData, id);
+
+    groupedData.map((d) => [
+      d[0],
+      d[1].sort((a, b) => d3.ascending(x(a), x(b))),
+    ]);
+
+    ts.alphaScale.domain([0, groupedData.length]);
+
+    // Limit the number of timelines
+    if (maxTimelines) groupedData = groupedData.slice(0, maxTimelines);
 
     g = init();
 

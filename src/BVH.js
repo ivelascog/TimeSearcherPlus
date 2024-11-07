@@ -33,6 +33,9 @@ function BVH({
         if (xCoor != null && yCoor != null) {
           let xIndex = Math.floor(xCoor / xinc);
           let yIndex = Math.floor(yCoor / yinc);
+          if (isNaN(xIndex) || isNaN(yIndex)) {
+            log("ERROR: xIndex or YIndex is NaN: XCoor: " + xCoor +"; yCoor: " + yCoor );
+          }
 
           if (i === 0) {
             BVH.BVH[xIndex][yIndex].data.set(key, [[current]]);
