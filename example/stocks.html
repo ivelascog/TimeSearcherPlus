@@ -11,7 +11,7 @@
     <script src="https://d3js.org/d3.v7.js"></script>
     <script src="https://unpkg.com/@popperjs/core@2"></script>
     <script src="https://unpkg.com/htl@0.3.1/dist/htl.min.js"></script>
-    <script src="../dist/TimeSearcher.js"></script>
+    <script src="../dist/TimeWidget.js"></script>
 
     <script>
       let fmt = d3.timeParse("%Y-%m-%d");
@@ -22,7 +22,7 @@
 
         data = data.filter((d) => d["stock"] !== "BRK-A");
 
-        let target = TimeSearcher(data, {
+        let target = TimeWidget(data, {
           target: d3.select("#target").node(),
           detailedElement: d3.select("#targetDetailed").node(),
           brushCoordinatesElement: d3.select("#targetCoordinates").node(),

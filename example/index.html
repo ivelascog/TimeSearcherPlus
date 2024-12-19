@@ -15,8 +15,8 @@
     <!-- Load the libraries -->
     <script src="https://d3js.org/d3.v7.js"></script>
     <!-- <script src="https://unpkg.com/htl@0.3.1/dist/htl.min.js"></script> -->
-    <script src="../dist/TimeSearcher.js"></script>
-    <!-- <script src="https://unpkg.com/time_searcher/dist/TimeSearcher.min.js"></script> -->
+    <script src="../dist/TimeWidget.js"></script>
+    <!-- <script src="https://unpkg.com/time_searcher/dist/TimeWidget.min.js"></script> -->
 
     <script>
       d3.csv("./Stocks.csv", type).then((data) => {
@@ -26,7 +26,7 @@
         //   { Date: "01/03/2023", Open: 260, id: "Apple", group: "Technology" },
         // ];
 
-        let ts = TimeSearcher(
+        let ts = TimeWidget(
           data.filter((d) => d.stock !== "BRK-A" && d.stock !== "NVR"),
           {
             x: "Date", // Attribute to show in the X axis (Note that it also supports functions)
@@ -51,13 +51,13 @@
         document.getElementById("target").appendChild(ts);
       });
 
-      // // TimeSearcher+ Step 1. Create a TimeSearcher+ passing a series of arguments.
-      // let target = TimeSearcher({
+      // // TimeWidget Step 1. Create a TimeWidget passing a series of arguments.
+      // let target = TimeWidget({
       //   target: d3.select("#target").node(), // Target to render the overview Widget
       //   detailedElement: d3.select("#targetDetailed").node(), // Target to render the detailed Widget
-      //   x: "Date", // Atribute to show in the X axis (Note that it also supports functions)
-      //   y: "Open", // Atribute to show in the Y axis (Note that it also supports functions)
-      //   id: "stock", // Atribute to group the input data (Note that it also supports functions)
+      //   x: "Date", // Attribute to show in the X axis (Note that it also supports functions)
+      //   y: "Open", // Attribute to show in the Y axis (Note that it also supports functions)
+      //   id: "stock", // Attribute to group the input data (Note that it also supports functions)
       //   // More configuration parameters
       //   overviewWidth: 1200, // Set the desired width of the overview Widget
       //   detailedWidth: 1200 - 20, // Set the desired width of the detailed Widget
@@ -76,7 +76,7 @@
       //   brushShadow: "drop-shadow( 2px 2px 2px rgba(0, 0, 0, .7))", // How to show a shadow on the selected brush
       //   maxDetailedRecords: 100, // How many results to show in the detail view
       //   showGroupMedian: true, // If active show a line with the median of the enabled groups.
-      //   binWidth: 1, // Sets the width of the bins used to calculate the group average. Note that this value may vary slightly to achieve a integer number of bins.
+      //   binWidth: 1, // Sets the width of the bins used to calculate the group average. Note that this value may vary slightly to achieve an integer number of bins.
       //   hasDetails: true,
       //   autoUpdate: true,
       //   filters: [

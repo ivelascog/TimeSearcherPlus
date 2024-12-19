@@ -1,45 +1,46 @@
 <h1 align="center">
   <br>
-  TimeSearcher+
+  TimeWidget
   <br>
 </h1>
 <h4 align="center">A tool that summarizes and explores temporal data sets with quantitative values</h4>
 You can use it to visualize thousands of time series, and select multiple groups by direct manipulation. In addition, it
 works as a reactive widget that can be added to other applications, returning the selected groups in real time.
 
-|                                                     Group Selection                                                      |                                                          Detailed View                                                          |
-|:------------------------------------------------------------------------------------------------------------------------:|:-------------------------------------------------------------------------------------------------------------------------------:|
-|   <img src="https://raw.githubusercontent.com/ivelascog/TimeSearcherPlus/main/imgs/timeSearcher_groupSelection.gif"/>    |        <img src="https://raw.githubusercontent.com/ivelascog/TimeSearcherPlus/main/imgs/timeSearcher_detailedView.gif"/>        |
-|                                                   **Moving Patterns**                                                    |                                                       **Reference Lines**                                                       |
-|  <img src="https://raw.githubusercontent.com/ivelascog/TimeSearcherPlus/main/imgs/timeSearcher_multipleSelection.gif"/>  | <img src="https://raw.githubusercontent.com/ivelascog/TimeSearcherPlus/main/imgs/timesearcher_referencesLines.png" width="300"> |
+|                                                Group Selection                                                 |                                                      Detailed View                                                      |
+|:--------------------------------------------------------------------------------------------------------------:|:-----------------------------------------------------------------------------------------------------------------------:|
+|  <img src="https://raw.githubusercontent.com/ivelascog/TimeWidget/main/imgs/TimeWidget_groupSelection.gif"/>   |        <img src="https://raw.githubusercontent.com/ivelascog/TimeWidget/main/imgs/TimeWidget_detailedView.gif"/>        |
+|                                              **Moving Patterns**                                               |                                                   **Reference Lines**                                                   |
+| <img src="https://raw.githubusercontent.com/ivelascog/TimeWidget/main/imgs/TimeWidget_multipleSelection.gif"/> | <img src="https://raw.githubusercontent.com/ivelascog/TimeWidget/main/imgs/TimeWidget_referencesLines.png" width="300"> |
 ## Try it!
 
-You can test timeSearcher+ right now with your **own CSV data** (less than 200MB), using:
+You can test TimeWidget right now with your **own CSV data** (less than 200MB), using:
 
-| Obervable Notebook                                                                                                                                                            |
-|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| <a href="https://observablehq.com/d/37b572175ef5af3a"><img src="https://raw.githubusercontent.com/ivelascog/TimeSearcherPlus/main/imgs/timeSearcher_dataObservable.gif"/></a> |
+| Observable Notebook                                                                                                                                                   |
+|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| <a href="https://observablehq.com/d/37b572175ef5af3a"><img src="https://raw.githubusercontent.com/ivelascog/TimeWidget/main/imgs/TimeWidget_dataObservable.gif"/></a> |
 
 
 ## Examples of functionalities.
 - [Basic Example](https://observablehq.com/d/ff2f8dc4992114e2?collection=@ivelascog/timesearcherplus)
 - [Moving Patterns, Predefined TimeBoxes, Invert Queries](https://observablehq.com/d/29228e86855505e2?collection=@ivelascog/timesearcherplus)
 - [References Curves](https://observablehq.com/d/249a32b214a2684d?collection=@ivelascog/timesearcherplus)
-- [Make custom layouts](https://observablehq.com/@ivelascog/timesearcher-make-a-custom-layout?collection=@ivelascog/timesearcherplus)
+- [Make custom layouts](https://observablehq.com/@ivelascog/timewidget-make-a-custom-layout?collection=@ivelascog/timesearcherplus)
 - [Maintaining the state](https://observablehq.com/d/9f28a6538b332cd3?collection=@ivelascog/timesearcherplus)
 - [Aggregation and Selection modes](https://observablehq.com/d/e7e7b8a69f571200?collection=@ivelascog/timesearcherplus)
+- [Custom Scales](https://observablehq.com/d/e7e7b8a69f571200?collection=@ivelascog/timesearcherplus)
 
 ## Real World Examples. 
  - [Tweets](https://observablehq.com/@john-guerra/timesearcher-tweets-example)
  - [Global Temperatures by Country](https://observablehq.com/@john-guerra/global-temperatures-by-country)
- - [Unemployement](https://observablehq.com/@john-guerra/timesearcher-example)
+ - [Unemployment](https://observablehq.com/@john-guerra/timesearcher-example)
  - [Rent prices in Spain](https://observablehq.com/d/12800330b7979627)
  - [Pollution of Madrid](https://observablehq.com/d/f55385d1ad171003)
 
 ## Install
 
-```js
-npm install time-searcher-plus
+```
+npm install time-widget
 ```
 Requires [^popper.js@2.11.6](https://github.com/FezVrasta/popper.js/), [^d3@7.8.2](http://d3js.org) and [^htl@0.3.1](https://github.com/observablehq/htl).
 
@@ -57,10 +58,9 @@ Requires [^popper.js@2.11.6](https://github.com/FezVrasta/popper.js/), [^d3@7.8.
 <div id="target"></div>
 
 <!-- Load the libraries -->
-<!-- <script src="../dist/TimeSearcher.js"></script> -->
+<!-- <script src="../dist/TimeWidget.js"></script> -->
 <script src="https://d3js.org/d3.v7.js"></script>
-<script src="../dist/TimeSearcher.js"></script>
-<!-- <script src="https://unpkg.com/time_searcher/dist/TimeSearcher.min.js"></script> -->
+<script src="https://unpkg.com/time-widget/dist/TimeWidget.min.js"></script>
 
 <script>
     let data = [
@@ -69,7 +69,7 @@ Requires [^popper.js@2.11.6](https://github.com/FezVrasta/popper.js/), [^d3@7.8.
         { Date: new Date("01/03/2023"), Open: 260, id: "Apple", group: "Technology" },
     ];
 
-    let ts = TimeSearcher(
+    let ts = TimeWidget(
             data,
             {
                 x: "Date", // Attribute to show in the X axis (Note that it also supports functions)
@@ -106,25 +106,25 @@ Requires [^popper.js@2.11.6](https://github.com/FezVrasta/popper.js/), [^d3@7.8.
 </body>
 </html>
 ```
-2. **Import TimeSearcher+**. Create and import a new JavaScript file below the scripts (d3,  and TimeSearcher+)
+2. **Import TimeWidget**. Create and import a new JavaScript file below the scripts (d3,  and TimeWidget)
 or right in the html like in the example below.
 ```html
 <script src="https://d3js.org/d3.v7.js"></script>
-<script src="https://unpkg.com/time_searcher/dist/TimeSearcher.min.js"></script>
+<script src="https://unpkg.com/time-widget/dist/TimeWidget.min.js"></script>
 <script type="text/javascript">
   //   YOUR_JS_CODE_HERE
 </script>
 ```
-3. **Create a TimeSearcher+ Instance**
+3. **Create a TimeWidget Instance**
 ```js
 
   let data = [
-    { Date: "01/01/2023", Open: 250, id: "Apple", group: "Technology" }
-    { Date: "01/02/2023", Open: 240, id: "Apple", group: "Technology" }
-    { Date: "01/03/2023", Open: 260, id: "Apple", group: "Technology" }
+    { Date: "01/01/2023", Open: 250, id: "Apple", group: "Technology" },
+    { Date: "01/02/2023", Open: 240, id: "Apple", group: "Technology" },
+    { Date: "01/03/2023", Open: 260, id: "Apple", group: "Technology" },
   ];
 
-   let target = TimeSearcher(data, {        
+   let target = TimeWidget(data, {        
       x: "Date", // Atribute to show in the X axis (Note that it also supports functions)
       y:  "Open", // Atribute to show in the Y axis (Note that it also supports functions)
       id: "stock", // Atribute to group the input data (Note that it also supports functions)
@@ -133,23 +133,23 @@ or right in the html like in the example below.
 
   target.addEventListener("input", () => {console.log("Selected", target.value.selectedIds)})
 ```
-4. [Optional] **Configure TimeSearcher render**
+4. [Optional] **Configure TimeWidget render**
 
 You have two options:  add them at initialization:
 
 ```js
-   let target = TimeSearcher(data, {
+   let target = TimeWidget(data, {
     x: "Date", // Atribute to show in the X axis (Note that it also supports functions)
     y:  "Open", // Atribute to show in the Y axis (Note that it also supports functions)
     id: "stock", // Atribute to group the input data (Note that it also supports functions)
     color: "Group", // (Optional) Attribute to color by
     
-    xPartitions: 10; // Partitions performed on the X-axis for the collision acceleration algorithm.
-    yPartitions: 10; // Partitions performed on the Y-axis for the collision acceleration algorithm.
-    defaultAlpha: 0.8; // Default transparency (when no selection is active) of drawn lines
-    selectedAlpha: 1; // Transparency of selected lines
-    noSelectedAlpha: 0.4; // Transparency of unselected lines
-    backgroundColor: "#ffffff";
+    xPartitions: 10, // Partitions performed on the X-axis for the collision acceleration algorithm.
+    yPartitions: 10, // Partitions performed on the Y-axis for the collision acceleration algorithm.
+    defaultAlpha: 0.8, // Default transparency (when no selection is active) of drawn lines
+    selectedAlpha: 1, // Transparency of selected lines
+    noSelectedAlpha: 0.4, // Transparency of unselected lines
+    backgroundColor: "#ffffff"
 });
 ```
 Or as a subsequent step after initialization
@@ -202,7 +202,7 @@ This section will show all possible options grouped by categories.
  - **defaultColor**: Default color (when no selection is active) of the drawn lines. It only has effect when "color" is not defined.
  - **selectedColor**: Color of selected lines. It only has effect when "color" is not defined.
  - **noSelectedColor**: Color of unselected lines. It only has effect when "color" is not defined.
- - **colorScale**: The color scale to be used to display the different groups defined by the "color" attribute. Typically a [categorical scale of D3](https://observablehq.com/@d3/color-schemes)
+ - **colorScale**: The color scale to be used to display the different groups defined by the "color" attribute. Typically, a [categorical scale of D3](https://observablehq.com/@d3/color-schemes)
  - **brushesColorScale**: The color scale to be used to display the brushes typically a [categorical scale of D3](https://observablehq.com/@d3/color-schemes)
  - **selectedColorTransform**: Function to be applied to the color of the selected group. It only has effect when "color" is defined.
 ### size Configuration
@@ -288,7 +288,7 @@ filters: [
 
 ## License
 
-TimeSearcher+.js is licensed under the MIT license. (http://opensource.org/licenses/MIT)
+TimeWidget.js is licensed under the MIT license. (http://opensource.org/licenses/MIT)
 
 ## Contributors
 

@@ -1,3 +1,3 @@
-import TimeSearcher from "./TimeSearcher";
+import TimeWidget from "./TimeWidget";
 
-export default TimeSearcher;
+export default TimeWidget;

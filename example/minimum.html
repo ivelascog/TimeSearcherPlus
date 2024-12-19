@@ -11,10 +11,10 @@
     <div id="target"></div>
 
     <!-- Load the libraries -->
-    <!-- <script src="../dist/TimeSearcher.js"></script> -->
+    <!-- <script src="../dist/TimeWidget.js"></script> -->
     <script src="https://d3js.org/d3.v7.js"></script>
-    <script src="../dist/TimeSearcher.js"></script>
-    <!-- <script src="https://unpkg.com/time_searcher/dist/TimeSearcher.min.js"></script> -->
+    <script src="../dist/TimeWidget.js"></script>
+    <!-- <script src="https://unpkg.com/time_searcher/dist/TimeWidget.min.js"></script> -->
 
     <script>
       let data = [
@@ -23,7 +23,7 @@
         { Date: new Date("01/03/2023"), Open: 260, id: "Apple", group: "Technology" },
       ];
 
-      let ts = TimeSearcher(
+      let ts = TimeWidget(
         data,
         {
           x: "Date", // Attribute to show in the X axis (Note that it also supports functions)

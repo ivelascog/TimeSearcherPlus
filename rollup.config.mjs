@@ -34,10 +34,10 @@ export default [
     output: {
       extend: true,
       banner: copyright,
-      file: "dist/TimeSearcher.js",
+      file: "dist/TimeWidget.js",
       format: "umd",
       indent: false,
-      name: "TimeSearcher",
+      name: "TimeWidget",
       sourcemap: true,
       globals: {
         d3: "d3",
@@ -69,7 +69,7 @@ export default [
       format: "esm",
       indent: false,
       sourcemap: true,
-      name: "TimeSearcher",
+      name: "TimeWidget",
       globals: {
         d3: "d3",
         // luxon: "luxon",
@@ -94,10 +94,10 @@ export default [
     external: ["d3"],
     output: {
       extend: true,
-      file: "dist/TimeSearcher.min.js",
+      file: "dist/TimeWidget.min.js",
       format: "umd",
       indent: false,
-      name: "TimeSearcher",
+      name: "TimeWidget",
       globals: {
         d3: "d3",
       },

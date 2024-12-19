@@ -12,14 +12,14 @@
     <script src="https://d3js.org/d3.v7.js"></script>
     <script src="https://unpkg.com/@popperjs/core@2"></script>
     <script src="https://unpkg.com/htl@0.3.1/dist/htl.min.js"></script>
-    <script src="../dist/TimeSearcher.js"></script>
+    <script src="../dist/TimeWidget.js"></script>
 
     <script>
       d3.csv("./tData10000.csv", type).then((data) => {
         //data = data.filter(d => d["__time"] < 89 && d["__time"] > 24 && d["peso"] < 20000);
         //data = data.filter(d => ["1-0000001","1-0000002"].includes(d["Code"]))
 
-        let target = TimeSearcher(data, {
+        let target = TimeWidget(data, {
           target: d3.select("#target").node(),
           detailedElement: d3.select("#targetDetailed").node(),
           brushCoordinatesElement: d3.select("#targetCoordinates").node(),
