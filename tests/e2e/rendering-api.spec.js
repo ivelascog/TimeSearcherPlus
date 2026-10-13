@@ -408,7 +408,7 @@ test("reference curves apply style and replacing them removes old paths", async 
 });
 
 for (const method of ["run", "runBrush"]) {
-  test(`performance.${method} completes and exports measured frames`, async ({
+  test(`performance.${method} completes and exports CPU metrics`, async ({
     page,
   }) => {
     await mount(page, {
@@ -438,11 +438,15 @@ for (const method of ["run", "runBrush"]) {
         }),
       method
     );
+    expect(Object.keys(report)).toEqual([
+      "collisionMs",
+      "renderMs",
+      "totalCpuMs",
+    ]);
     expect(report.renderMs.samples).toBeGreaterThan(0);
     expect(report.renderMs.mean).toBeGreaterThanOrEqual(0);
     if (method === "runBrush") {
       expect(report.collisionMs.samples).toBeGreaterThan(0);
-      expect(report.frameMs.samples).toBeGreaterThan(0);
     }
     await page.evaluate(() => window.widget.ts.performance.reset());
     expect(

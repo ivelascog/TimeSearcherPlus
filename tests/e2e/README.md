@@ -48,12 +48,12 @@ npx playwright show-report
 La suite incluye 114 pruebas e2e en Chromium tras integrar main. La última ejecución completa de
 `npm run test:all` aprobó las 119 pruebas unitarias y la compilación, y obtuvo
 **113 e2e aprobadas y 1 fallida**, sin omitidas ni reintentos.
-Tras el merge de `origin/main` (910262a), queda pendiente de revisión el test
-`performance.runBrush completes and exports measured frames`, en
-`rendering-api.spec.js:445`: accede a `report.frameMs.samples`, pero el informe
-interno actualizado solo devuelve `collisionMs`, `renderMs` y `totalCpuMs`.
-Los nuevos tests de main comprueban explícitamente este contrato de métricas CPU.
-Se conserva la aserción antigua sin corregir para revisión del usuario.
+Los 24 tests de `rendering-api.spec.js` pasan. Los benchmarks internos verifican
+el contrato actual de métricas CPU: `collisionMs`, `renderMs` y `totalCpuMs`.
+
+En la última ejecución completa falla `a blur during the run is recorded`, en
+`bench.spec.js:172`, un caso incorporado desde main. Se conserva sin corregir
+para revisión del usuario, con captura y traza en `test-results/`.
 
 El test de dominio temporal en `zoom.spec.js` compara directamente las fechas
 reales con las solicitadas, ambas creadas en la zona horaria del navegador.
