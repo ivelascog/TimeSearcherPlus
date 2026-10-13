@@ -47,12 +47,11 @@ npx playwright show-report
 
 La suite incluye 102 pruebas e2e en Chromium. La última ejecución completa de
 `npm run test:all` aprobó las 42 pruebas unitarias y la compilación, y obtuvo
-**101 e2e aprobadas y 1 fallida**, sin omitidas ni reintentos.
+**102 e2e aprobadas**, sin fallos, omitidas ni reintentos.
 
-El único fallo pendiente es `a Date xDomain option does not throw`, en
-`zoom.spec.js`: convierte medianoche local a UTC con `toISOString()` y compara
-los días como strings. En Europe/Madrid recibe 4 y 11 de enero donde espera 5
-y 12. Se conserva sin corregir para revisión del usuario.
+El test de dominio temporal en `zoom.spec.js` compara directamente las fechas
+reales con las solicitadas, ambas creadas en la zona horaria del navegador.
+Ya no convierte medianoche local a un día UTC mediante `toISOString()`.
 
 `auto-update.spec.js` añade tres casos que verifican la geometría durante el
 arrastre, el movimiento conjunto de TimeBoxes y la actualización diferida de
