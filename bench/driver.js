@@ -39,6 +39,7 @@ export async function runCell({
   budgetMs = 60000,
   seed = 12345,
   paceMs = 10,
+  beforeTrace = null,
 }) {
   const data = generateData(lines, points, seed);
   const extent = dataExtent(data);
@@ -73,6 +74,9 @@ export async function runCell({
       truncated = true;
       break;
     }
+    // Keep the full warm-up, but record only its last five frames so tracing
+    // itself is warm before measured frames. Await CDP setup outside timing.
+    if (beforeTrace && i === Math.max(0, warmupFrames - 5)) await beforeTrace();
     if (i === warmupFrames) {
       if (adapter.resetBreakdown) adapter.resetBreakdown();
       // run.mjs reads these marks from a Chrome trace to count the frames

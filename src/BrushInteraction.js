@@ -760,7 +760,6 @@ function brushInteraction({
       .style("stroke", darken(computeColor(brushValue.group)))
       .style("outline-color", darken(computeColor(brushValue.group)))
       .style("fill", computeColor(brushValue.group))
-      .attr("tabindex", 0)
       .on("mousedown", (sourceEvent) => {
         if (
           sourceEvent.button !== 0 ||

@@ -290,11 +290,13 @@ filters: [
 ```
 ## Performance measurements
 
-For repeatable browser measurements, enable the lightweight monitor and move a
-brush as usual. Every `reportEvery` measured frames it reports sustained FPS
-and the p50/p95/p99 percentiles for frame time, collision detection, rendering
-and total processing time. Times are expressed in milliseconds. FPS `p5` and
-`p1` correspond to the slow-tail frame-time `p95` and `p99` respectively.
+Enable the lightweight monitor and move a brush as usual to measure internal
+CPU work. Every `reportEvery` completed measurements it reports the mean and
+p50/p95/p99 percentiles for collision detection (`collisionMs`), issuing draw
+commands (`renderMs`) and total CPU processing (`totalCpuMs`), in milliseconds.
+Reports are synchronous and do not wait for frame presentation. Frame times,
+FPS and GPU work are measured externally by the benchmark in `bench/`; see
+[bench/README.md](bench/README.md).
 
 ```js
 const target = TimeWidget(data, {

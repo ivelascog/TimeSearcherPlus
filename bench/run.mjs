@@ -9,6 +9,8 @@ import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { startServer } from "./server.mjs";
+import { listMonitors, selectMonitor, positionWindow, grantWindowManagement } from "./monitor.mjs";
+import { startFrameTrace, DEFAULT_TRACE_BUFFER_KB, isTraceBufferLoss } from "./recording.mjs";
 import { collectEnvironment, gpuStatus, checkGate, checkPreflight } from "./env.mjs";
 import { buildCells, orderRuns, shouldSkip, pendingRuns, seriesKey, cellKey } from "./plan.mjs";
 import { presentedFrames, presentedResult, frameStageBusy, frameCosts, pacingCheck } from "./trace.mjs";
@@ -24,7 +26,9 @@ import {
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const { values: opt } = parseArgs({
   options: {
-    quick: { type: "boolean", default: false },
+    // npm.ps1 can consume the -- separator in PowerShell, leaving --quick
+    // in npm's configuration rather than in this script's argv.
+    quick: { type: "boolean", default: process.env.npm_config_quick === "true" },
     reps: { type: "string" },
     adapters: { type: "string" },
     lines: { type: "string" },
@@ -33,6 +37,7 @@ const { values: opt } = parseArgs({
     warmup: { type: "string", default: "60" },
     seed: { type: "string", default: "1" },
     channel: { type: "string" },
+    monitor: { type: "string" },
     "allow-software-raster": { type: "boolean", default: false },
     resume: { type: "string" },
     out: { type: "string", default: path.join(ROOT, "bench", "results") },
@@ -43,7 +48,7 @@ const list = (s, f = Number) => s.split(",").map((x) => f(x.trim()));
 const config = opt.quick
   ? {
       adapters: ["timewidget"],
-      lines: [1000, 10000, 50000],
+      lines: [1000, 2500, 5000, 7500, 10000, 12500, 15000, 17500, 20000, 22500, 25000],
       mainPoints: 20,
       sweepLines: 5000,
       sweepPoints: [],
@@ -66,15 +71,14 @@ if (opt.reps) config.reps = Number(opt.reps);
 const frames = Number(opt.frames);
 const warmupFrames = Number(opt.warmup);
 const allowSoftwareRaster = opt["allow-software-raster"];
-
 // Vsync off: frame time then measures the widget, not the monitor (a 120 Hz
 // and a 60 Hz screen agreed within ~3% in the spike; with vsync on they
 // differed 2x).
 const BROWSER_ARGS = ["--disable-gpu-vsync", "--disable-frame-rate-limit", "--window-size=1300,950"];
+let selectedMonitor = null;
 
 const stamp = new Date().toISOString().slice(0, 16).replace(/[-:]/g, "").replace("T", "-");
 const outFile = opt.resume || path.join(opt.out, `${os.hostname()}-${stamp}.jsonl`);
-fs.mkdirSync(path.dirname(outFile), { recursive: true });
 
 const readRecords = () =>
   fs.existsSync(outFile)
@@ -86,16 +90,23 @@ const readRecords = () =>
     : [];
 const write = (record) => fs.appendFileSync(outFile, JSON.stringify(record) + "\n");
 
-async function launch() {
+async function launch(pageUrl) {
   const browser = await chromium.launch({ headless: false, channel: opt.channel, args: BROWSER_ARGS });
-  const context = await browser.newContext({ viewport: { width: 1200, height: 800 }, deviceScaleFactor: 1 });
-  const page = await context.newPage();
-  return { browser, page };
+  try {
+    const context = await browser.newContext({ viewport: { width: 1200, height: 800 }, deviceScaleFactor: 1 });
+    const page = await context.newPage();
+    if (opt.monitor !== undefined) await grantWindowManagement(page, pageUrl);
+    return { browser, page };
+  } catch (error) {
+    await browser.close();
+    throw error;
+  }
 }
 
 async function openHarness(page, url) {
   await page.goto(url);
   await page.waitForFunction(() => typeof window.benchCell === "function");
+  if (selectedMonitor) await positionWindow(page, selectedMonitor);
   await page.bringToFront();
 }
 
@@ -111,14 +122,14 @@ async function gate(browser, page) {
 }
 
 async function setup(pageUrl) {
-  const { browser, page } = await launch();
+  const { browser, page } = await launch(pageUrl);
   try {
     await openHarness(page, pageUrl);
     const g = await gate(browser, page);
     if (!g.ok) throw new Error("Environment rejected: " + g.reasons.join("; "));
     if (!readRecords().some((r) => r.type === "environment")) {
       const env = await collectEnvironment(browser, page, { argv: process.argv.slice(2) });
-      write({ type: "environment", softwareRaster: allowSoftwareRaster, config, frames, warmupFrames, ...env });
+      write({ type: "environment", softwareRaster: allowSoftwareRaster, config, frames, warmupFrames, monitor: selectedMonitor, ...env });
     }
     // Every adapter must answer the same query; naive baselines exactly.
     for (const groups of config.groups) {
@@ -171,35 +182,70 @@ const PACE_STEPS_MS = [10, 20, 40, 80, 160, 320, 640];
 
 async function runOneSafely(pageUrl, cell, rep) {
   const attempts = [];
+  let traceBufferSizeInKb = DEFAULT_TRACE_BUFFER_KB;
   try {
     for (const paceMs of PACE_STEPS_MS) {
-      const record = await withTimeout(runOne(pageUrl, cell, rep, paceMs), RUN_TIMEOUT_MS);
+      let record;
+      console.log(`Measuring ${cellKey(cell)} rep ${rep}: pace ${paceMs} ms`);
+      try {
+        record = await withTimeout(runOne(pageUrl, cell, rep, paceMs, traceBufferSizeInKb), RUN_TIMEOUT_MS);
+      } catch (error) {
+        if (!isTraceBufferLoss(error) || traceBufferSizeInKb !== DEFAULT_TRACE_BUFFER_KB) throw error;
+        // Retry once in a fresh browser with a larger buffer, at the same pace.
+        // Never accept an incomplete trace or overwrite its earliest events.
+        traceBufferSizeInKb *= 2;
+        console.warn(`Trace buffer filled for ${cellKey(cell)}; retrying with ${traceBufferSizeInKb / 1024} MiB`);
+        record = await withTimeout(runOne(pageUrl, cell, rep, paceMs, traceBufferSizeInKb), RUN_TIMEOUT_MS);
+      }
       if (record.type !== "run" || !record.pacing || record.pacing.ok) {
         if (attempts.length) record.pacingAttempts = attempts;
         return record;
       }
       attempts.push({ paceMs, reason: record.pacing.reason });
+      console.log(`Repeating ${cellKey(cell)}: ${record.pacing.reason}; increasing pacing gap`);
     }
     return { type: "reject", cell, rep, reasons: ["pacing never let every stage finish"], pacingAttempts: attempts };
   } catch (e) {
+    if (isTraceBufferLoss(e)) {
+      return { type: "reject", cell, rep, reasons: [e.message], pacingAttempts: attempts };
+    }
     return { type: "crash", cell, rep, error: String(e && e.message ? e.message : e), pacingAttempts: attempts };
   }
 }
 
-async function runOne(pageUrl, cell, rep, paceMs) {
-  const { browser, page } = await launch();
+async function runOne(pageUrl, cell, rep, paceMs, traceBufferSizeInKb) {
+  const runnerMs = {};
+  let phaseStarted = performance.now();
+  const finishPhase = (name) => {
+    const now = performance.now();
+    runnerMs[name] = now - phaseStarted;
+    phaseStarted = now;
+  };
+  const { browser, page } = await launch(pageUrl);
+  finishPhase("launch");
   try {
     await openHarness(page, pageUrl);
     const g = await gate(browser, page);
+    finishPhase("prepare");
     if (!g.ok) return { type: "reject", cell, rep, reasons: g.reasons };
     // Marks, swaps, and top-level tasks per thread. Recording the task events
     // did not change main-thread timings measurably (2.81 vs 2.76 ms).
-    await browser.startTracing(page, { categories: ["blink.user_timing", "viz", "toplevel", "gpu"] });
+    let trace;
+    await page.exposeFunction("__benchStartTrace", async () => {
+      const start = performance.now();
+      trace = await startFrameTrace(browser, { traceBufferSizeInKb });
+      runnerMs.traceStart = performance.now() - start;
+    });
     const result = await page.evaluate(
-      (o) => window.benchCell(o),
+      (o) => window.benchCell(Object.assign({}, o, { beforeTrace: () => window.__benchStartTrace() })),
       Object.assign({}, cell, { frames, warmupFrames, paceMs })
     );
-    const events = JSON.parse((await browser.stopTracing()).toString()).traceEvents;
+    finishPhase("measurement");
+    runnerMs.measurement -= runnerMs.traceStart || 0;
+    console.log(`Frames finished for ${cellKey(cell)}; downloading Chrome trace`);
+    const events = trace ? await trace.stop() : [];
+    finishPhase("traceRead");
+    console.log(`Trace downloaded in ${(runnerMs.traceRead / 1000).toFixed(1)} s (${events.length} events); analysing`);
     const presented = presentedFrames(events);
     if (!result.visible || !result.focused || result.focusLost) {
       return { type: "reject", cell, rep, reasons: ["lost visibility or focus during the run"] };
@@ -218,9 +264,13 @@ async function runOne(pageUrl, cell, rep, paceMs) {
       result.bottleneckFrames = costs.bottleneck;
       result.pacing = pacingCheck(busy, result.presentedRatio);
     }
-    return Object.assign({ type: "run", cell, rep }, result);
+    finishPhase("analysis");
+    return Object.assign({ type: "run", cell, rep, runnerMs }, result);
   } finally {
+    phaseStarted = performance.now();
     await browser.close();
+    finishPhase("close");
+    console.log(`Runner times: ${Object.entries(runnerMs).map(([name, ms]) => `${name} ${(ms / 1000).toFixed(2)} s`).join(", ")}`);
   }
 }
 
@@ -253,6 +303,26 @@ async function main() {
   const server = await startServer(ROOT);
   const pageUrl = `${server.url}/bench/page.html`;
   try {
+    if (opt.monitor !== undefined) {
+      // Discovery uses the same headed Chrome and local origin as measurement.
+      const { browser, page } = await launch(pageUrl);
+      let monitors;
+      try {
+        await page.goto(pageUrl);
+        monitors = await listMonitors(page);
+      } finally {
+        await browser.close();
+      }
+      if (opt.monitor === "list") {
+        monitors.forEach((m, i) => console.log(
+          `${i + 1}: ${m.name}${m.primary ? " (primary)" : ""} — ${m.width}x${m.height} at ${m.left},${m.top}`
+        ));
+        return;
+      }
+      selectedMonitor = selectMonitor(monitors, opt.monitor);
+      console.log(`Monitor ${opt.monitor}: ${selectedMonitor.name}`);
+    }
+    fs.mkdirSync(path.dirname(outFile), { recursive: true });
     await setup(pageUrl);
     const ordered = orderRuns(buildCells(config), config.reps, Number(opt.seed));
     const todo = pendingRuns(

@@ -47,7 +47,7 @@ export default function createPerformanceBenchmark({
           resetPerformanceMetrics();
         }
         if (measuredIndex++ >= frameCount) {
-          window.requestAnimationFrame(() => resolve(getPerformanceReport()));
+          resolve(getPerformanceReport());
           return;
         }
         render(startPerformanceMeasurement());
@@ -121,7 +121,7 @@ export default function createPerformanceBenchmark({
           resetPerformanceMetrics();
         }
         if (index >= totalFrames) {
-          window.requestAnimationFrame(() => resolve(getPerformanceReport()));
+          resolve(getPerformanceReport());
           return;
         }
         const progress = totalFrames === 1 ? 0.5 : (index + 1) / totalFrames;

@@ -6,11 +6,11 @@ let options = {
   log: true,
   onReport: null,
 };
-let completedFrames = 0;
+let completedMeasurements = 0;
 let metrics = createEmptyMetrics();
 
 function createEmptyMetrics() {
-  return { collision: [], render: [], totalCpu: [], frame: [] };
+  return { collision: [], render: [], totalCpu: [] };
 }
 
 function average(values) {
@@ -32,16 +32,20 @@ export function configurePerformance(nextOptions = {}) {
       while (values.length > options.maxSamples) values.shift();
     }
   }
-  if (Number.isInteger(nextOptions.reportEvery) && nextOptions.reportEvery > 0) {
+  if (
+    Number.isInteger(nextOptions.reportEvery) &&
+    nextOptions.reportEvery > 0
+  ) {
     options.reportEvery = nextOptions.reportEvery;
   }
   if (nextOptions.log !== undefined) options.log = nextOptions.log;
-  if (nextOptions.onReport !== undefined) options.onReport = nextOptions.onReport;
+  if (nextOptions.onReport !== undefined)
+    options.onReport = nextOptions.onReport;
 }
 
 export function resetPerformanceMetrics() {
   metrics = createEmptyMetrics();
-  completedFrames = 0;
+  completedMeasurements = 0;
 }
 
 function percentile(sortedValues, p) {
@@ -70,24 +74,8 @@ export function summarizePerformanceValues(values) {
   };
 }
 
-function reciprocal(value) {
-  return value && value > 0 ? 1000 / value : null;
-}
-
 export function summarizePerformanceMetrics(sourceMetrics) {
-  const frameMs = summarizePerformanceValues(sourceMetrics.frame);
   return {
-    // Sustained FPS is total frames / total time, equivalently the reciprocal
-    // of the mean frame duration. p5 and p1 describe the slow tail and map to
-    // frame-time p95 and p99 respectively.
-    fps: {
-      samples: frameMs.samples,
-      mean: reciprocal(frameMs.mean),
-      p50: reciprocal(frameMs.p50),
-      p5: reciprocal(frameMs.p95),
-      p1: reciprocal(frameMs.p99),
-    },
-    frameMs,
     collisionMs: summarizePerformanceValues(sourceMetrics.collision),
     renderMs: summarizePerformanceValues(sourceMetrics.render),
     totalCpuMs: summarizePerformanceValues(sourceMetrics.totalCpu),
@@ -125,12 +113,9 @@ export function finishPerformanceMeasurement(measurement) {
   if (!measurement) return;
   addMetric("totalCpu", performance.now() - measurement.startedAt);
 
-  window.requestAnimationFrame(() => {
-    addMetric("frame", performance.now() - measurement.startedAt);
-    completedFrames++;
-    if (completedFrames % options.reportEvery !== 0) return;
-    const report = getPerformanceReport();
-    if (options.log) console.table(report);
-    if (typeof options.onReport === "function") options.onReport(report);
-  });
+  completedMeasurements++;
+  if (completedMeasurements % options.reportEvery !== 0) return;
+  const report = getPerformanceReport();
+  if (options.log) console.table(report);
+  if (typeof options.onReport === "function") options.onReport(report);
 }

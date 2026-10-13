@@ -53,6 +53,12 @@ describe("shouldSkip", () => {
     expect(shouldSkip(big, [{ type: "crash", cell: small, rep: 0, error: "OOM" }])).toBe(true);
     expect(shouldSkip(small, [{ type: "crash", cell: small, rep: 0, error: "OOM" }])).toBe(true);
   });
+  test("a lost trace does not skip this or larger sizes when resuming old records", () => {
+    const lostTrace = [{ type: "crash", cell: small, rep: 0,
+      error: "Chromium trace buffer lost events; frame timings cannot be trusted" }];
+    expect(shouldSkip(small, lostTrace)).toBe(false);
+    expect(shouldSkip(big, lostTrace)).toBe(false);
+  });
   test("a truncated run counts as over the limit (again)", () => {
     expect(shouldSkip(big, done(20, true))).toBe(true);
   });

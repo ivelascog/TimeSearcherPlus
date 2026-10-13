@@ -1,5 +1,6 @@
 // What the page's own clock cannot see, from a Chrome trace recorded with the
-// "blink.user_timing", "viz", "toplevel" and "gpu" categories.
+// "blink.user_timing", "viz" and "toplevel" categories. GPU time comes from
+// top-level tasks on GPU threads, without recording every GPU command.
 //
 // The in-page clock (start of a brush update -> next rAF) times only the main
 // thread. Painting continues in other stages (the GPU process above all). For
@@ -45,6 +46,19 @@ export function presentedResult(presented, measuredFrames) {
 // Top-level task events; nested ones are merged by the interval union below.
 const TASK = /^(RunTask|ThreadControllerImpl::RunTask|ThreadPool_RunTask)$/;
 
+// Retain only fields consumed by the frame analysis. GPU traces can contain
+// hundreds of MB of unrelated events and large command payloads.
+export function compactTraceEvent(e) {
+  if (e.ph === "M" && (e.name === "process_name" || e.name === "thread_name")) {
+    return { name: e.name, ph: e.ph, pid: e.pid, tid: e.tid, args: { name: e.args.name } };
+  }
+  if (e.name === SWAP || ["bench-measure-start", "bench-measure-end", "bench-frame"].includes(e.name) ||
+      (e.ph === "X" && e.dur && TASK.test(e.name))) {
+    return { name: e.name, ph: e.ph, pid: e.pid, tid: e.tid, ts: e.ts, dur: e.dur };
+  }
+  return null;
+}
+
 function stageOf(processName, threadName) {
   if (processName.startsWith("GPU")) {
     if (threadName === "CrGpuMain") return "gpuMain";
@@ -81,6 +95,7 @@ export function frameStageBusy(events, frameMark = "bench-frame", endMark = "ben
   const byThread = new Map();
   for (const e of events) {
     if (e.ph !== "X" || !e.dur || !TASK.test(e.name)) continue;
+    if (e.ts >= end.ts || e.ts + e.dur <= bounds[0]) continue;
     const key = e.pid + ":" + e.tid;
     const stage = stageOf(processNames[e.pid] || "", threadNames[key] || "");
     if (!stage) continue;
@@ -98,8 +113,12 @@ export function frameStageBusy(events, frameMark = "bench-frame", endMark = "ben
       else merged.push(iv.slice());
     }
     const perSlot = new Array(slots).fill(0);
+    let slot = 0;
     for (const [a, b] of merged) {
-      for (let i = 0; i < slots; i++) {
+      // Both tasks and slots are ordered. Skip earlier slots once, rather
+      // than comparing every task with all 300 measured frames.
+      while (slot < slots && bounds[slot + 1] <= a) slot++;
+      for (let i = slot; i < slots && bounds[i] < b; i++) {
         const lo = Math.max(a, bounds[i]);
         const hi = Math.min(b, bounds[i + 1]);
         if (hi > lo) perSlot[i] += (hi - lo) / 1000;

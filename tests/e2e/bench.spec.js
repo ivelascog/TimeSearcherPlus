@@ -7,6 +7,49 @@ import { test, expect } from "@playwright/test";
 // paper's comparison.
 
 test.describe("benchmark API", () => {
+  test("internal CPU monitoring reports without waiting for presentation", async ({ page }) => {
+    await page.goto("/tests/e2e/fixture.html");
+    const result = await page.evaluate(() => {
+      const el = window.makeWidget(window.makeData({ series: 20, points: 20 }));
+      const ext = el.ts.getExtent();
+      const handle = el.ts.performance.prepareBrush([
+        [[ext.x[0], ext.y[1]], [ext.x[1], ext.y[0]]],
+      ]);
+      let callbackReport = null;
+      el.ts.performance.configure({ enabled: true, log: false, reportEvery: 1,
+        onReport: (report) => { callbackReport = report; } });
+      el.ts.performance.reset();
+      handle.move(0, [
+        [ext.x[0], ext.y[0] + (ext.y[1] - ext.y[0]) / 5],
+        [ext.x[0] + (ext.x[1] - ext.x[0]) / 2, ext.y[0]],
+      ]);
+      // Read immediately, before any animation-frame callback can fire.
+      return { callbackReport, report: el.ts.performance.report() };
+    });
+    expect(result.callbackReport).not.toBeNull();
+    expect(Object.keys(result.report)).toEqual(["collisionMs", "renderMs", "totalCpuMs"]);
+    expect(result.report.collisionMs.samples).toBeGreaterThan(0);
+    expect(result.report.renderMs.samples).toBeGreaterThan(0);
+    expect(result.report.totalCpuMs.samples).toBeGreaterThan(0);
+  });
+
+  test("internal brush benchmark returns only CPU metrics after warm-up", async ({ page }) => {
+    await page.goto("/tests/e2e/fixture.html");
+    const report = await page.evaluate(async () => {
+      const el = window.makeWidget(window.makeData({ series: 20, points: 20 }), {
+        performanceMonitoring: { log: false, reportEvery: 1e9 },
+      });
+      return el.ts.performance.runBrush({ frames: 5, warmupFrames: 2 });
+    });
+    expect(Object.keys(report)).toEqual(["collisionMs", "renderMs", "totalCpuMs"]);
+    for (const metric of Object.values(report)) {
+      // Unchanged selections may skip filtering/rendering entirely.
+      expect(metric.samples).toBeGreaterThan(0);
+      expect(metric.samples).toBeLessThanOrEqual(5);
+      expect(Number.isFinite(metric.p50)).toBe(true);
+    }
+  });
+
   test("prepareBrush creates one group per domain and move() changes the selection", async ({ page }) => {
     await page.goto("/tests/e2e/fixture.html");
     const result = await page.evaluate(() => {
@@ -44,6 +87,31 @@ test.describe("bench harness", () => {
     expect(Number.isFinite(r.frameMs.p50)).toBe(true);
     expect(r.totalCpuMs.samples).toBeGreaterThan(0);
     expect(r.loadMs).toBeGreaterThan(0);
+  });
+
+  test("trace setup failures prevent accepting an untraced measurement", async ({ page }) => {
+    await expect(page.evaluate(() => window.benchCell({
+      adapter: "canvas", lines: 10, points: 5, groups: 1, frames: 3, warmupFrames: 8,
+      beforeTrace: async () => { throw new Error("trace setup failed"); },
+    }))).rejects.toThrow("trace setup failed");
+  });
+
+  test("async trace setup finishes once before measurement starts", async ({ page }) => {
+    const result = await page.evaluate(async () => {
+      let calls = 0;
+      let ready;
+      const cell = await window.benchCell({
+        adapter: "canvas", lines: 10, points: 5, groups: 1, frames: 3, warmupFrames: 8,
+        beforeTrace: async () => {
+          calls++;
+          await new Promise((resolve) => setTimeout(resolve, 10));
+          ready = performance.now();
+        },
+      });
+      return { calls, frames: cell.measuredFrames,
+        setupBeforeMeasurement: ready <= performance.getEntriesByName("bench-measure-start")[0].startTime };
+    });
+    expect(result).toEqual({ calls: 1, frames: 3, setupBeforeMeasurement: true });
   });
 
   // Baselines must answer the same query as TimeWidget, or a cheaper baseline

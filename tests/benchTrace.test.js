@@ -1,4 +1,4 @@
-import { presentedFrames } from "../bench/trace.mjs";
+import { presentedFrames, compactTraceEvent } from "../bench/trace.mjs";
 
 const mark = (name, ts) => ({ name, cat: "blink.user_timing", ph: "I", ts });
 const swap = (ts) => ({ name: "Display::DrawAndSwap", cat: "viz", ph: "X", ts, dur: 30 });
@@ -107,4 +107,21 @@ describe("pacingCheck", () => {
     expect(r.ok).toBe(false);
     expect(r.reason).toMatch(/presented/);
   });
+});
+
+test("compacting a trace preserves frame analysis and discards unused payloads", () => {
+  const events = [
+    ...meta,
+    mark("bench-measure-start", 0), frameMark(0), swap(5000),
+    frameMark(10000), swap(15000), mark("bench-measure-end", 20000),
+    { ...task(1, 10, 1000, 3000), args: { hugeUnusedPayload: "commands" } },
+    task(2, 21, 11000, 4000),
+    { name: "GpuCommandBuffer", ph: "X", ts: 0, dur: 100, args: { data: "noise" } },
+    { name: "other_metadata", ph: "M", args: { name: "noise" } },
+  ];
+  const compact = events.map(compactTraceEvent).filter(Boolean);
+  expect(compact).toHaveLength(events.length - 2);
+  expect(compact.find((e) => e.name === "RunTask").args).toBeUndefined();
+  expect(presentedFrames(compact)).toEqual(presentedFrames(events));
+  expect(frameStageBusy(compact)).toEqual(frameStageBusy(events));
 });
