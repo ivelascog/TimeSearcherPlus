@@ -63,9 +63,7 @@ Refleja directamente la fluidez que experimenta el usuario al interactuar con el
   <span class="fps-bad">≤ 16 fps</span> = inutilizable para interacción.<br>
   La ventaja de WebGPU sobre Canvas 2D crece con N: el paralelismo masivo de la GPU compensa
   el overhead de la API a partir de ~10k series.<br>
-  <strong>LOD adaptativo:</strong> para N&gt;60k se dibuja 1 de cada 1.5 líneas; para N&gt;80k, 1 de cada 2.
-  Ambos renderers aplican el mismo <em>lineStep</em> (mismo número de líneas renderizadas) para garantizar una comparativa justa.
-  WebGPU aplica adicionalmente <em>maxSamples</em> para reducir el bandwidth hacia la GPU (irrelevante en Canvas 2D).
+  Ambos renderers procesan todas las series y sus puntos, sin submuestreo.
 </div>
 
 <div class="controls">
@@ -87,10 +85,6 @@ Refleja directamente la fluidez que experimenta el usuario al interactuar con el
   <label title="Frames a medir (más = más preciso)">Frames: <input id="inpFrames" type="number" value="60" min="30" max="600" style="width:60px"></label>
   <label title="Frames de calentamiento antes de medir">Warm-up: <input id="inpWarmup" type="number" value="30" min="0" max="200" style="width:55px"></label>
   <label title="Nº de ciclos completos — se conserva el mejor resultado (mayor FPS) de cada pasada">Pasadas: <input id="inpPasses" type="number" value="1" min="1" max="10" style="width:45px"></label>
-
-  <label title="Aplica lineStep a ambos renderers (mismo nº de líneas). WebGPU aplica además maxSamples internamente.">
-    <input type="checkbox" id="chkLOD" checked> LOD adaptativo
-  </label>
 
   <button id="btnRun">▶ Medir</button>
   <button id="btnRunAll">⟳ Medir todos</button>
@@ -166,7 +160,7 @@ function buildDataset(n) {
   const data = [];
   const cl = (v, a, b) => Math.max(a, Math.min(b, v));
   // Para N > 100k reducir muestras/serie: 30M objetos JS para N=1M causaría OOM.
-  // Con 5 muestras: 5M objetos (~500MB) — manejable. El LOD WebGPU aplica igualmente.
+  // Con 5 muestras: 5M objetos (~500MB) — manejable.
   const pts = n > 100000 ? 5 : 30;
   const xDiv = pts > 1 ? pts - 1 : 1;
   for (let s = 0; s < n; s++) {
@@ -240,7 +234,7 @@ function raf() { return new Promise(r => requestAnimationFrame(r)); }
 // Mide FPS real durante frameCount frames de animación continua.
 // Cada frame: renderFn() → syncRenderer() → timestamp del siguiente RAF.
 // La diferencia entre timestamps consecutivos de RAF = frame time real.
-async function runFPSBenchmark(n, renderer, frameCount, warmupFrames, enableLOD) {
+async function runFPSBenchmark(n, renderer, frameCount, warmupFrames) {
   destroyWidget();
   fpsLive.textContent = '';
 
@@ -255,7 +249,6 @@ async function runFPSBenchmark(n, renderer, frameCount, warmupFrames, enableLOD)
       width: 800, height: 380,
       margin: { left: 52, top: 28, bottom: 46, right: 20 },
       renderer,
-      enableLOD,
       defaultColor: '#94a3b8',
       defaultAlpha: 0.4,
       noSelectedAlpha: 0.05,
@@ -417,13 +410,12 @@ document.getElementById('btnRun').onclick = async () => {
   const btns = [btnRun, btnRunAll];
   btns.forEach(b => b.disabled = true);
 
-  const enableLOD = document.getElementById('chkLOD').checked;
-  setStatus(`Midiendo FPS: ${renderer.toUpperCase()} N=${n.toLocaleString()} (${frames} frames · LOD ${enableLOD ? 'ON' : 'OFF'})…`);
-  log(`\n[INICIO] ${renderer.toUpperCase()} N=${n.toLocaleString()} frames=${frames} warmup=${warmup} LOD=${enableLOD}`);
+  setStatus(`Midiendo FPS: ${renderer.toUpperCase()} N=${n.toLocaleString()} (${frames} frames)…`);
+  log(`\n[INICIO] ${renderer.toUpperCase()} N=${n.toLocaleString()} frames=${frames} warmup=${warmup}`);
   setProgress(0.01);
 
   try {
-    const res = await runFPSBenchmark(n, renderer, frames, warmup, enableLOD);
+    const res = await runFPSBenchmark(n, renderer, frames, warmup);
     results[n][renderer] = res;
     renderTable();
     const statusMsg = res.skipped
@@ -444,14 +436,13 @@ document.getElementById('btnRunAll').onclick = async () => {
   const frames    = +document.getElementById('inpFrames').value;
   const warmup    = +document.getElementById('inpWarmup').value;
   const passes    = Math.max(1, +document.getElementById('inpPasses').value);
-  const enableLOD = document.getElementById('chkLOD').checked;
   const btns = [btnRun, btnRunAll];
 
   const selectedNS = Array.from(document.querySelectorAll('.ns-check:checked')).map(cb => +cb.value);
   if (selectedNS.length === 0) { alert('Selecciona al menos un N.'); return; }
 
   btns.forEach(b => b.disabled = true);
-  log(`\n[INICIO] ${passes} pasada(s) × ${selectedNS.length} tamaños × 2 renderers · LOD=${enableLOD}`);
+  log(`\n[INICIO] ${passes} pasada(s) × ${selectedNS.length} tamaños × 2 renderers`);
 
   // Ejecutar primero todos los tests WebGPU, luego Canvas.
   // Evita que Canvas 50k/100k throttle térmicamente la GPU antes de medir WebGPU.
@@ -468,7 +459,7 @@ document.getElementById('btnRunAll').onclick = async () => {
       setStatus(`[${done}/${total}] Pasada ${pass}/${passes} · ${r.toUpperCase()} N=${n.toLocaleString()}…`);
       log(`\n[${done}/${total}] ${r.toUpperCase()} N=${n.toLocaleString()}`);
       try {
-        const res = await runFPSBenchmark(n, r, frames, warmup, enableLOD);
+        const res = await runFPSBenchmark(n, r, frames, warmup);
         // Conservar el mejor resultado (mayor FPS) entre pasadas
         const prev = results[n][r];
         if (!prev || (!prev.skipped && !res.skipped && res.medFPS > prev.medFPS) || (!prev && !res.skipped)) {

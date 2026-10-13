@@ -88,25 +88,8 @@ function TimeLineOverview({
   }
 
   me.data = function (data) {
-    // LOD para Canvas 2D: solo lineStep (saltar líneas), sin reducir puntos por línea.
-    // maxSamples no aplica aquí — existe para reducir bandwidth hacia la GPU.
-    const useLOD = ts.enableLOD !== false;
-    const n = data.length;
-    const lineStep = useLOD ? (n > 80000 ? 2 : n > 60000 ? 1.5 : 1) : 1;
-    const lodData  = lineStep > 1
-      ? data.filter((_, i) => Math.round(i % lineStep) === 0)
-      : data;
-
-    if (useLOD && lineStep > 1) {
-      const pct = Math.round((1 - lodData.length / n) * 100);
-      console.log(
-        `%c[Canvas2D] LOD: ${n.toLocaleString()} → ${lodData.length.toLocaleString()} líneas (−${pct}%)`,
-        'color:#ffaa00'
-      );
-    }
-
     paths = new Map();
-    lodData.forEach((d) => {
+    data.forEach((d) => {
       let group = groupAttr ? groupAttr(d[1][0]) : null;
       let pathObject = { path: new Path2D(line(d[1])), group: group };
       paths.set(d[0], pathObject);
@@ -124,46 +107,9 @@ function TimeLineOverview({
           .filter((p) => !isNaN(p[0]) && !isNaN(p[1])),
       }));
 
-      // LOD adaptativo para WebGPU: dos etapas de reducción para N masivo.
-      // Se puede deshabilitar con enableLOD: false para preservar outliers.
-      const useLOD = ts.enableLOD !== false;
-      const n = formattedData.length;
-      const maxSamples = useLOD ? (n > 75000 ? 5 : n > 40000 ? 8 : n > 20000 ? 14 : null) : null;
-      const lineStep   = useLOD ? (n > 80000 ? 2 : n > 60000 ? 1.5 : 1) : 1;
-
-      const sampledData = maxSamples
-        ? formattedData.map(d => {
-            const pts = d.points;
-            if (pts.length <= maxSamples) return d;
-            const step = (pts.length - 1) / (maxSamples - 1);
-            return Object.assign({}, d, {
-              points: Array.from({ length: maxSamples }, function(_, i) {
-                return pts[Math.min(Math.round(i * step), pts.length - 1)];
-              }),
-            });
-          })
-        : formattedData;
-
-      // Subsampleo de líneas: mantener 1 de cada lineStep
-      const gpuData = lineStep > 1
-        ? sampledData.filter(function(_, i) { return Math.round(i % lineStep) === 0; })
-        : sampledData;
-
-      if (maxSamples || lineStep > 1) {
-        const linePct = Math.round((1 - gpuData.length / n) * 100);
-        const linePart = lineStep > 1
-          ? ` → ${gpuData.length.toLocaleString()} dibujadas (−${linePct}% líneas)`
-          : '';
-        const samplePart = maxSamples ? `, máx ${maxSamples} muestras/línea` : '';
-        console.log(
-          `%c[WebGPU] LOD: ${n.toLocaleString()} líneas${linePart}${samplePart}`,
-          'color:#ff8800'
-        );
-      }
-
-      gpuRenderer.uploadData(gpuData);
-      // Ajustar MSAA: desactivarlo para N > 10k (sin beneficio visual, 4× coste)
-      gpuRenderer.setAdaptiveSampleCount(gpuData.length);
+      gpuRenderer.uploadData(formattedData);
+      // Ajustar MSAA sin omitir líneas ni puntos del dataset.
+      gpuRenderer.setAdaptiveSampleCount(formattedData.length);
       // Invalidar cache de estilos al cargar nuevos datos
       _gpuLastDataSelected = _gpuLastDataNotSelected = _gpuLastMedians = null;
     }

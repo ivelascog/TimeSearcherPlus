@@ -311,7 +311,6 @@ function buildDocSections() {
         <table class="__tw-help-table">
           <tr><th>Parámetro</th><th>Significado</th></tr>
           <tr><td><code>renderer</code></td><td><code>'webgpu'</code> (por defecto, acelerado por GPU) o <code>'canvas'</code> (Canvas 2D clásico).</td></tr>
-          <tr><td><code>enableLOD</code></td><td>Activa el submuestreo de líneas y puntos en WebGPU (más fluido con datasets grandes; puede omitir outliers).</td></tr>
           <tr><td><code>xPartitions</code> / <code>yPartitions</code></td><td>Particiones del algoritmo de aceleración de colisiones.</td></tr>
           <tr><td><code>alphaScale</code></td><td>Escala que ajusta la transparencia según el número de elementos dibujados.</td></tr>
         </table>`,
@@ -602,7 +601,6 @@ function buildDocSectionsEN() {
         <table class="__tw-help-table">
           <tr><th>Parameter</th><th>Description</th></tr>
           <tr><td><code>renderer</code></td><td><code>'webgpu'</code> (default, GPU-accelerated) or <code>'canvas'</code> (legacy Canvas 2D).</td></tr>
-          <tr><td><code>enableLOD</code></td><td>Enables WebGPU line/point subsampling (smoother with large datasets; may drop outliers).</td></tr>
           <tr><td><code>xPartitions</code> / <code>yPartitions</code></td><td>Partitions for the collision acceleration algorithm.</td></tr>
           <tr><td><code>alphaScale</code></td><td>Scale that adjusts opacity based on the number of rendered elements.</td></tr>
         </table>`,
