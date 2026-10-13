@@ -40,14 +40,19 @@ test.describe("#63 domain options and setDomains", () => {
   });
 
   test("a Date xDomain option does not throw", async ({ page }) => {
-    const x = await page.evaluate(() => {
-      const w = window.makeWidget(window.makeData({ points: 40, dates: true }), {
-        x: "t",
-        xDomain: [new Date(2023, 0, 5), new Date(2023, 0, 12)],
-      });
-      return w.ts.xDomain.map((d) => d.toISOString().slice(0, 10));
+    const { actual, requested } = await page.evaluate(() => {
+      // Construct expectations in the browser's timezone, just like the data.
+      const requested = [new Date(2023, 0, 5), new Date(2023, 0, 12)];
+      const w = window.makeWidget(
+        window.makeData({ points: 40, dates: true }),
+        {
+          x: "t",
+          xDomain: requested,
+        }
+      );
+      return { actual: w.ts.xDomain, requested };
     });
-    expect(x).toEqual(["2023-01-05", "2023-01-12"]);
+    expect(actual).toEqual(requested);
     await expectNoPageErrors(page);
   });
 
@@ -175,7 +180,9 @@ test.describe("#65 reference curves", () => {
   test("the stored copy is sorted by x", async ({ page }) => {
     const xs = await page.evaluate((curve) => {
       const w = window.makeWidget(window.makeData({ points: 40 }));
-      w.ts.addReferenceCurves([{ data: curve.slice(), color: "red", opacity: 1 }]);
+      w.ts.addReferenceCurves([
+        { data: curve.slice(), color: "red", opacity: 1 },
+      ]);
       return w.ts._referenceCurves[0].data.map((p) => p[0]);
     }, CURVE);
     expect(xs).toEqual([...xs].sort((a, b) => a - b));
@@ -183,7 +190,9 @@ test.describe("#65 reference curves", () => {
 
   // Regression: curves given as the constructor option were stored unsorted
   // while addReferenceCurves() sorted them, so those drew as zig-zags.
-  test("curves given as a constructor option are sorted too", async ({ page }) => {
+  test("curves given as a constructor option are sorted too", async ({
+    page,
+  }) => {
     const xs = await page.evaluate((curve) => {
       const w = window.makeWidget(window.makeData({ points: 40 }), {
         referenceCurves: [{ data: curve.slice(), color: "red", opacity: 1 }],
@@ -201,7 +210,9 @@ test.describe("#65 reference curves", () => {
   }) => {
     const r = await page.evaluate((curve) => {
       const w = window.makeWidget(window.makeData({ points: 40 }));
-      w.ts.addReferenceCurves([{ data: curve.slice(), color: "red", opacity: 1 }]);
+      w.ts.addReferenceCurves([
+        { data: curve.slice(), color: "red", opacity: 1 },
+      ]);
       const d = () => w.querySelector("path.referenceCurve").getAttribute("d");
       const stored = () => w.ts._referenceCurves[0].data.length;
 
@@ -211,7 +222,14 @@ test.describe("#65 reference curves", () => {
       const zoomed = d();
       const storedZoomed = stored();
       w.ts.setDomains({ x: [0, 39] });
-      return { full, zoomed, back: d(), storedFull, storedZoomed, storedBack: stored() };
+      return {
+        full,
+        zoomed,
+        back: d(),
+        storedFull,
+        storedZoomed,
+        storedBack: stored(),
+      };
     }, CURVE);
 
     expect(r.zoomed).not.toBe(r.full); // the curve tracked the zoom
@@ -356,7 +374,9 @@ test.describe("#65 brush re-projection", () => {
     await expectNoPageErrors(page);
   });
 
-  test("a brush keeps its data coordinates across an x zoom", async ({ page }) => {
+  test("a brush keeps its data coordinates across an x zoom", async ({
+    page,
+  }) => {
     await build(page, [
       [10, 130],
       [20, 90],
@@ -379,7 +399,9 @@ test.describe("#65 brush re-projection", () => {
 
   test("a user-drawn brush survives a zoom", async ({ page }) => {
     await page.evaluate(() => {
-      window.__w = window.makeWidget(window.makeData({ series: 30, points: 40 }));
+      window.__w = window.makeWidget(
+        window.makeData({ series: 30, points: 40 })
+      );
     });
     const box = await page.locator("#target svg, svg").first().boundingBox();
     await page.mouse.move(box.x + box.width * 0.3, box.y + box.height * 0.35);
@@ -392,7 +414,8 @@ test.describe("#65 brush re-projection", () => {
     const drawn = await page.evaluate(
       () =>
         [...window.__w.querySelectorAll("rect.selection")].filter(
-          (r) => r.getAttribute("width") !== null && +r.getAttribute("width") > 0
+          (r) =>
+            r.getAttribute("width") !== null && +r.getAttribute("width") > 0
         ).length
     );
     expect(drawn).toBeGreaterThan(0);
