@@ -67,6 +67,14 @@ queda pendiente de la revisión solicitada por el usuario.
 | `performance.runBrush`             | Muestras de render mayores que cero     | Cero muestras de render                                                                             |
 | Fecha en `zoom.spec.js` existente  | Días ISO 5 y 12 de enero                | Días ISO 4 y 11; revisar conversión de medianoche local a UTC                                       |
 
+### Revisión del 13 de octubre de 2026
+
+Por indicación del usuario, el test `date snapping rounds drawn coordinates to
+whole days` compara ahora directamente los valores `Date` con `new Date(2023,
+0, 3)` y `new Date(2023, 0, 9)`. La ejecución aislada en Chromium ha pasado
+(**1/1**). Los demás fallos no se han corregido ni vuelto a ejecutar; la tabla
+anterior conserva el resultado histórico de la suite completa.
+
 La suite ofrece cobertura amplia de las funciones, no una garantía de todas
 las combinaciones posibles. Esta ejecución solo verifica Chromium de escritorio.
 No se prueban todavía otros motores, interacción táctil, todos los parámetros

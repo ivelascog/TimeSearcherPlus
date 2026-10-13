@@ -119,7 +119,10 @@ test("date snapping rounds drawn coordinates to whole days", async ({
     [+new Date(2023, 0, 8, 20), 37],
   ]);
   const [d] = await domains(page);
-  expect(d.map((p) => p[0].slice(0, 10))).toEqual(["2023-01-03", "2023-01-09"]);
+  expect(d.map((p) => p[0])).toEqual([
+    new Date(2023, 0, 3),
+    new Date(2023, 0, 9),
+  ]);
   expect(d.map((p) => p[1])).toEqual([60, 40]);
 });
 
