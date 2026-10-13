@@ -14,7 +14,7 @@
         <output for="lines pointsPerLines" id="result"></output>
         <label for="maxSamples">Samples</label>
         <input type="number" min="10" value="300" step="10" id="maxSamples">
-        <label for="reportEvery">Report every</label>
+        <label for="reportEvery">Report every N CPU measurements</label>
         <input type="number" min="1" value="60" step="1" id="reportEvery">
         <label for="frames">Benchmark frames</label>
         <input type="number" min="1" value="300" step="10" id="frames">
@@ -25,7 +25,7 @@
     </form>
     <div id="chart"></div>
     <h2>Performance report</h2>
-    <p>The benchmark creates and moves the brush automatically.</p>
+    <p>The benchmark creates and moves the brush automatically and reports internal CPU timings. Frame presentation and FPS are measured by the external benchmark in bench/.</p>
     <pre id="performanceReport">Waiting for samples…</pre>
 
     <script src="https://cdn.jsdelivr.net/npm/d3@7"></script>
