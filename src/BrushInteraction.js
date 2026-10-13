@@ -280,16 +280,16 @@ function brushInteraction({
     interactionFrame = window.requestAnimationFrame(() => {
       interactionFrame = null;
 
-      // Updating all selected brushes subsumes a pending single-brush update.
-      if (pendingSelectionUpdate) {
-        pendingSelectionUpdate = false;
-        pendingBrushUpdate = null;
-        updateSelection();
-        return;
-      }
-
       const update = pendingBrushUpdate;
       pendingBrushUpdate = null;
+
+      if (pendingSelectionUpdate) {
+        pendingSelectionUpdate = false;
+        updateSelection();
+        // The group update already processes a Shift-selected trigger.
+        if (update && update.brush[1].isSelected) return;
+      }
+
       if (update) brushed(update.event, update.brush);
     });
   }
@@ -767,7 +767,6 @@ function brushInteraction({
       .style("stroke", darken(computeColor(brushValue.group)))
       .style("outline-color", darken(computeColor(brushValue.group)))
       .style("fill", computeColor(brushValue.group))
-      .attr("tabindex", 0)
       .on("mousedown", (sourceEvent) => {
         if (
           sourceEvent.button !== 0 ||
