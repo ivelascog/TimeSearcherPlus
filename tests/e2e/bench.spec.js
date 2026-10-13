@@ -170,11 +170,27 @@ test.describe("bench harness", () => {
   // Review finding: focus checked only at start and end; a focus steal in the
   // middle of a run passed both checks.
   test("a blur during the run is recorded", async ({ page }) => {
-    const r = await page.evaluate(() => {
-      setTimeout(() => window.dispatchEvent(new Event("blur")), 50);
-      return window.benchCell({ adapter: "timewidget", lines: 300, points: 20, groups: 1, frames: 200, warmupFrames: 0 });
+    const { result, blurFrameCount } = await page.evaluate(async () => {
+      performance.clearMarks();
+      let blurFrameCount = 0;
+      const result = await window.benchCell({
+        adapter: "timewidget", lines: 300, points: 20, groups: 1,
+        frames: 12, warmupFrames: 0, paceMs: 0,
+        beforeTrace: () => {
+          // Adapter loading and listener registration have finished. Dispatch
+          // on the next frame, after the driver starts measuring, not on a timer.
+          requestAnimationFrame(() => {
+            blurFrameCount = performance.getEntriesByName("bench-frame").length;
+            window.dispatchEvent(new Event("blur"));
+          });
+        },
+      });
+      return { result, blurFrameCount };
     });
-    expect(r.focusLost).toBe(true);
+    expect(blurFrameCount).toBeGreaterThan(0);
+    expect(blurFrameCount).toBeLessThan(12);
+    expect(result.measuredFrames).toBe(12);
+    expect(result.focusLost).toBe(true);
   });
 
   // Review finding: the budget started after load, so a huge load had no bound.

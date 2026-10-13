@@ -47,13 +47,14 @@ npx playwright show-report
 
 La suite incluye 114 pruebas e2e en Chromium tras integrar main. La última ejecución completa de
 `npm run test:all` aprobó las 119 pruebas unitarias y la compilación, y obtuvo
-**113 e2e aprobadas y 1 fallida**, sin omitidas ni reintentos.
+**114 e2e aprobadas**, sin fallos, omitidas ni reintentos.
 Los 24 tests de `rendering-api.spec.js` pasan. Los benchmarks internos verifican
 el contrato actual de métricas CPU: `collisionMs`, `renderMs` y `totalCpuMs`.
 
-En la última ejecución completa falla `a blur during the run is recorded`, en
-`bench.spec.js:172`, un caso incorporado desde main. Se conserva sin corregir
-para revisión del usuario, con captura y traza en `test-results/`.
+El test `a blur during the run is recorded` sincroniza ahora el evento con
+`beforeTrace` y el primer frame medido, después de registrar los listeners.
+Comprueba que el evento sucede durante la medición y que `focusLost` queda
+registrado. Ha pasado diez repeticiones consecutivas y la suite completa.
 
 El test de dominio temporal en `zoom.spec.js` compara directamente las fechas
 reales con las solicitadas, ambas creadas en la zona horaria del navegador.
