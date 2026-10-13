@@ -128,15 +128,29 @@ test("disable and re-enable a group hides and restores its TimeBoxes", async ({
   page,
 }) => {
   await mount(page, { filters: [group()] });
+  await expect(selections(page)).toHaveCount(1);
+  await expect(selections(page).first()).toBeVisible();
+  const before = await domains(page);
+
   await rows(page).first().locator('input[type="checkbox"]').uncheck();
-  await expect(selections(page)).toHaveCount(0);
+  await expect(selections(page)).toHaveCount(1);
+  await expect(selections(page).first()).toBeHidden();
+  expect(await domains(page)).toEqual(before);
   expect(
     await page.evaluate(
       () => [...window.widget.brushGroups.values()][0].isEnable
     )
   ).toBe(false);
+
   await rows(page).first().locator('input[type="checkbox"]').check();
   await expect(selections(page)).toHaveCount(1);
+  await expect(selections(page).first()).toBeVisible();
+  expect(await domains(page)).toEqual(before);
+  expect(
+    await page.evaluate(
+      () => [...window.widget.brushGroups.values()][0].isEnable
+    )
+  ).toBe(true);
   await ids(page, ["mid"]);
 });
 

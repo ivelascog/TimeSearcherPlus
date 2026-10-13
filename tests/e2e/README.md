@@ -43,6 +43,26 @@ la siguiente ejecución. Para revisar el HTML:
 npx playwright show-report
 ```
 
+## Estado actual de la suite
+
+La suite incluye 102 pruebas e2e en Chromium. La última ejecución completa de
+`npm run test:all` aprobó las 42 pruebas unitarias y la compilación, y obtuvo
+**101 e2e aprobadas y 1 fallida**, sin omitidas ni reintentos.
+
+El único fallo pendiente es `a Date xDomain option does not throw`, en
+`zoom.spec.js`: convierte medianoche local a UTC con `toISOString()` y compara
+los días como strings. En Europe/Madrid recibe 4 y 11 de enero donde espera 5
+y 12. Se conserva sin corregir para revisión del usuario.
+
+`auto-update.spec.js` añade tres casos que verifican la geometría durante el
+arrastre, el movimiento conjunto de TimeBoxes y la actualización diferida de
+colisiones. Los tests corregidos comprueban fechas como Date, visibilidad de los
+elementos reales, formatos numéricos, `negate`, inversión respecto al centro del
+conjunto, detalles `.details`, estilos CSS de referencias y datos variables en
+el benchmark. Los callbacks reciben el valor y el estado exportados.
+
+Los resultados que siguen son históricos y preceden a estas correcciones.
+
 ## Resultado pendiente de revisión: 1 de octubre de 2026
 
 42 pruebas unitarias aprobadas; compilación aprobada. En Chromium: **99 e2e,

@@ -7,6 +7,7 @@ import {
   filter,
   ids,
   draw,
+  domains,
   selections,
   key,
 } from "./helpers.js";
@@ -157,20 +158,76 @@ test("multiple groups expose independent selections in legacy and tidy outputs",
   expect(value.color).toBeTruthy();
 });
 
-test("inverting the selected query mirrors its vertical interval", async ({
+test("inverting the selected query mirrors TimeBoxes around their shared vertical midpoint", async ({
   page,
 }) => {
   await mount(page, {
     filters: [
       group([
-        filter([
-          [2, 35],
-          [8, 15],
-        ]),
+        filter(
+          [
+            [1, 35],
+            [4, 20],
+          ],
+          { aggregation: "or" }
+        ),
+        filter(
+          [
+            [6, 80],
+            [9, 60],
+          ],
+          { aggregation: "or" }
+        ),
       ]),
     ],
   });
-  await ids(page, ["low"]);
+  await ids(page, ["low", "high"]);
+  const before = await domains(page);
   await key(page, "i");
-  await ids(page, ["high"]);
+  const after = await domains(page);
+  const expected = [
+    [
+      [1, 80],
+      [4, 65],
+    ],
+    [
+      [6, 40],
+      [9, 20],
+    ],
+  ];
+  expect(after).toHaveLength(2);
+  for (let i = 0; i < 2; i++) {
+    for (let corner = 0; corner < 2; corner++) {
+      for (let axis = 0; axis < 2; axis++) {
+        expect(after[i][corner][axis]).toBeCloseTo(
+          expected[i][corner][axis],
+          5
+        );
+      }
+    }
+    expect(after[i][1][0] - after[i][0][0]).toBeCloseTo(
+      before[i][1][0] - before[i][0][0],
+      5
+    );
+    expect(after[i][0][1] - after[i][1][1]).toBeCloseTo(
+      before[i][0][1] - before[i][1][1],
+      5
+    );
+  }
+  await ids(page, ["low", "high"]);
+
+  // Reflecting twice must restore each original TimeBox, including its X interval.
+  await key(page, "i");
+  const restored = await domains(page);
+  expect(restored).toHaveLength(before.length);
+  for (let i = 0; i < 2; i++) {
+    for (let corner = 0; corner < 2; corner++) {
+      for (let axis = 0; axis < 2; axis++) {
+        expect(restored[i][corner][axis]).toBeCloseTo(
+          before[i][corner][axis],
+          5
+        );
+      }
+    }
+  }
 });

@@ -1083,7 +1083,7 @@ function TimeWidget(
 
   function onArrowRigth() {
     let selectedBrush = brushes.getSelectedBrush();
-    if (selectedBrush === null) return;
+    if (selectedBrush === null || selectedBrush === undefined) return;
 
     let [[x0, y0], [x1, y1]] = selectedBrush[1].selectionDomain;
 
@@ -1121,7 +1121,7 @@ function TimeWidget(
 
   function onArrowLeft() {
     let selectedBrush = brushes.getSelectedBrush();
-    if (selectedBrush === null) return;
+    if (selectedBrush === null || selectedBrush === undefined) return;
 
     let [[x0, y0], [x1, y1]] = selectedBrush[1].selectionDomain;
 
@@ -1159,7 +1159,7 @@ function TimeWidget(
 
   function onArrowDown() {
     let selectedBrush = brushes.getSelectedBrush();
-    if (selectedBrush === null) return;
+    if (selectedBrush === null || selectedBrush === undefined) return;
 
     let [[x0, y0], [x1, y1]] = selectedBrush[1].selectionDomain;
 
@@ -1185,7 +1185,7 @@ function TimeWidget(
 
   function onArrowUp() {
     let selectedBrush = brushes.getSelectedBrush();
-    if (selectedBrush === null) return;
+    if (selectedBrush === null || selectedBrush === undefined) return;
 
     let [[x0, y0], [x1, y1]] = selectedBrush[1].selectionDomain;
 
@@ -1370,6 +1370,7 @@ function TimeWidget(
     }
     divOverview.value.status = status;
     divOverview.dispatchEvent(new Event("input", { bubbles: true }));
+    statusCallback(status);
   }
 
   // Converts the brushes map into an array
@@ -1431,6 +1432,7 @@ function TimeWidget(
     };
     divOverview.brushGroups = brushes.getBrushesGroup();
     updateStatus();
+    updateCallback(divOverview.value);
   }
 
   /*function brushesToDomain(brushesGroup) {

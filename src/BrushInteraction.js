@@ -154,6 +154,13 @@ function brushInteraction({
     // }
     const [id, brush] = brushObject;
 
+    // Geometry is needed for drag deltas even when collision updates are deferred.
+    // Seed it from the start event before any movement reads the previous corners.
+    if (e.selection) {
+      brush.selection = snapSelectionPixels(e.selection);
+      brush.selectionDomain = getSelectionDomain(brush.selection);
+    }
+
     // call when the user starts interacting with a timeBox
     // If the user is creating a new TimeBox, modify the group to which the timeBox belongs.
     if (id === brushCount - 1) {

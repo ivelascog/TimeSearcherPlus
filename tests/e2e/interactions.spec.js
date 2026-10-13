@@ -32,7 +32,7 @@ test("clicking a restored TimeBox enables and populates its coordinates", async 
 }) => {
   await mount(page, { filters: [group()] });
   await selectFirst(page);
-  for (const [i, value] of ["2", "8", "40.0", "60.0"].entries()) {
+  for (const [i, value] of ["2.0", "8.0", "40.0", "60.0"].entries()) {
     await expect(coordinates(page).nth(i)).toBeEnabled();
     await expect(coordinates(page).nth(i)).toHaveValue(value);
   }
@@ -208,9 +208,9 @@ test("context menu changes mode, aggregation and negation and closes", async ({
       const b = [...window.widget.brushGroups.values()][0].brushes
         .values()
         .next().value;
-      return { mode: b.mode, aggregation: b.aggregation, not: b.not };
+      return { mode: b.mode, aggregation: b.aggregation, negate: b.negate };
     })
-  ).toEqual({ mode: "contains", aggregation: "or", not: true });
+  ).toEqual({ mode: "contains", aggregation: "or", negate: true });
   await page.locator(".__ts_contextMenu button").click();
   await expect(page.locator(".__ts_contextMenu")).toBeHidden();
 });
@@ -223,7 +223,7 @@ test("editable tooltip updates a coordinate on Enter and hides after leaving", a
     .first()
     .hover({ position: { x: 15, y: 15 } });
   const tooltip = page.locator(".__ts_tooltip");
-  await expect(tooltip).toBeVisible();
+  await expect(tooltip.locator("input.x0")).toBeVisible();
   await tooltip.locator("input.x0").fill("3");
   await tooltip.locator("input.x0").press("Enter");
   await expect
@@ -231,5 +231,5 @@ test("editable tooltip updates a coordinate on Enter and hides after leaving", a
     .toBeCloseTo(3, 5);
   await tooltip.locator("input.x0").blur();
   await page.mouse.move(1000, 700);
-  await expect(tooltip).toBeHidden();
+  await expect(tooltip.locator("input.x0")).toBeHidden();
 });

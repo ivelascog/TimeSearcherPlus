@@ -148,10 +148,10 @@ test("details render selected timelines and honor maxDetailsRecords", async ({
       ]),
     ],
   });
-  await expect(page.locator(".detailsContainer")).toHaveCount(2);
+  await expect(page.locator("#detail .details")).toHaveCount(2);
   expect(
     await page
-      .locator(".detailsContainer")
+      .locator("#detail .details")
       .evaluateAll((nodes) => nodes.map((n) => n.getAttribute("group")))
   ).toEqual(["low", "mid"]);
   expect(
@@ -329,14 +329,37 @@ for (const name of ["updateCallback", "statusCallback"]) {
     await mount(page);
     await page.evaluate((name) => {
       window.callbackCalls = 0;
-      window.widget.ts[name](() => window.callbackCalls++);
+      window.callbackValue = null;
+      window.widget.ts[name]((value) => {
+        window.callbackCalls++;
+        window.callbackValue = value;
+      });
     }, name);
     await draw(page, [
       [2, 60],
       [8, 40],
     ]);
     await ids(page, ["mid"]);
-    expect(await page.evaluate(() => window.callbackCalls)).toBeGreaterThan(0);
+    const result = await page.evaluate(
+      (name) => ({
+        calls: window.callbackCalls,
+        isCurrent:
+          window.callbackValue ===
+          (name === "updateCallback"
+            ? window.widget.value
+            : window.widget.value.status),
+        selected:
+          name === "updateCallback"
+            ? window.callbackValue.selectedIds
+            : [...window.callbackValue.keys()],
+      }),
+      name
+    );
+    expect(result.calls).toBeGreaterThan(0);
+    expect(result.isCurrent).toBe(true);
+    expect(result.selected).toEqual(
+      name === "updateCallback" ? ["mid"] : ["Group 1"]
+    );
   });
 }
 
@@ -368,9 +391,17 @@ test("reference curves apply style and replacing them removes old paths", async 
     )
   ).toBe(true);
   await expect(page.locator("path.referenceCurve")).toHaveCount(2);
-  await expect(page.locator("path.referenceCurve").first()).toHaveAttribute(
+  await expect(page.locator("path.referenceCurve").first()).toHaveCSS(
     "stroke",
-    "red"
+    "rgb(255, 0, 0)"
+  );
+  await expect(page.locator("path.referenceCurve").first()).toHaveCSS(
+    "opacity",
+    "0.5"
+  );
+  await expect(page.locator("path.referenceCurve").nth(1)).toHaveCSS(
+    "stroke",
+    "rgb(0, 0, 255)"
   );
   await page.evaluate(() => window.widget.ts.addReferenceCurves([]));
   await expect(page.locator("path.referenceCurve")).toHaveCount(0);
@@ -383,9 +414,28 @@ for (const method of ["run", "runBrush"]) {
     await mount(page, {
       performanceMonitoring: { enabled: false, log: false },
     });
+    if (method === "runBrush") {
+      await page.evaluate(() => {
+        // A ramp changes intersection membership as the brush travels in X.
+        const data = [];
+        for (let t = 0; t <= 10; t++) {
+          data.push(
+            { t, v: t * 10, id: "ramp" },
+            { t, v: 0, id: "low" },
+            { t, v: 100, id: "high" }
+          );
+        }
+        window.widget.ts.data(data);
+        window.widget.ts.setDomains({ x: [0, 10], y: [0, 100] });
+      });
+    }
     const report = await page.evaluate(
       (method) =>
-        window.widget.ts.performance[method]({ frames: 5, warmupFrames: 1 }),
+        window.widget.ts.performance[method]({
+          frames: 5,
+          warmupFrames: 1,
+          cycles: 1,
+        }),
       method
     );
     expect(report.renderMs.samples).toBeGreaterThan(0);
