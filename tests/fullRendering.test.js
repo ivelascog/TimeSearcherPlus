@@ -5,6 +5,7 @@ let canvas;
 let context;
 const uploadData = jest.fn();
 const setAdaptiveSampleCount = jest.fn();
+const updateStyles = jest.fn();
 const selection = {};
 for (const method of ["style", "selectAll", "data", "join", "attr"]) {
   selection[method] = () => selection;
@@ -19,6 +20,10 @@ jest.unstable_mockModule("../src/WebGPURenderer.js", () => ({
     }
     uploadData = uploadData;
     setAdaptiveSampleCount = setAdaptiveSampleCount;
+    updateStyles = updateStyles;
+    updateUniforms() {}
+    uploadMedians() {}
+    draw() {}
   },
 }));
 const { default: TimeLineOverview } = await import(
@@ -34,9 +39,16 @@ beforeEach(() => {
       this.path = path;
     }
   };
-  context = { scale: jest.fn(), clearRect: jest.fn(), stroke: jest.fn() };
+  context = {
+    scale: jest.fn(),
+    clearRect: jest.fn(),
+    stroke: jest.fn(),
+    save: jest.fn(),
+    restore: jest.fn(),
+  };
   canvas = { width: 700, height: 520, getContext: () => context };
   uploadData.mockClear();
+  updateStyles.mockClear();
   setAdaptiveSampleCount.mockClear();
 });
 afterAll(() => {
@@ -54,6 +66,8 @@ function createOverview(renderer) {
       defaultAlpha: 1,
       defaultColor: "gray",
       alphaScale: () => 1,
+      selectedAlpha: 1,
+      brushesColorScale: () => "#4682b4",
     },
     element: {},
     x: (d) => d.x,
@@ -95,5 +109,35 @@ test.each([20001, 80001])(
     for (const line of uploaded)
       expect(line.points).toHaveLength(points.length);
     expect(uploaded[1].points).toEqual(points.map((p) => [p.x, p.y]));
+  }
+);
+
+test.each(["canvas", "webgpu"])(
+  "%s renders every selection group beyond 256 groups",
+  async (renderer) => {
+    const data = Array.from({ length: 300 }, (_, id) => [
+      id,
+      [
+        { x: 0, y: id },
+        { x: 1, y: id },
+      ],
+    ]);
+    const selected = new Map(data.map((line) => [line[0], [line]]));
+    const overview = createOverview(renderer);
+    overview.data(data);
+    await Promise.resolve();
+    overview.render(selected, 299, [], [], true);
+    if (renderer === "canvas") {
+      expect(context.stroke).toHaveBeenCalledTimes(300);
+      const rendered = context.stroke.mock.calls.map(([path]) => path.path);
+      expect(new Set(rendered).size).toBe(300);
+    } else {
+      expect(updateStyles).toHaveBeenCalledTimes(1);
+      const styles = updateStyles.mock.calls[0][0];
+      expect([...styles.keys()]).toEqual(data.map((line) => line[0]));
+      expect([...styles.values()].every((style) => style.color[3] === 1)).toBe(
+        true
+      );
+    }
   }
 );
