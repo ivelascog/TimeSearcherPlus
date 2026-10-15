@@ -1,35 +1,91 @@
-import { cloneBrushGroupPayload } from "../src/BrushInteraction.js";
+import {expect, test} from "@jest/globals";
+import * as d3 from "d3";
+import {cloneBrushGroupPayload} from "../src/BrushInteraction.js";
+import {isInsideDomain} from "../src/utils.js";
 
-function fakeGroup() {
-  const brushes = new Map();
-  brushes.set(0, { mode: "Intersect", aggregation: "And", selection: [[0, 0], [10, 10]], selectionDomain: [[30, 1000], [40, 3000]] });
-  brushes.set(1, { mode: "Intersect", aggregation: "And", selection: null, selectionDomain: null }); // pending brush
-  return { name: "Group 1", isEnable: true, isActive: false, brushes };
+function sourceGroup() {
+    return {
+        name: "Source",
+        brushes: new Map([
+            [
+                0,
+                {
+                    mode: "intersect",
+                    aggregation: "and",
+                    selection: [
+                        [0, 0],
+                        [10, 10],
+                    ],
+                    selectionDomain: [
+                        [2, 70],
+                        [8, 20],
+                    ],
+                },
+            ],
+            [1, {selection: null, selectionDomain: null}],
+        ]),
+    };
 }
 
-test("copies only committed brushes with mode/aggregation/selectionDomain", () => {
-  const payload = cloneBrushGroupPayload(fakeGroup());
-  expect(payload.brushes).toEqual([
-    { mode: "Intersect", aggregation: "And", selectionDomain: [[30, 1000], [40, 3000]] },
-  ]);
+test("duplicating a group copies only its committed brushes", () => {
+    const copy = cloneBrushGroupPayload(sourceGroup());
+    expect(copy.brushes).toEqual([
+        {
+            mode: "intersect",
+            aggregation: "and",
+            selectionDomain: [
+                [2, 70],
+                [8, 20],
+            ],
+        },
+    ]);
 });
 
-test("appends a copy suffix to the name and is enabled, not active", () => {
-  const payload = cloneBrushGroupPayload(fakeGroup());
-  expect(payload.name).toBe("Group 1 (copy)");
-  expect(payload.isEnable).toBe(true);
-  expect(payload.isActive).toBe(false);
+test("the duplicate gets an independent enabled group name", () => {
+    const copy = cloneBrushGroupPayload(sourceGroup());
+    expect(copy.name).toBe("Source (copy)");
+    expect(copy.isEnable).toBe(true);
+    expect(copy.isActive).toBe(false);
 });
 
-test("returns an empty brushes array for a group with no committed brushes", () => {
-  const brushes = new Map();
-  brushes.set(0, { mode: "Intersect", aggregation: "And", selection: null, selectionDomain: null });
-  const payload = cloneBrushGroupPayload({ name: "Group 2", brushes });
-  expect(payload.brushes).toEqual([]);
+test("an empty source produces no committed brush copies", () => {
+    expect(
+        cloneBrushGroupPayload({brushes: new Map([[0, {selection: null}]])})
+            .brushes
+    ).toEqual([]);
 });
 
-test("does not share the source Map reference", () => {
-  const g = fakeGroup();
-  const payload = cloneBrushGroupPayload(g);
-  expect(Array.isArray(payload.brushes)).toBe(true);
+test("duplicating preserves the PR's NOT filters without sharing coordinates", () => {
+    const source = sourceGroup();
+    source.brushes.get(0).negate = true;
+    const copy = cloneBrushGroupPayload(source);
+    expect(copy.brushes[0].negate).toBe(true);
+    copy.brushes[0].selectionDomain[0][0] = 4;
+    expect(source.brushes.get(0).selectionDomain[0][0]).toBe(2);
+});
+
+test("date coordinates in a duplicate keep their type and are independent", () => {
+    const source = sourceGroup();
+    source.brushes.get(0).selectionDomain = [
+        [new Date(2025, 0, 1), 70],
+        [new Date(2025, 0, 10), 20],
+    ];
+    const copy = cloneBrushGroupPayload(source);
+    const date = copy.brushes[0].selectionDomain[0][0];
+    expect(date).toBeInstanceOf(Date);
+    date.setDate(3);
+    expect(source.brushes.get(0).selectionDomain[0][0].getDate()).toBe(1);
+});
+
+test("a brush on the axis edges remains valid when duplicated or restored", () => {
+    expect(
+        isInsideDomain(
+            [
+                [0, 100],
+                [10, 0],
+            ],
+            d3.scaleLinear().domain([0, 10]),
+            d3.scaleLinear().domain([0, 100])
+        )
+    ).toBe(true);
 });

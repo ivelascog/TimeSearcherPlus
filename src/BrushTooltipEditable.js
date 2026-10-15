@@ -7,7 +7,7 @@ function BrushTooltipEditable({
   fmtY,
   target,
   margin = { top: 0, left: 0 },
-  bounds,
+                                bounds,
   callback = () => {},
 }) {
   const x0E = htl.html`<input class="x0" contenteditable="true">`;
@@ -95,15 +95,15 @@ function BrushTooltipEditable({
     const fromRect = fromContent.getBoundingClientRect();
     const toRect = toE.getBoundingClientRect();
     const [fromLeft, fromTop] = clampTooltipPosition(
-      selectionPixels[0],
-      [fromRect.width, fromRect.height],
-      tooltipBounds,
-      { alignX: "end", alignY: "end" }
+        selectionPixels[0],
+        [fromRect.width, fromRect.height],
+        tooltipBounds,
+        {alignX: "end", alignY: "end"}
     );
     const [toLeft, toTop] = clampTooltipPosition(
-      selectionPixels[1],
-      [toRect.width, toRect.height],
-      tooltipBounds
+        selectionPixels[1],
+        [toRect.width, toRect.height],
+        tooltipBounds
     );
 
     // fromContent is anchored by its bottom-right corner inside fromE.
@@ -143,8 +143,8 @@ function BrushTooltipEditable({
   brushTooltip.addEventListener("focusout", () => {
     setTimeout(() => {
       if (
-        !brushTooltip.matches(":hover") &&
-        !brushTooltip.contains(document.activeElement)
+          !brushTooltip.matches(":hover") &&
+          !brushTooltip.contains(document.activeElement)
       ) {
         brushTooltip.__scheduleAutoHide();
       }
@@ -182,10 +182,10 @@ function BrushTooltipEditable({
 }
 
 export function clampTooltipPosition(
-  [anchorX, anchorY],
-  [tooltipWidth, tooltipHeight],
-  [[minX, minY], [maxX, maxY]],
-  { alignX = "start", alignY = "start" } = {}
+    [anchorX, anchorY],
+    [tooltipWidth, tooltipHeight],
+    [[minX, minY], [maxX, maxY]],
+    {alignX = "start", alignY = "start"} = {}
 ) {
   const preferredLeft = alignX === "end" ? anchorX - tooltipWidth : anchorX;
   const preferredTop = alignY === "end" ? anchorY - tooltipHeight : anchorY;

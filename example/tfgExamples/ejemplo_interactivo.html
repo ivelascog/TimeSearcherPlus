@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8"/>
+  <title>TimeWidget — Ejemplo Interactivo</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
+  <script src="../../dist/TimeWidget.js"></script>
+  <style>
+    * { box-sizing: border-box; }
+    body { font-family: sans-serif; background: #f5f5f5; margin: 20px; }
+    h2  { margin-bottom: 4px; }
+    .controls {
+      display: flex; gap: 12px; flex-wrap: wrap; align-items: flex-end;
+      background: #fff; border: 1px solid #ddd; border-radius: 6px;
+      padding: 12px 16px; margin-bottom: 16px;
+    }
+    .ctrl-group { display: flex; flex-direction: column; gap: 4px; font-size: 13px; }
+    .ctrl-group label { font-weight: 600; color: #444; }
+    select, input[type=number] {
+      padding: 5px 8px; font-size: 13px;
+      border: 1px solid #ccc; border-radius: 4px;
+    }
+    button {
+      padding: 7px 20px; font-size: 13px; cursor: pointer;
+      border: none; border-radius: 4px;
+      background: #1d4ed8; color: #fff; font-weight: 600;
+    }
+    button:hover { background: #1e40af; }
+    #widget-container { background: #fff; display: inline-block; padding: 8px; border-radius: 6px; border: 1px solid #ddd; }
+    #info { font-size: 12px; color: #666; margin-top: 8px; }
+  </style>
+</head>
+<body>
+
+<h2>TimeWidget — Ejemplo Interactivo</h2>
+<p style="color:#555; font-size:13px; margin-bottom:12px;">
+  Genera series temporales sintéticas con los parámetros que elijas y carga el widget.
+</p>
+
+<div class="controls">
+  <div class="ctrl-group">
+    <label>Series (líneas)</label>
+    <input id="inpSeries" type="number" value="200" min="1" max="100000" style="width:100px">
+  </div>
+  <div class="ctrl-group">
+    <label>Muestras por serie</label>
+    <input id="inpSamples" type="number" value="50" min="2" max="1000" style="width:90px">
+  </div>
+  <div class="ctrl-group">
+    <label>Renderer</label>
+    <select id="selRenderer">
+      <option value="canvas">Canvas 2D</option>
+      <option value="webgpu">WebGPU</option>
+    </select>
+  </div>
+  <div class="ctrl-group">
+    <label>Grupos de color</label>
+    <input id="inpGroups" type="number" value="3" min="1" style="width:70px">
+  </div>
+  <div class="ctrl-group" style="justify-content:flex-end">
+    <button id="btnLoad">▶ Cargar Widget</button>
+  </div>
+</div>
+
+<div id="widget-container">
+  <div id="target"></div>
+</div>
+<div id="info"></div>
+
+<script>
+  let ts = null;
+
+  function generateData(nSeries, nSamples, nGroups) {
+    const groups = Array.from({ length: nGroups }, (_, i) => `Grupo ${i + 1}`);
+    const data = [];
+    const startDate = new Date("2020-01-01");
+
+    for (let s = 0; s < nSeries; s++) {
+      const group = groups[s % nGroups];
+      const baseValue = 50 + Math.random() * 50;
+      let v = baseValue;
+
+      for (let t = 0; t < nSamples; t++) {
+        const date = new Date(startDate);
+        date.setDate(startDate.getDate() + t);
+        v += (Math.random() - 0.5) * 10;
+        v = Math.max(0, Math.min(200, v));
+        data.push({ date, value: +v.toFixed(2), id: `serie_${s}`, group });
+      }
+    }
+    return data;
+  }
+
+  document.getElementById("btnLoad").addEventListener("click", () => {
+    const nSeries   = +document.getElementById("inpSeries").value;
+    const nSamples  = +document.getElementById("inpSamples").value;
+    const renderer  = document.getElementById("selRenderer").value;
+    const nGroups   = +document.getElementById("inpGroups").value;
+
+    // Destruir widget anterior si existe
+    const target = document.getElementById("target");
+    target.innerHTML = "";
+
+    const t0 = performance.now();
+    const data = generateData(nSeries, nSamples, nGroups);
+    const tGen = (performance.now() - t0).toFixed(1);
+
+    const t1 = performance.now();
+    ts = TimeWidget(data, {
+      x: "date",
+      y: "value",
+      id: "id",
+      groupAttr: "group",
+      renderer,
+    });
+    target.appendChild(ts);
+    const tWidget = (performance.now() - t1).toFixed(1);
+
+    document.getElementById("info").textContent =
+      `${nSeries} series × ${nSamples} muestras = ${(nSeries * nSamples).toLocaleString()} puntos | ` +
+      `Renderer: ${renderer} | Datos: ${tGen} ms | Widget: ${tWidget} ms`;
+  });
+
+  // Cargar con valores por defecto al arrancar
+  document.getElementById("btnLoad").click();
+</script>
+</body>
+</html>

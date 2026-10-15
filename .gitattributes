@@ -1,0 +1,3 @@
+# Keep JavaScript line endings consistent with ESLint on every platform.
+*.js text eol=lf
+*.mjs text eol=lf

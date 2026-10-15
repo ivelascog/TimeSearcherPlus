@@ -31,29 +31,40 @@ Serve the repo root: the examples load `../dist/TimeWidget.js`, and the e2e
 fixture also loads `../../node_modules/d3/dist/d3.js`. Only the root contains
 both. `npm run dev` is `rollup -c -w` — a watch build, **not** a server.
 
+### Performance benchmark
+
+`npm run bench` (see `bench/README.md`) measures TimeWidget against naive
+Canvas, naive SVG and Vega-Lite baselines for the paper. It is **headed** and
+takes 2–3 h; never run it in CI. Default Playwright headless uses a
+software-rasterised canvas, so its frame times are meaningless. Frame time is
+measured with vsync off, frames paced by a busy-wait gap, and each frame's
+cost is its slowest pipeline stage (main thread vs. GPU process, from a Chrome
+trace). Without pacing, naive SVG starves the GPU and measures nonsense. `tests/e2e/bench.spec.js` checks the adapters'
+behaviour, never timing.
+
 **`npm run build` before e2e.** The e2e suite drives `dist/`, not `src/`, so a
 source edit is invisible to it until you rebuild. CI does this explicitly.
 
 ### Which example to open
 
-| File | Good for |
-|---|---|
-| `example/stocks.html` | **default choice** — ~410 real series, brushes, medians, reference curves |
-| `example/ResizeDomain.html` | `ts.setDomains()` zoom, driven by sliders |
-| `example/canguro.html` | reference curves (growth charts) |
-| `example/minimum.html` | smallest possible embed |
+| File                        | Good for                                                                  |
+|-----------------------------|---------------------------------------------------------------------------|
+| `example/stocks.html`       | **default choice** — ~410 real series, brushes, medians, reference curves |
+| `example/ResizeDomain.html` | `ts.setDomains()` zoom, driven by sliders                                 |
+| `example/canguro.html`      | reference curves (growth charts)                                          |
+| `example/minimum.html`      | smallest possible embed                                                   |
 
 ---
 
 ## Architecture
 
-| File | Role |
-|---|---|
-| `src/TimeWidget.js` | the factory. Owns scales, layout, the `ts` API object, render orchestration. **~1500 lines — the file everything gets piled into; extract rather than append.** |
-| `src/BrushInteraction.js` | TimeBoxes: creation, drag, groups, filter logic, selection state |
-| `src/TimeLineOverview.js` | canvas rendering of the series + group medians |
-| `src/BVH.js` | bounding-volume hierarchy for hit-testing at scale |
-| `src/utils.js` | framework-free helpers — **the testable seam; put pure logic here** |
+| File                      | Role                                                                                                                                                            |
+|---------------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `src/TimeWidget.js`       | the factory. Owns scales, layout, the `ts` API object, render orchestration. **~1500 lines — the file everything gets piled into; extract rather than append.** |
+| `src/BrushInteraction.js` | TimeBoxes: creation, drag, groups, filter logic, selection state                                                                                                |
+| `src/TimeLineOverview.js` | canvas rendering of the series + group medians                                                                                                                  |
+| `src/BVH.js`              | bounding-volume hierarchy for hit-testing at scale                                                                                                              |
+| `src/utils.js`            | framework-free helpers — **the testable seam; put pure logic here**                                                                                             |
 
 `TimeWidget(data, opts)` returns a **DOM element** with the internal API hung
 off it as `element.ts`, plus `element.value`, `.brushGroups`, `.extent`. So
@@ -120,8 +131,7 @@ domain in place, so zooming out could never restore the discarded points.
   neither does CI; run `npx eslint src/` yourself. Six pre-existing
   `no-unused-vars` errors are known (as of Aug 2026) — check whether a reported
   error is actually yours before chasing it.
-- **Conventional commits** (`fix:`, `feat:`, `chore:`), and PRs are
-  **squash-merged**, so `main` stays linear.
+- **Conventional commits** (`fix:`, `feat:`, `chore:`), and PRs are **squash-merged**, so `main` stays linear.
 - **Squash-merging breaks ancestry.** `git branch --merged` will report a merged
   branch as unmerged and `-d` will refuse it. Check content instead —
   `git diff main <branch>` — before deleting, and use `-D`.

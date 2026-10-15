@@ -90,7 +90,7 @@ out
 
 # Nuxt.js build / generate output
 .nuxt
-dist
+
 
 # Gatsby files
 .cache/
@@ -130,6 +130,9 @@ dist
 .yarn/install-state.gz
 .pnp.*
 .DS_Store
+
+/dist/
+
 
 # Playwright e2e artifacts
 test-results/

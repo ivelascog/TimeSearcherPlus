@@ -1,0 +1,682 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8"/>
+  <title>Benchmark FPS Fluidez — TimeWidget TFG</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
+  <script src="../../dist/TimeWidget.js"></script>
+  <style>
+    * { box-sizing: border-box; }
+    body { font-family: monospace; background: #fff; margin: 16px; font-size: 13px; }
+    h2 { margin-bottom: 2px; }
+    .subtitle { color: #555; font-size:.85em; margin: 2px 0 4px; }
+    .info-box { background:#fffbeb; border:1px solid #fcd34d; border-radius:4px;
+                padding:8px 12px; margin-bottom:12px; font-size:.82em; line-height:1.5; }
+    .info-box strong { color:#92400e; }
+    .controls { display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin-bottom:10px; }
+    select, button, input { padding:4px 8px; font-family:monospace; font-size:12px; }
+    button { cursor:pointer; }
+    button:disabled { opacity:.4; cursor:default; }
+    #btnRun    { background:#1d4ed8; color:#fff; border:none; padding:6px 16px; }
+    #btnRunAll { background:#16a34a; color:#fff; border:none; padding:6px 16px; }
+    #btnClear  { background:#dc2626; color:#fff; border:none; }
+    #status { margin:6px 0; min-height:18px; color:#333; }
+    #progress { width:300px; height:8px; background:#e5e7eb; border-radius:4px; display:none; }
+    #progressBar { height:100%; background:#1d4ed8; border-radius:4px; width:0%; transition:width .1s; }
+    table { border-collapse:collapse; margin-top:10px; width:100%; max-width:860px; }
+    td, th { border:1px solid #ccc; padding:4px 10px; text-align:right; }
+    th { background:#f3f4f6; text-align:center; }
+    td:first-child { text-align:left; }
+    .fps-good  { color:#16a34a; font-weight:bold; }
+    .fps-ok    { color:#ca8a04; font-weight:bold; }
+    .fps-bad   { color:#dc2626; font-weight:bold; }
+    .pending   { color:#999; }
+    .threshold { font-size:.75em; color:#6b7280; }
+    #widget-area { margin-top:10px; background:#f9f9f9; padding:8px; display:inline-block; }
+    .sep { border-top:1px solid #ddd; margin:12px 0 8px; }
+    #log { margin-top:8px; border:1px solid #ddd; padding:6px 10px; max-height:130px;
+           overflow-y:auto; font-size:.78em; color:#444; background:#fafafa; white-space:pre; }
+    .ns-checks { margin-bottom:10px; display:flex; gap:10px; flex-wrap:wrap;
+                 background:#f0f7ff; padding:8px; border-radius:4px; border:1px solid #cce3ff; }
+    #fps-live { font-size:2em; font-weight:bold; margin:4px 0; min-height:40px; }
+    #btnChart  { background:#7c3aed; color:#fff; border:none; padding:6px 16px; }
+    #chart-section { margin-top:14px; display:none; }
+    #chart-section canvas { display:block; border:1px solid #e5e7eb; border-radius:4px; }
+    #btnDownloadChart { background:#0f766e; color:#fff; border:none; padding:4px 12px;
+                        margin-top:6px; font-size:12px; font-family:monospace; cursor:pointer; }
+  </style>
+</head>
+<body>
+
+<h2>Benchmark FPS Fluidez — TimeWidget</h2>
+<p class="subtitle">Mide los <em>fotogramas por segundo reales</em> durante renderizado continuo.
+Refleja directamente la fluidez que experimenta el usuario al interactuar con el widget.</p>
+
+<div class="info-box">
+  <strong>¿Qué mide este benchmark?</strong><br>
+  Ejecuta un bucle de animación <code>requestAnimationFrame</code> llamando a <code>ts.renderDirect()</code>
+  en cada frame. Tras cada frame se llama a <code>ts.syncRenderer()</code> para forzar que la GPU complete
+  el trabajo antes del siguiente frame (comparación equitativa entre Canvas 2D y WebGPU).<br>
+  <strong>Umbrales de fluidez:</strong>
+  <span class="fps-good">≥ 45 fps</span> = fluido ·
+  <span class="fps-ok">17–44 fps</span> = visible ·
+  <span class="fps-bad">≤ 16 fps</span> = inutilizable para interacción.<br>
+  La ventaja de WebGPU sobre Canvas 2D crece con N: el paralelismo masivo de la GPU compensa
+  el overhead de la API a partir de ~10k series.<br>
+  Ambos renderers procesan todas las series y sus puntos, sin submuestreo.
+</div>
+
+<div class="controls">
+  <label>N.º series: <select id="selN">
+    <option value="500">500</option>
+    <option value="1000">1 000</option>
+    <option value="5000">5 000</option>
+    <option value="10000" selected>10 000</option>
+    <option value="50000">50 000</option>
+    <option value="100000">100 000</option>
+    <option value="1000000">1 000 000</option>
+  </select></label>
+
+  <label>Renderer: <select id="selRenderer">
+    <option value="canvas">Canvas 2D</option>
+    <option value="webgpu">WebGPU</option>
+  </select></label>
+
+  <label title="Frames a medir (más = más preciso)">Frames: <input id="inpFrames" type="number" value="60" min="30" max="600" style="width:60px"></label>
+  <label title="Frames de calentamiento antes de medir">Warm-up: <input id="inpWarmup" type="number" value="30" min="0" max="200" style="width:55px"></label>
+  <label title="Nº de ciclos completos — se conserva el mejor resultado (mayor FPS) de cada pasada">Pasadas: <input id="inpPasses" type="number" value="1" min="1" max="10" style="width:45px"></label>
+
+  <button id="btnRun">▶ Medir</button>
+  <button id="btnRunAll">⟳ Medir todos</button>
+  <button id="btnClear">✕ Limpiar</button>
+  <button id="btnChart">📊 Generar gráfica</button>
+</div>
+
+<div class="ns-checks">
+  <span style="font-weight:bold; color:#1e40af">Incluir en "Medir todos":</span>
+  <label><input type="checkbox" class="ns-check" value="500" checked> 500</label>
+  <label><input type="checkbox" class="ns-check" value="1000" checked> 1k</label>
+  <label><input type="checkbox" class="ns-check" value="5000" checked> 5k</label>
+  <label><input type="checkbox" class="ns-check" value="10000" checked> 10k</label>
+  <label><input type="checkbox" class="ns-check" value="50000" checked> 50k</label>
+  <label><input type="checkbox" class="ns-check" value="100000" checked> 100k</label>
+  <label title="Canvas 2D omitido automáticamente para N≥500k"><input type="checkbox" class="ns-check" value="1000000"> 1M ⚠️</label>
+</div>
+
+<div id="progress"><div id="progressBar"></div></div>
+<div id="status" class="pending">Listo.</div>
+<div id="fps-live"></div>
+
+<div id="widget-area"><div id="widget-host"></div></div>
+
+<div class="sep"></div>
+<b>Tabla de resultados — FPS Fluidez (renderizado puro)</b>
+<table id="results-table">
+  <thead>
+    <tr>
+      <th>N.º series</th>
+      <th>Canvas FPS (med)</th>
+      <th>Canvas ms/frame</th>
+      <th>WebGPU FPS (med)</th>
+      <th>WebGPU ms/frame</th>
+      <th>Factor FPS</th>
+      <th>Fluidez Canvas</th>
+      <th>Fluidez WebGPU</th>
+    </tr>
+  </thead>
+  <tbody id="results-body"></tbody>
+</table>
+
+<div id="log">— Log —</div>
+
+<div id="chart-section">
+  <div class="sep"></div>
+  <b id="chart-title">Comparativa de Rendimiento</b>
+  <div style="margin:4px 0 6px; font-size:.8em; color:#555;">
+    <label><input type="radio" name="chartMetric" value="ms" checked> ms/frame</label>
+    &nbsp;
+    <label><input type="radio" name="chartMetric" value="fps"> FPS</label>
+  </div>
+  <canvas id="perfChart" width="700" height="400"></canvas>
+  <br>
+  <button id="btnDownloadChart">⬇ Descargar PNG</button>
+</div>
+
+<script type="module">
+const NS = [500, 1000, 5000, 10000, 50000, 100000, 1000000];
+const RENDERERS = ['canvas', 'webgpu'];
+
+window.addEventListener('unhandledrejection', e => {
+  if (e.reason?.message?.includes('tabs:outgoing.message.ready')) e.preventDefault();
+});
+
+// ── Dataset determinista ──────────────────────────────────────
+function mkRng(seed) {
+  let s = seed >>> 0;
+  return () => { s = (1664525 * s + 1013904223) >>> 0; return s / 4294967296; };
+}
+function buildDataset(n) {
+  const rng = mkRng(42);
+  const data = [];
+  const cl = (v, a, b) => Math.max(a, Math.min(b, v));
+  // Para N > 100k reducir muestras/serie: 30M objetos JS para N=1M causaría OOM.
+  // Con 5 muestras: 5M objetos (~500MB) — manejable.
+  const pts = n > 100000 ? 5 : 30;
+  const xDiv = pts > 1 ? pts - 1 : 1;
+  for (let s = 0; s < n; s++) {
+    const arch = s % 5;
+    const baseY = 10 + rng() * 75, slope = (rng() - .5) * 8;
+    const amp = 3 + rng() * 11, phase = rng() * Math.PI * 2;
+    const freq = .4 + rng() * .8, noise = 1 + rng() * 4;
+    for (let i = 0; i < pts; i++) {
+      const x = i / xDiv * 10;
+      let y;
+      switch (arch) {
+        case 0: y = baseY + slope * x + (rng() - .5) * noise; break;
+        case 1: y = baseY + amp * Math.sin(freq * x + phase); break;
+        case 2: y = baseY + amp * Math.exp(-.5 * ((x - 5) / 1.5) ** 2); break;
+        case 3: y = baseY + (x > 5 ? 20 : -5) + (rng() - .5) * noise; break;
+        default: y = baseY + (rng() - .5) * amp * 2;
+      }
+      data.push({ id: `s${s}`, x, y: cl(y, 0, 100) });
+    }
+  }
+  return data;
+}
+
+// ── Estadísticas ──────────────────────────────────────────────
+function median(arr) {
+  if (!arr.length) return NaN;
+  const s = [...arr].sort((a, b) => a - b);
+  const m = Math.floor(s.length / 2);
+  return s.length % 2 ? s[m] : (s[m-1] + s[m]) / 2;
+}
+function percentile(arr, p) {
+  const s = [...arr].sort((a, b) => a - b);
+  return s[Math.max(0, Math.ceil(s.length * p / 100) - 1)];
+}
+
+// ── Resultados ────────────────────────────────────────────────
+const results = {};
+NS.forEach(n => { results[n] = { canvas: null, webgpu: null }; });
+
+// ── Log ───────────────────────────────────────────────────────
+const logEl = document.getElementById('log');
+function log(msg) { logEl.textContent += '\n' + msg; logEl.scrollTop = logEl.scrollHeight; }
+
+// ── UI ────────────────────────────────────────────────────────
+const statusEl   = document.getElementById('status');
+const progressEl = document.getElementById('progress');
+const progressBar = document.getElementById('progressBar');
+const fpsLive    = document.getElementById('fps-live');
+function setStatus(msg) { statusEl.textContent = msg; }
+function setProgress(p) {
+  progressEl.style.display = p > 0 ? 'block' : 'none';
+  progressBar.style.width = (p * 100) + '%';
+}
+function fpsClass(fps) {
+  return fps >= 45 ? 'fps-good' : fps > 16 ? 'fps-ok' : 'fps-bad';
+}
+function fpsLabel(fps) {
+  return fps >= 45 ? '✅ Fluido' : fps > 16 ? '⚠️ Visible' : '❌ Inutilizable';
+}
+
+// ── Widget ────────────────────────────────────────────────────
+let currentWidget = null;
+function destroyWidget() {
+  document.getElementById('widget-host').innerHTML = '';
+  currentWidget = null;
+}
+
+function raf() { return new Promise(r => requestAnimationFrame(r)); }
+
+// ── Benchmark FPS ─────────────────────────────────────────────
+// Mide FPS real durante frameCount frames de animación continua.
+// Cada frame: renderFn() → syncRenderer() → timestamp del siguiente RAF.
+// La diferencia entre timestamps consecutivos de RAF = frame time real.
+async function runFPSBenchmark(n, renderer, frameCount, warmupFrames) {
+  destroyWidget();
+  fpsLive.textContent = '';
+
+  const data = buildDataset(n);
+  const host = document.getElementById('widget-host');
+  let widgetEl;
+
+  try {
+    widgetEl = TimeWidget(data, {
+      x: d => d.x, y: d => d.y, id: d => d.id,
+      target: host,
+      width: 800, height: 380,
+      margin: { left: 52, top: 28, bottom: 46, right: 20 },
+      renderer,
+      defaultColor: '#94a3b8',
+      defaultAlpha: 0.4,
+      noSelectedAlpha: 0.05,
+      filters: [{ name: 'Bench', isEnable: true,
+                  brushes: [{ selectionDomain: [[3, 30], [7, 70]] }] }]
+    });
+    currentWidget = widgetEl;
+  } catch(e) {
+    throw new Error(`TimeWidget() falló: ${e.message}`);
+  }
+
+  const renderFn = typeof widgetEl.ts?.renderDirect === 'function'
+    ? () => widgetEl.ts.renderDirect()
+    : () => widgetEl.ts.render();
+
+  const hasSyncRenderer = typeof widgetEl.ts?.syncRenderer === 'function';
+
+  // Skip automático de Canvas 2D para N ≥ 500k: sería <0.1fps (>10s/frame)
+  if (renderer === 'canvas' && n >= 500000) {
+    log(`  [Skip] Canvas 2D omitido para N=${n.toLocaleString()} (impracticable, <0.1fps estimado)`);
+    destroyWidget();
+    return { medFPS: 0, minFPS: 0, medFT: Infinity, p95FT: Infinity, skipped: true };
+  }
+
+  // Esperar inicialización — N=1M: generación de datos + upload GPU tarda varios segundos
+  const settleTime = 400 + Math.min(Math.floor(n / 100), 10000) + (renderer === 'webgpu' ? 2000 : 0);
+  log(`  [Init] Esperando ${(settleTime/1000).toFixed(1)}s...`);
+  await new Promise(r => setTimeout(r, settleTime));
+
+  // ── Warm-up ────────────────────────────────────────────────
+  if (warmupFrames > 0) {
+    log(`  [Warmup] ${warmupFrames} frames...`);
+    for (let i = 0; i < warmupFrames; i++) {
+      renderFn();
+      if ((i + 1) % 20 === 0) {
+        if (hasSyncRenderer) await widgetEl.ts.syncRenderer();
+        await raf();
+      }
+    }
+    if (hasSyncRenderer) await widgetEl.ts.syncRenderer();
+    await raf();
+  }
+
+  // ── Medición por RAF ───────────────────────────────────────
+  // Registramos el tiempo entre frames RAF consecutivos, que incluye:
+  //   - tiempo de renderizado (renderFn)
+  //   - tiempo de sincronización GPU (syncRenderer)
+  //   - tiempo de composición del navegador
+  // FPS = 1000 / mediana(frame_times)
+  log(`  [Midiendo] ${frameCount} frames RAF...`);
+  const frameTimes = [];
+  let prev = performance.now();
+  let measured = 0;
+
+  await new Promise(resolve => {
+    function frame() {
+      renderFn();
+
+      const afterRender = performance.now();
+
+      if (hasSyncRenderer) {
+        // syncRenderer devuelve Promise — pero necesitamos esperar antes del next RAF
+        widgetEl.ts.syncRenderer().then(() => {
+          const now = performance.now();
+          const ft = now - prev;
+          prev = now;
+
+          if (measured > 0 && ft > 0 && ft < 5000) {
+            frameTimes.push(ft);
+          }
+          measured++;
+
+          const fps = frameTimes.length > 0
+            ? Math.round(1000 / median(frameTimes))
+            : '—';
+          fpsLive.textContent = `${fps} fps`;
+          fpsLive.className = typeof fps === 'number' ? `fps-live ${fpsClass(fps)}` : '';
+
+          setProgress(Math.min(measured / frameCount, 1));
+
+          if (measured < frameCount) {
+            requestAnimationFrame(frame);
+          } else {
+            resolve();
+          }
+        });
+      } else {
+        // Fallback sin sync
+        requestAnimationFrame(() => {
+          const now = performance.now();
+          const ft = now - prev;
+          prev = now;
+          if (measured > 0 && ft > 0 && ft < 5000) frameTimes.push(ft);
+          measured++;
+          setProgress(Math.min(measured / frameCount, 1));
+          if (measured < frameCount) frame();
+          else resolve();
+        });
+      }
+    }
+    requestAnimationFrame(frame);
+  });
+
+  const medFT  = median(frameTimes);
+  const p95FT  = percentile(frameTimes, 95);
+  const medFPS = 1000 / medFT;
+  const minFPS = 1000 / p95FT; // fps en el percentil 95 de frame time = fps mínimo garantizado
+
+  log(`  → ${renderer.toUpperCase()} N=${n.toLocaleString()}: ${medFPS.toFixed(1)} fps (med frame ${medFT.toFixed(1)}ms · p95 ${p95FT.toFixed(1)}ms · min ${minFPS.toFixed(1)} fps garantizado)`);
+
+  destroyWidget();
+  fpsLive.textContent = '';
+  return { medFPS, minFPS, medFT, p95FT };
+}
+
+// ── Tabla ─────────────────────────────────────────────────────
+function renderTable() {
+  const tbody = document.getElementById('results-body');
+  tbody.innerHTML = '';
+
+  NS.forEach(n => {
+    const r = results[n];
+    const cv = r.canvas, gp = r.webgpu;
+
+    const canvasForFactor = cv && !cv.skipped ? cv : null;
+    const factorNum = canvasForFactor && gp && !gp.skipped ? gp.medFPS / canvasForFactor.medFPS : null;
+    const factor    = factorNum !== null ? factorNum.toFixed(2) + '×' : (gp && !gp.skipped && cv && cv.skipped ? '≫' : '—');
+    const factorClass = factorNum === null ? '' : factorNum >= 2 ? 'fps-good' : factorNum >= 1.2 ? 'fps-ok' : '';
+
+    function fpsCell(v) {
+      if (!v) return '<td class="pending">—</td><td class="pending">—</td>';
+      if (v.skipped) return '<td style="color:#999;font-style:italic" colspan="2">omitido</td>';
+      const fps = v.medFPS;
+      return `<td class="${fpsClass(fps)}">${fps.toFixed(1)}</td><td>${v.medFT.toFixed(1)}</td>`;
+    }
+
+    function qualityCell(v) {
+      if (!v) return '<td class="pending">—</td>';
+      if (v.skipped) return '<td style="color:#999;font-style:italic">&lt;0.1 fps</td>';
+      return `<td class="${fpsClass(v.medFPS)}">${fpsLabel(v.medFPS)}</td>`;
+    }
+
+    const tr = document.createElement('tr');
+    tr.innerHTML =
+      `<td>${n.toLocaleString()}</td>` +
+      fpsCell(cv) + fpsCell(gp) +
+      `<td class="${factorClass}">${factor}</td>` +
+      qualityCell(cv) + qualityCell(gp);
+    tbody.appendChild(tr);
+  });
+}
+
+// ── Botón: medir uno ──────────────────────────────────────────
+document.getElementById('btnRun').onclick = async () => {
+  const n        = +document.getElementById('selN').value;
+  const renderer = document.getElementById('selRenderer').value;
+  const frames   = +document.getElementById('inpFrames').value;
+  const warmup   = +document.getElementById('inpWarmup').value;
+  const btns = [btnRun, btnRunAll];
+  btns.forEach(b => b.disabled = true);
+
+  setStatus(`Midiendo FPS: ${renderer.toUpperCase()} N=${n.toLocaleString()} (${frames} frames)…`);
+  log(`\n[INICIO] ${renderer.toUpperCase()} N=${n.toLocaleString()} frames=${frames} warmup=${warmup}`);
+  setProgress(0.01);
+
+  try {
+    const res = await runFPSBenchmark(n, renderer, frames, warmup);
+    results[n][renderer] = res;
+    renderTable();
+    const statusMsg = res.skipped
+      ? `⏭️ ${renderer.toUpperCase()} N=${n.toLocaleString()} → omitido (impracticable)`
+      : `✅ ${renderer.toUpperCase()} N=${n.toLocaleString()} → ${res.medFPS.toFixed(1)} fps · ${res.medFT.toFixed(1)} ms/frame`;
+    setStatus(statusMsg);
+  } catch(e) {
+    setStatus(`❌ Error: ${e.message}`);
+    log(`[ERROR] ${e}`);
+  }
+
+  setProgress(0);
+  btns.forEach(b => b.disabled = false);
+};
+
+// ── Botón: medir todos ────────────────────────────────────────
+document.getElementById('btnRunAll').onclick = async () => {
+  const frames    = +document.getElementById('inpFrames').value;
+  const warmup    = +document.getElementById('inpWarmup').value;
+  const passes    = Math.max(1, +document.getElementById('inpPasses').value);
+  const btns = [btnRun, btnRunAll];
+
+  const selectedNS = Array.from(document.querySelectorAll('.ns-check:checked')).map(cb => +cb.value);
+  if (selectedNS.length === 0) { alert('Selecciona al menos un N.'); return; }
+
+  btns.forEach(b => b.disabled = true);
+  log(`\n[INICIO] ${passes} pasada(s) × ${selectedNS.length} tamaños × 2 renderers`);
+
+  // Ejecutar primero todos los tests WebGPU, luego Canvas.
+  // Evita que Canvas 50k/100k throttle térmicamente la GPU antes de medir WebGPU.
+  const order = [];
+  RENDERERS.slice().reverse().forEach(r => selectedNS.forEach(n => order.push([n, r])));
+  const total = passes * order.length;
+  let done = 0;
+
+  for (let pass = 1; pass <= passes; pass++) {
+    log(`\n── Pasada ${pass}/${passes} ──`);
+    for (let i = 0; i < order.length; i++) {
+      const [n, r] = order[i];
+      done++;
+      setStatus(`[${done}/${total}] Pasada ${pass}/${passes} · ${r.toUpperCase()} N=${n.toLocaleString()}…`);
+      log(`\n[${done}/${total}] ${r.toUpperCase()} N=${n.toLocaleString()}`);
+      try {
+        const res = await runFPSBenchmark(n, r, frames, warmup);
+        // Conservar el mejor resultado (mayor FPS) entre pasadas
+        const prev = results[n][r];
+        if (!prev || (!prev.skipped && !res.skipped && res.medFPS > prev.medFPS) || (!prev && !res.skipped)) {
+          if (prev && passes > 1 && !res.skipped) {
+            log(`  ★ Nuevo mejor: ${res.medFPS.toFixed(1)} fps (anterior ${prev.medFPS.toFixed(1)} fps)`);
+          }
+          results[n][r] = res;
+        } else if (passes > 1 && !res.skipped) {
+          log(`  · Descartado: ${res.medFPS.toFixed(1)} fps < mejor actual ${prev.medFPS.toFixed(1)} fps`);
+        }
+        renderTable();
+      } catch(e) {
+        log(`[ERROR] ${r} N=${n}: ${e.message}`);
+      }
+      await new Promise(res => setTimeout(res, 300));
+    }
+  }
+
+  setStatus(`✅ ${passes} pasada(s) completa(s). Tabla muestra el mejor resultado de cada combinación.`);
+  btns.forEach(b => b.disabled = false);
+};
+
+// ── Botón: limpiar ────────────────────────────────────────────
+document.getElementById('btnClear').onclick = () => {
+  NS.forEach(n => { results[n] = { canvas: null, webgpu: null }; });
+  renderTable();
+  logEl.textContent = '— Log —';
+  setStatus('Tabla limpiada.');
+  setProgress(0);
+  destroyWidget();
+};
+
+// ── Gráfica de rendimiento ────────────────────────────────────
+function drawChart(metric) {
+  const chartCanvas = document.getElementById('perfChart');
+  const ctx = chartCanvas.getContext('2d');
+  const W = chartCanvas.width, H = chartCanvas.height;
+  const PAD = { top: 48, right: 140, bottom: 56, left: 72 };
+  const plotW = W - PAD.left - PAD.right;
+  const plotH = H - PAD.top  - PAD.bottom;
+
+  // Recoger puntos con datos válidos para ambos renderers o al menos uno
+  const pts = NS.map(n => {
+    const cv = results[n].canvas;
+    const gp = results[n].webgpu;
+    const cvVal = cv && !cv.skipped ? (metric === 'ms' ? cv.medFT  : cv.medFPS)  : null;
+    const gpVal = gp && !gp.skipped ? (metric === 'ms' ? gp.medFT  : gp.medFPS) : null;
+    return { n, cvVal, gpVal };
+  }).filter(p => p.cvVal !== null || p.gpVal !== null);
+
+  if (pts.length === 0) {
+    alert('No hay datos en la tabla todavía. Ejecuta el benchmark primero.');
+    return;
+  }
+
+  // Rango Y
+  const allVals = pts.flatMap(p => [p.cvVal, p.gpVal].filter(v => v !== null));
+  const yMax = Math.max(...allVals) * 1.12;
+  const yMin = metric === 'ms' ? 0 : 0;
+
+  // Escala X logarítmica sobre índice de pts
+  const xCount = pts.length;
+  function xPos(i) { return PAD.left + (i / (xCount - 1)) * plotW; }
+  function yPos(v) { return PAD.top + plotH - ((v - yMin) / (yMax - yMin)) * plotH; }
+
+  ctx.clearRect(0, 0, W, H);
+
+  // Fondo blanco
+  ctx.fillStyle = '#fff';
+  ctx.fillRect(0, 0, W, H);
+
+  // Título
+  const titleText = metric === 'ms'
+    ? 'Comparativa de Rendimiento (ms/frame)'
+    : 'Comparativa de Rendimiento (FPS)';
+  document.getElementById('chart-title').textContent = titleText;
+  ctx.fillStyle = '#111';
+  ctx.font = 'bold 15px monospace';
+  ctx.fillText(titleText, PAD.left, 28);
+
+  // Líneas de cuadrícula horizontales
+  const yTicks = 6;
+  ctx.strokeStyle = '#e5e7eb';
+  ctx.lineWidth = 1;
+  ctx.font = '11px monospace';
+  ctx.fillStyle = '#555';
+  ctx.textAlign = 'right';
+  for (let i = 0; i <= yTicks; i++) {
+    const v = yMin + (yMax - yMin) * (i / yTicks);
+    const y = yPos(v);
+    ctx.beginPath(); ctx.moveTo(PAD.left, y); ctx.lineTo(PAD.left + plotW, y); ctx.stroke();
+    ctx.fillText(v < 10 ? v.toFixed(1) : Math.round(v), PAD.left - 8, y + 4);
+  }
+
+  // Ejes
+  ctx.strokeStyle = '#999';
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  ctx.moveTo(PAD.left, PAD.top); ctx.lineTo(PAD.left, PAD.top + plotH);
+  ctx.lineTo(PAD.left + plotW, PAD.top + plotH);
+  ctx.stroke();
+
+  // Etiquetas eje X
+  ctx.fillStyle = '#333';
+  ctx.textAlign = 'center';
+  ctx.font = '11px monospace';
+  pts.forEach((p, i) => {
+    const x = xPos(i);
+    const label = p.n >= 1000000 ? '1M' : p.n >= 1000 ? (p.n/1000) + 'k' : String(p.n);
+    ctx.fillText(label, x, PAD.top + plotH + 18);
+    ctx.strokeStyle = '#e5e7eb';
+    ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(x, PAD.top); ctx.lineTo(x, PAD.top + plotH); ctx.stroke();
+  });
+
+  // Función para dibujar una serie
+  function drawSeries(vals, color, label, legendY) {
+    const validPts = pts.map((p, i) => ({ x: xPos(i), y: vals[i] })).filter(p => p.y !== null);
+    if (validPts.length < 1) return;
+
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 2.5;
+    ctx.lineJoin = 'round';
+    ctx.beginPath();
+    validPts.forEach((p, j) => {
+      if (j === 0) ctx.moveTo(p.x, yPos(p.y));
+      else ctx.lineTo(p.x, yPos(p.y));
+    });
+    ctx.stroke();
+
+    // Puntos
+    validPts.forEach(p => {
+      ctx.fillStyle = color;
+      ctx.beginPath();
+      ctx.arc(p.x, yPos(p.y), 5, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#fff';
+      ctx.beginPath();
+      ctx.arc(p.x, yPos(p.y), 2.5, 0, Math.PI * 2);
+      ctx.fill();
+    });
+
+    // Leyenda
+    const lx = PAD.left + plotW + 16;
+    ctx.fillStyle = color;
+    ctx.fillRect(lx, legendY - 9, 18, 10);
+    ctx.fillStyle = '#222';
+    ctx.font = '12px monospace';
+    ctx.textAlign = 'left';
+    ctx.fillText(label, lx + 24, legendY);
+  }
+
+  // Línea de referencia ideal punteada: 60 fps / 16.67 ms
+  const refVal = metric === 'ms' ? (1000 / 60) : 60;
+  const refLabel = metric === 'ms' ? '16.7 ms (60 fps ideal)' : '60 fps (ideal)';
+  const refY = yPos(refVal);
+  if (refY >= PAD.top && refY <= PAD.top + plotH) {
+    ctx.save();
+    ctx.strokeStyle = 'rgba(34,197,94,0.55)';
+    ctx.lineWidth = 1.5;
+    ctx.setLineDash([6, 5]);
+    ctx.beginPath();
+    ctx.moveTo(PAD.left, refY);
+    ctx.lineTo(PAD.left + plotW, refY);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.fillStyle = 'rgba(34,197,94,0.75)';
+    ctx.font = '10px monospace';
+    ctx.textAlign = 'left';
+    ctx.fillText(refLabel, PAD.left + 4, refY - 4);
+    // Entrada en leyenda
+    const lx = PAD.left + plotW + 16;
+    ctx.strokeStyle = 'rgba(34,197,94,0.55)';
+    ctx.lineWidth = 1.5;
+    ctx.setLineDash([5, 4]);
+    ctx.beginPath();
+    ctx.moveTo(lx, PAD.top + 72);
+    ctx.lineTo(lx + 18, PAD.top + 72);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.fillStyle = '#555';
+    ctx.font = '12px monospace';
+    ctx.fillText('60 fps ideal', lx + 24, PAD.top + 76);
+    ctx.restore();
+  }
+
+  drawSeries(pts.map(p => p.cvVal), '#e53e3e', 'Canvas 2D', PAD.top + 20);
+  drawSeries(pts.map(p => p.gpVal), '#4299e1', 'WebGPU',    PAD.top + 42);
+}
+
+document.getElementById('btnChart').onclick = () => {
+  const metric = document.querySelector('input[name="chartMetric"]:checked').value;
+  document.getElementById('chart-section').style.display = 'block';
+  drawChart(metric);
+};
+
+document.querySelectorAll('input[name="chartMetric"]').forEach(r => {
+  r.addEventListener('change', () => {
+    if (document.getElementById('chart-section').style.display !== 'none') {
+      drawChart(r.value);
+    }
+  });
+});
+
+document.getElementById('btnDownloadChart').onclick = () => {
+  const metric = document.querySelector('input[name="chartMetric"]:checked').value;
+  const link = document.createElement('a');
+  link.download = `benchmark_rendimiento_${metric}.png`;
+  link.href = document.getElementById('perfChart').toDataURL('image/png');
+  link.click();
+};
+
+// ── Init ──────────────────────────────────────────────────────
+renderTable();
+log('FPS real medido vía requestAnimationFrame. Incluye render + sync GPU por frame.');
+log('Comparación equitativa: Canvas 2D usa getImageData() · WebGPU usa onSubmittedWorkDone().');
+log('Brush fijo: x∈[3,7] y∈[30,70] (modo selección activa, hasSelection=true).');
+</script>
+</body>
+</html>

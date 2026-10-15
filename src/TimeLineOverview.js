@@ -1,5 +1,6 @@
 import * as d3 from "d3";
-import { darken } from "./utils.js";
+import {darken} from "./utils.js";
+import WebGPURenderer from "./WebGPURenderer.js";
 
 function TimeLineOverview({
   ts,
@@ -9,7 +10,9 @@ function TimeLineOverview({
   x,
   y,
   groupAttr,
+  renderer = "canvas",
 }) {
+  const dpr = window.devicePixelRatio || 1;
   let me = {};
   let paths, overviewX, overviewY;
 
@@ -27,23 +30,62 @@ function TimeLineOverview({
   
   let linem = d3.line();
 
+  const innerWidth = width - ts.margin.left - ts.margin.right;
+  const innerHeight = height - ts.margin.top - ts.margin.bottom;
+
   const canvas = divOverview
     .selectAll("canvas")
     .data([1])
     .join("canvas")
-    .attr("height", height * window.devicePixelRatio)
-    .attr("width", width * window.devicePixelRatio)
+    .attr("height", innerHeight * dpr)
+    .attr("width", innerWidth * dpr)
     .style("position", "absolute")
     .style("z-index", "-1")
     .style("top", `${ts.margin.top}px`)
     .style("left", `${ts.margin.left}px`)
-    .style("width", `${width}px`)
-    .style("height", `${height}px`)
+    .style("width", `${innerWidth}px`)
+    .style("height", `${innerHeight}px`)
     .style("pointer-events", "none");
 
-  const context = canvas.node().getContext("2d");
-  context.scale(window.devicePixelRatio, window.devicePixelRatio);
-  //context.globalCompositeOperation = "lighter";
+  let context = null;
+
+  function initCanvas2D() {
+    if (context) return;
+    context = canvas.node().getContext("2d");
+    context.scale(dpr, dpr);
+    console.log("%c[TimeWidget] Canvas 2D Renderer Active", "color: #ffaa00; font-weight: bold;");
+  }
+
+  let gpuRenderer = null;
+  let isGpuReady = false;
+  let pendingRender = null;
+  let pendingData = null;
+
+  if (renderer === "webgpu") {
+    gpuRenderer = new WebGPURenderer();
+    gpuRenderer.init(canvas.node()).then((ok) => {
+      if (ok) {
+        console.log("%c[TimeWidget] WebGPU Renderer Active", "color: #00ff00; font-weight: bold;");
+        isGpuReady = true;
+        
+        if (pendingData) {
+          me.data(pendingData);
+          pendingData = null;
+        }
+        
+        if (pendingRender) {
+          pendingRender();
+          pendingRender = null;
+        }
+      } else {
+        console.warn("[TimeWidget] WebGPU initialization failed, falling back to Canvas 2D");
+        gpuRenderer = null;
+        initCanvas2D();
+      }
+    });
+  } else {
+    initCanvas2D();
+  }
 
   me.data = function (data) {
     paths = new Map();
@@ -52,6 +94,25 @@ function TimeLineOverview({
       let pathObject = { path: new Path2D(line(d[1])), group: group };
       paths.set(d[0], pathObject);
     });
+
+    if (gpuRenderer) {
+      if (!isGpuReady) {
+        pendingData = data;
+        return;
+      }
+      const formattedData = data.map(([id, points]) => ({
+        id,
+        points: points
+          .map((p) => [+x(p), +y(p)])
+          .filter((p) => !isNaN(p[0]) && !isNaN(p[1])),
+      }));
+
+      gpuRenderer.uploadData(formattedData);
+      // Ajustar MSAA sin omitir líneas ni puntos del dataset.
+      gpuRenderer.setAdaptiveSampleCount(formattedData.length);
+      // Invalidar cache de estilos al cargar nuevos datos
+      _gpuLastDataSelected = _gpuLastDataNotSelected = _gpuLastMedians = null;
+    }
   };
 
   me.setScales = function ({ scaleX, scaleY }) {
@@ -92,26 +153,29 @@ function TimeLineOverview({
       dataSelected.forEach((data, group) => {
         if (group !== groupSelected) {
           let selectedColor = computeColor(group);
-          console.log(
-            "Render selected selectedColor",
-            selectedColor,
-            group
-          );
+          // console.log(
+          //   "Render selected selectedColor",
+          //   selectedColor,
+          //   group
+          // );
 
           // Render selected
+          const groupColor = selectedColor || ts.brushesColorScale(0) || "#4682b4";
           renderOverviewCanvasSubset(
             data,
             ts.selectedAlpha,
-            selectedColor.toString(),
+            groupColor.toString(),
             group
           );
         }
       });
 
+      const selectedColor = computeColor(groupSelected);
+      const groupColor = selectedColor || ts.brushesColorScale(0) || "#4682b4";
       renderOverviewCanvasSubset(
         dataSelected.get(groupSelected),
         ts.selectedAlpha,
-        computeColor(groupSelected).toString(),
+        groupColor.toString(),
         groupSelected
       );
 
@@ -150,7 +214,8 @@ function TimeLineOverview({
   }
 
   function computeColor(groupId) {
-    return ts.brushesColorScale(groupId);
+    const color = ts.brushesColorScale(groupId);
+    return color || ts.brushesColorScale(0) || "#4682b4";
   }
 
   // Pass a groupId when rendering a highlighted selection for a group
@@ -175,10 +240,7 @@ function TimeLineOverview({
 
     for (let d of dataSubset) {
       let path = paths.get(d[0]);
-      if (!path) {
-        console.log("renderOverviewCanvasSubset error finding path", d[0], d);
-        return;
-      }
+      if (!path) continue;
       let strokeColor = color;
       if (groupAttr) {
         const baseGroupColor = ts.colorScale(path.group);
@@ -207,6 +269,16 @@ function TimeLineOverview({
     }
   }
 
+  // Cache para evitar re-uploads GPU innecesarios cuando el estado no cambia entre frames.
+  // updateStyles() y uploadMedians() son O(N) y escriben MBs de datos; saltarlos cuando
+  // dataSelected/dataNotSelected/medians son los mismos objetos es la optimización más impactante.
+  let _gpuLastDataSelected    = null;
+  let _gpuLastDataNotSelected = null;
+  let _gpuLastHasSelection    = undefined;
+  let _gpuLastColorKey        = null;
+  let _gpuLastMedians         = null;
+  let _gpuLastMedianStyleKey  = null;
+
   me.render = function (
     dataSelected,
     groupSelected,
@@ -214,13 +286,146 @@ function TimeLineOverview({
     medians,
     hasSelection
   ) {
-    renderOvwerview(
-      dataSelected,
-      groupSelected,
-      dataNotSelected,
-      medians,
-      hasSelection
-    );
+    if (gpuRenderer) {
+      if (!isGpuReady) {
+        pendingRender = () =>
+          me.render(
+            dataSelected,
+            groupSelected,
+            dataNotSelected,
+            medians,
+            hasSelection
+          );
+        return;
+      }
+
+      // ── Styles: re-upload solo si la selección o los colores cambiaron ────────
+      const colorKey = `${ts.defaultColor}|${ts.defaultAlpha}|${ts.selectedAlpha}`;
+      const stylesDirty =
+        dataSelected    !== _gpuLastDataSelected    ||
+        dataNotSelected !== _gpuLastDataNotSelected ||
+        hasSelection    !== _gpuLastHasSelection    ||
+        colorKey        !== _gpuLastColorKey;
+
+      if (stylesDirty) {
+        const stylesMap = new Map();
+        const defaultColorRGB = d3.rgb(ts.defaultColor);
+        const notSelAlpha = hasSelection ? ts.noSelectedAlpha : ts.defaultAlpha;
+        const defaultColorVec = [
+          defaultColorRGB.r / 255,
+          defaultColorRGB.g / 255,
+          defaultColorRGB.b / 255,
+          notSelAlpha,
+        ];
+
+        dataNotSelected.forEach((d) => {
+          let colorVec = defaultColorVec;
+          if (groupAttr) {
+            const pathObj = paths.get(d[0]);
+            if (pathObj) {
+              const gc = d3.rgb(ts.colorScale(pathObj.group));
+              colorVec = [gc.r / 255, gc.g / 255, gc.b / 255, notSelAlpha];
+            }
+          }
+          stylesMap.set(d[0], { color: colorVec, selectionFlag: 0.0 });
+        });
+
+        let groupIdx = 0;
+        dataSelected.forEach((groupData, groupId) => {
+          const brushColor = d3.rgb(computeColor(groupId));
+          const flag = groupIdx + 1.0;
+          groupData.forEach((d) => {
+            let colorVec;
+            if (groupAttr) {
+              const pathObj = paths.get(d[0]);
+              if (pathObj) {
+                const transformed = d3.rgb(ts.selectedColorTransform(ts.colorScale(pathObj.group), groupId));
+                colorVec = [transformed.r / 255, transformed.g / 255, transformed.b / 255, ts.selectedAlpha];
+              } else {
+                colorVec = [brushColor.r / 255, brushColor.g / 255, brushColor.b / 255, ts.selectedAlpha];
+              }
+            } else {
+              colorVec = [brushColor.r / 255, brushColor.g / 255, brushColor.b / 255, ts.selectedAlpha];
+            }
+            stylesMap.set(d[0], { color: colorVec, selectionFlag: flag });
+          });
+          groupIdx++;
+        });
+
+        const transparentColor = [0, 0, 0, 0];
+        gpuRenderer.updateStyles(stylesMap, transparentColor);
+
+        _gpuLastDataSelected    = dataSelected;
+        _gpuLastDataNotSelected = dataNotSelected;
+        _gpuLastHasSelection    = hasSelection;
+        _gpuLastColorKey        = colorKey;
+      }
+
+      gpuRenderer.updateUniforms(
+        {
+          x: overviewX.domain().map((d) => +d),
+          y: overviewY.domain().map((d) => +d),
+        },
+        innerWidth  * dpr,
+        innerHeight * dpr,
+        { top: 0, left: 0, right: 0, bottom: 0 }
+      );
+
+      // ── Medians: re-upload solo si cambian ───────────────────────────────────
+      const medianStyleKey = medians && medians.length > 0
+        ? `${ts.medianLineWidth}|${ts.medianLineAlpha}|${ts.medianLineDash}`
+        : null;
+      const mediansDirty =
+        medians         !== _gpuLastMedians        ||
+        medianStyleKey  !== _gpuLastMedianStyleKey;
+
+      if (mediansDirty) {
+        const medianStyles = new Map();
+        if (medians && medians.length > 0) {
+          medians.forEach(([groupId]) => {
+            const color = d3.rgb(computeColor(groupId));
+            medianStyles.set(groupId, {
+              color: [color.r / 255, color.g / 255, color.b / 255, ts.medianLineAlpha],
+              lineWidth: ts.medianLineWidth,
+              dashOn: ts.medianLineDash[0] || 0,
+              dashOff: ts.medianLineDash[0] || 0,
+            });
+          });
+        }
+        gpuRenderer.uploadMedians(medians || [], medianStyles);
+        _gpuLastMedians        = medians;
+        _gpuLastMedianStyleKey = medianStyleKey;
+      }
+
+      gpuRenderer.draw(hasSelection, dataSelected.size);
+    } else {
+      renderOvwerview(
+        dataSelected,
+        groupSelected,
+        dataNotSelected,
+        medians,
+        hasSelection
+      );
+    }
+  };
+
+  // Espera a que la GPU termine todos los comandos enviados (WebGPU async sync).
+  // Canvas 2D resuelve inmediatamente.
+  me.syncGPU = function() {
+    if (gpuRenderer && typeof gpuRenderer.syncGPU === 'function') {
+      return gpuRenderer.syncGPU();
+    }
+    return Promise.resolve();
+  };
+
+  me.syncRenderer = function() {
+    if (gpuRenderer && typeof gpuRenderer.syncGPU === 'function') {
+      return gpuRenderer.syncGPU();
+    }
+    if (context) {
+      context.getImageData(0, 0, 1, 1);
+    }
+    return Promise.resolve();
   };
 
   return me;

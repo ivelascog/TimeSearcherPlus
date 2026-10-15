@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Prueba de Usuario — TimeWidget</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
+  <script src="../../dist/TimeWidget.js"></script>
+  <style>
+    html, body { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; }
+
+    /* Forzar que gráfica y panel estén siempre en la misma fila */
+    #widget-host {
+      flex-wrap: nowrap !important;
+      height: 100vh;
+      overflow: hidden;
+      align-items: stretch;
+    }
+
+    /* Gráfica: no crece ni encoge, ancho fijado por el SVG interno */
+    #render { flex: 0 0 auto; overflow: hidden; }
+
+    /* Panel de controles: ocupa el resto de la fila */
+    #control {
+      flex: 1 1 0;
+      min-width: 380px;
+      max-width: 480px;
+      padding: 14px 18px;
+      font-size: 15px;
+      overflow-y: auto;
+      box-sizing: border-box;
+      border-left: 1px solid #e5e7eb;
+      background: #fafafa;
+    }
+    #control h3                     { font-size: 17px; margin: 14px 0 6px; }
+    #control input[type="number"],
+    #control input[type="text"]     { font-size: 14px; padding: 4px 6px; width: 80px; }
+    #control button                 { font-size: 14px; padding: 5px 12px; cursor: pointer; }
+    #control label                  { font-size: 14px; }
+    #control input[type="checkbox"] { width: 16px; height: 16px; cursor: pointer; }
+  </style>
+</head>
+<body>
+
+<div id="widget-host"></div>
+
+<script type="module">
+function mkRng(seed) {
+  let s = seed >>> 0;
+  return () => { s = (1664525 * s + 1013904223) >>> 0; return s / 4294967296; };
+}
+
+function buildDataset(n = 500) {
+  const rng   = mkRng(42);
+  const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+  const pts   = 30;
+  const data  = [];
+
+  for (let serie = 0; serie < n; serie++) {
+    const arch  = serie % 5;
+    const baseY = 10 + rng() * 75;
+    const slope = (rng() - .5) * 8;
+    const amp   = 3  + rng() * 11;
+    const phase = rng() * Math.PI * 2;
+    const freq  = .4 + rng() * .8;
+    const noise = 1  + rng() * 4;
+
+    for (let i = 0; i < pts; i++) {
+      const x = (i / (pts - 1)) * 10;
+      let y;
+      switch (arch) {
+        case 0: y = baseY + slope * x + (rng() - .5) * noise;               break;
+        case 1: y = baseY + amp * Math.sin(freq * x + phase);                break;
+        case 2: y = baseY + amp * Math.exp(-.5 * ((x - 5) / 1.5) ** 2);     break;
+        case 3: y = baseY + (x > 5 ? 20 : -5) + (rng() - .5) * noise;      break;
+        default: y = baseY + (rng() - .5) * amp * 2;
+      }
+      data.push({ id: `s${serie}`, x, y: clamp(y, 0, 100) });
+    }
+  }
+  return data;
+}
+
+const referenceCurves = [
+  {
+    id:              "umbral-clinico",
+    label:           "Umbral clínico esperado",
+    color:           "#16a34a",
+    func:            x => 50 + 20 * Math.sin(x),
+    numPoints:       500,
+    isSimplePoints:  false,
+    collisionActive: false,
+    isVisible:       true,
+  },
+  {
+    id:              "controles-clinicos",
+    label:           "Controles de seguimiento",
+    color:           "#d97706",
+    data:            [[2.5, 55], [5, 72], [7.5, 38]],
+    isSimplePoints:  true,
+    epsilon:         0,
+    collisionActive: false,
+    isVisible:       true,
+  },
+];
+
+const host = document.getElementById('widget-host');
+
+// El widget renderiza: [gráfica (width×height)] + [panel controles ~320px]
+// en un flex-row. Para que quepan juntos sin overflow restamos el panel.
+// #control tiene min 380px max 480px; el chart ocupa el resto
+const PANEL_W = Math.min(480, Math.max(380, Math.round(window.innerWidth * 0.35)));
+const W = window.innerWidth  - PANEL_W;
+const H = window.innerHeight;
+
+const widget = TimeWidget(buildDataset(500), {
+  target:          host,
+  x:               d => d.x,
+  y:               d => d.y,
+  id:              d => d.id,
+
+  xDomain:         [0, 10],
+  yDomain:         [0, 100],
+  xLabel:          "Semanas de seguimiento",
+  yLabel:          "Índice de recuperación",
+  stepX:           1,
+  stepY:           5,
+  fmtX:            d3.format(".1f"),
+  fmtY:            d3.format(".1f"),
+
+  width:           W,
+  height:          H,
+  margin:          { left: 54, top: 28, bottom: 50, right: 18 },
+
+  defaultColor:    "#94a3b8",
+  defaultAlpha:    0.35,
+  noSelectedAlpha: 0.05,
+  selectedAlpha:   0.95,
+  backgroundColor: "#ffffff",
+  showGrid:        true,
+
+  renderer:        "webgpu",
+
+  referenceCurves,
+  filters:         [],
+});
+
+window._tw = widget;
+</script>
+</body>
+</html>

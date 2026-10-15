@@ -3,7 +3,6 @@ import * as d3 from "d3";
 let DEBUG = false;
 let before;
 
-
 export function log() {
   if (DEBUG) console.log(performance.now() - before, ...arguments);
   before = performance.now();
@@ -34,9 +33,9 @@ export function compareSets(set1, set2) {
 }
 
 export function isInsideExtent(selection, domain) {
-  const [[x0,y0],[x1,y1]] = selection;
-  const [[dx0,dy0],[dx1,dy1]] = domain
-  return (x0 >= dx0 && y0 >= dy0 && x1 <= dx1 && y1 <= dy1)
+  const [[x0, y0], [x1, y1]] = selection;
+  const [[dx0, dy0], [dx1, dy1]] = domain;
+  return x0 >= dx0 && y0 >= dy0 && x1 <= dx1 && y1 <= dy1;
 }
 
 export function isInsideDomain(domain, scaleX, scaleY) {
@@ -83,7 +82,7 @@ export const BrushModes = Object.freeze({
 
 export const BrushAggregation = Object.freeze({
   And: "and",
-    Or: "or",
+  Or: "or",
 });
 
 // Normalize a [lo, hi] domain against the axis's full data extent: order the
@@ -94,7 +93,7 @@ export const BrushAggregation = Object.freeze({
 // `extent` is a single axis pair, e.g. ts.fullExtent.x — NOT the whole
 // {x, y} object. Passing the object silently disabled clamping before, so a
 // bad extent now warns rather than quietly doing nothing.
-export function normalizeDomain(domain, extent, { eps = 1e-6 } = {}) {
+export function normalizeDomain(domain, extent, {eps = 1e-6} = {}) {
   if (!Array.isArray(domain) || domain.length !== 2) return null;
 
   let [lo, hi] = domain;
@@ -117,9 +116,9 @@ export function normalizeDomain(domain, extent, { eps = 1e-6 } = {}) {
   let bounds = Array.isArray(extent) && extent.length === 2 ? extent : null;
   if (extent !== undefined && !bounds) {
     console.warn(
-      "normalizeDomain: expected an [lo, hi] extent pair, got",
-      extent,
-      "— skipping clamp"
+        "normalizeDomain: expected an [lo, hi] extent pair, got",
+        extent,
+        "— skipping clamp"
     );
   }
   if (bounds) {
@@ -145,9 +144,9 @@ export function resolveDomains(requested = {}, fullExtent = {}, current = {}) {
   for (let axis of ["x", "y"]) {
     let ask = requested[axis];
     let next =
-      ask === undefined || ask === null
-        ? null
-        : normalizeDomain(ask, fullExtent[axis]);
+        ask === undefined || ask === null
+            ? null
+            : normalizeDomain(ask, fullExtent[axis]);
     resolved[axis] = next === null ? current[axis] : next;
   }
   return resolved;

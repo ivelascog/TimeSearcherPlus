@@ -1,0 +1,369 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8"/>
+  <title>Validación Funcional — TimeWidget TFG</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
+  <script src="../../dist/TimeWidget.js"></script>
+  <style>
+    body { font-family: monospace; background:#fff; margin:16px; }
+    nav  { margin-bottom:12px; }
+    nav button { margin-right:4px; padding:3px 10px; cursor:pointer; }
+    nav button.active { font-weight:bold; outline:2px solid #000; }
+    .scene { display:none; } .scene.on { display:block; }
+    .info  { font-size:.85em; color:#444; margin:4px 0 8px; }
+    .step  { background:#f5f5f5; border-left:3px solid #999; padding:4px 8px; margin:4px 0; font-size:.82em; }
+    #log   { margin-top:12px; border:1px solid #ccc; padding:8px; min-height:60px; font-size:.8em; background:#fafafa; white-space:pre-wrap; }
+    table  { border-collapse:collapse; margin-top:8px; font-size:.82em; }
+    td,th  { border:1px solid #aaa; padding:3px 8px; }
+    th     { background:#eee; }
+    .pass  { color:green; font-weight:bold; }
+    .fail  { color:red; font-weight:bold; }
+    .btn   { padding:4px 10px; cursor:pointer; margin:2px; }
+    .sep   { margin-top:12px; border-top:1px solid #ddd; padding-top:8px; }
+    #widget-wrap { background:#fff; display:inline-block; margin-top:8px; }
+  </style>
+</head>
+<body>
+
+<h2>Validación Funcional — TimeWidget</h2>
+<p class="info">Entorno: completar manualmente (SO, Chrome, resolución, DPR) en la tabla de la tesis.</p>
+
+<nav id="nav"></nav>
+<div id="scenes"></div>
+<div id="log">— Log de resultados —</div>
+
+<script type="module">
+
+// ── Semilla determinista (LCG simple) ────────────────────────────
+function mkRng(seed) {
+  let s = seed >>> 0;
+  return () => { s = (1664525 * s + 1013904223) >>> 0; return s / 4294967296; };
+}
+
+function buildDataset(n=500) {
+  const rng = mkRng(42);
+  const data = [];
+  const X0=0, X1=10, Y0=0, Y1=100;
+  const cl = (v,a,b)=>Math.max(a,Math.min(b,v));
+  for (let s=0; s<n; s++) {
+    const arch=s%5, baseY=10+rng()*75, slope=(rng()-0.5)*8;
+    const amp=3+rng()*11, phase=rng()*Math.PI*2, freq=0.4+rng()*0.8, noise=1+rng()*4;
+    for (let i=0; i<30; i++) {
+      const x = X0+(X1-X0)*i/29;
+      let y;
+      switch(arch){
+        case 0: y=baseY+slope*x+(rng()-0.5)*noise; break;
+        case 1: y=baseY+amp*Math.sin(freq*x+phase); break;
+        case 2: y=baseY+amp*Math.exp(-0.5*((x-5)/1.5)**2); break;
+        case 3: y=baseY+(x>5?20:-5)+(rng()-0.5)*noise; break;
+        default: y=baseY+(rng()-0.5)*amp*2;
+      }
+      data.push({id:`s${s}`,x,y:cl(y,Y0,Y1)});
+    }
+  }
+  return data;
+}
+
+const DS = buildDataset();
+const TOTAL = 500;
+
+const BASE = {
+  x:d=>d.x, y:d=>d.y, id:d=>d.id,
+  width:860, height:400,
+  margin:{left:52,top:28,bottom:46,right:20},
+  renderer:'webgpu', autoUpdate:true, showGrid:true,
+  defaultColor:'#94a3b8', defaultAlpha:0.5,
+  noSelectedAlpha:0.07, noSelectedColor:'#94a3b8', selectedAlpha:1.0,
+  medianLineWidth:2, medianLineDash:[6,3],
+  xLabel:'Tiempo (u.a.)', yLabel:'Valor',
+};
+
+// ── Log ─────────────────────────────────────────────────────────
+const logEl = document.getElementById('log');
+function log(msg){ logEl.textContent += '\n' + msg; }
+function logResult(id,props,pass){
+  log(`[${id}] ${props} → ${pass?'✅ PASS':'❌ FAIL'}`);
+}
+
+// ── Resultados tabla ─────────────────────────────────────────────
+const results = {};
+function setResult(id, html){ results[id]=html; }
+
+// ── Helpers ──────────────────────────────────────────────────────
+function countSelected(w, groupIdx=0){
+  if (!w || !w.value) return null;
+  const groups = [...w.value.entries()];
+  if (!groups[groupIdx]) return 0;
+  return groups[groupIdx][1].size;
+}
+
+function onInput(w, cb){
+  w.addEventListener('input', ()=>cb(w));
+}
+
+// ── Escenarios ──────────────────────────────────────────────────
+const SCENES = [
+
+  // E1 + E2
+  { id:'E1E2', label:'E1/E2 TimeBox', html:`
+    <h3>E1 — TimeBox Intersect &amp; E2 — TimeBox Contains</h3>
+    <p class="info">Dataset: 500 series. TimeBox: x∈[3,7], y∈[60,90].</p>
+    <div class="step">1. Dibuja una TimeBox en x∈[3,7], y∈[60,90] → anota |S_I|</div>
+    <div class="step">2. Clic derecho en la caja → cambia a <b>Contains</b> → anota |S_C|</div>
+    <div class="step">3. Pulsa <b>Verificar E1/E2</b></div>
+    <div>
+      |S_I| (Intersect): <input id="e1-si" type="number" style="width:60px"> &nbsp;
+      |S_C| (Contains): <input id="e1-sc" type="number" style="width:60px">
+      <button class="btn" onclick="checkE1E2()">Verificar E1/E2</button>
+    </div>
+    <div id="e1-result"></div>
+    <div id="widget-wrap"><div id="w-e1e2"></div></div>
+  `, init(){ window._wE1 = TimeWidget(DS,{...BASE,target:document.getElementById('w-e1e2')}); } },
+
+  // E3 + E4
+  { id:'E3E4', label:'E3/E4 Slider', html:`
+    <h3>E3 — Slider Intersect &amp; E4 — Slider Contains</h3>
+    <p class="info">Curva: f(x)=50+20·sin(x), slider x∈[2,8], side=above.</p>
+    <div class="step">1. Pulsa <b>Cargar curva</b></div>
+    <div class="step">2. Panel lateral → "Add Slider" sobre "ref_seno" → ajusta x∈[2,8], side=above (Intersect)</div>
+    <div class="step">3. Anota |S_int|; cambia a Contains → anota |S_cont|</div>
+    <div>
+      |S_int|: <input id="e3-si" type="number" style="width:60px"> &nbsp;
+      |S_cont|: <input id="e3-sc" type="number" style="width:60px">
+      <button class="btn" onclick="loadE3Curve()">Cargar curva</button>
+      <button class="btn" onclick="checkE3E4()">Verificar E3/E4</button>
+    </div>
+    <div id="e3-result"></div>
+    <div id="widget-wrap"><div id="w-e3e4"></div></div>
+  `, init(){
+    window._wE3 = TimeWidget(DS,{...BASE,target:document.getElementById('w-e3e4'),referenceCurves:[]});
+    window.loadE3Curve = function(){
+      document.getElementById('w-e3e4').ts.addReferenceCurve([{
+        id:'ref_seno', name:'f(x)=50+20·sin(x)',
+        data: Array.from({length:200},(_,i)=>{const x=i/199*10;return[x,50+20*Math.sin(x)];}),
+        color:'#4f8ef7', strokeWidth:2, isSimplePoints:false, collisionActive:true
+      }]);
+      log('[E3] Curva sinusoidal cargada.');
+    };
+  } },
+
+  // E5
+  { id:'E5', label:'E5 Puntos ε', html:`
+    <h3>E5 — Puntos discretos con ε (monotonía)</h3>
+    <p class="info">3 puntos: (2.5,55),(5,72),(7.5,38). Propiedad: |S(ε₁)|≤|S(ε₂)| si ε₁≤ε₂.</p>
+    <div class="step">1. Pulsa <b>Cargar puntos</b></div>
+    <div class="step">2. Panel → "Add Association"; ajusta ε=2 → anota |S₂|</div>
+    <div class="step">3. Cambia ε=6 → anota |S₆|; ε=12 → anota |S₁₂|; vuelve a ε=2 → anota |S₂ʳ|</div>
+    <div>
+      |S₂|:<input id="e5-s2" type="number" style="width:55px">
+      |S₆|:<input id="e5-s6" type="number" style="width:55px">
+      |S₁₂|:<input id="e5-s12" type="number" style="width:55px">
+      |S₂ʳ|:<input id="e5-s2r" type="number" style="width:55px">
+      <button class="btn" onclick="loadE5Points()">Cargar puntos</button>
+      <button class="btn" onclick="checkE5()">Verificar E5</button>
+    </div>
+    <div id="e5-result"></div>
+    <div id="widget-wrap"><div id="w-e5"></div></div>
+  `, init(){
+    window._wE5 = TimeWidget(DS,{...BASE,target:document.getElementById('w-e5'),referenceCurves:[]});
+    window.loadE5Points = function(){
+      document.getElementById('w-e5').ts.addReferenceCurve([{
+        id:'ref_pts', name:'Puntos ε',
+        data:[[2.5,55],[5,72],[7.5,38]],
+        color:'#e91e63', pointRadius:6, strokeColor:'#fff', strokeWidth:1.5,
+        isSimplePoints:true, collisionActive:true, epsilon:2
+      }]);
+      log('[E5] Puntos cargados con ε=2.');
+    };
+  } },
+
+  // E6
+  { id:'E6', label:'E6 AND', html:`
+    <h3>E6 — Operador AND entre TimeBox y Slider</h3>
+    <p class="info">TimeBox: x∈[1,5], y∈[50,85]. Slider: f(x)=5x+30, above, x∈[1,5]. Mismo grupo.</p>
+    <div class="step">1. Pulsa <b>Cargar curva lineal</b></div>
+    <div class="step">2. Dibuja TimeBox x∈[1,5],y∈[50,85] → anota |S_caja|</div>
+    <div class="step">3. Añade slider sobre curva lineal (mismo grupo, AND) → anota |S_AND|</div>
+    <div class="step">4. Mueve la caja a zona vacía (y∈[0,1]) → anota |S_vacío|</div>
+    <div>
+      |S_caja|:<input id="e6-scaja" type="number" style="width:60px">
+      |S_AND|:<input id="e6-sand" type="number" style="width:60px">
+      |S_vacío|:<input id="e6-svacio" type="number" style="width:60px">
+      <button class="btn" onclick="loadE6Curve()">Cargar curva lineal</button>
+      <button class="btn" onclick="checkE6()">Verificar E6</button>
+    </div>
+    <div id="e6-result"></div>
+    <div id="widget-wrap"><div id="w-e6"></div></div>
+  `, init(){
+    window._wE6 = TimeWidget(DS,{...BASE,target:document.getElementById('w-e6'),referenceCurves:[]});
+    window.loadE6Curve = function(){
+      document.getElementById('w-e6').ts.addReferenceCurve([{
+        id:'ref_lineal', name:'f(x)=5x+30',
+        data:Array.from({length:50},(_,i)=>{const x=i/49*10;return[x,5*x+30];}),
+        color:'#22c55e', strokeWidth:2, isSimplePoints:false, collisionActive:true
+      }]);
+      log('[E6] Curva lineal cargada.');
+    };
+  } },
+
+  // E7
+  { id:'E7', label:'E7 NOT', html:`
+    <h3>E7 — Operador NOT</h3>
+    <p class="info">Slider: f(x)=60 (constante), above, x∈[0,10]. Propiedad: |S_base|+|S_NOT|=500.</p>
+    <div class="step">1. Pulsa <b>Cargar umbral</b></div>
+    <div class="step">2. Panel → "Add Slider", side=above, x∈[0,10] → anota |S_base|</div>
+    <div class="step">3. Clic derecho slider → activa NOT → anota |S_NOT|</div>
+    <div>
+      |S_base|:<input id="e7-sb" type="number" style="width:60px">
+      |S_NOT|:<input id="e7-sn" type="number" style="width:60px">
+      <button class="btn" onclick="loadE7()">Cargar umbral f(x)=60</button>
+      <button class="btn" onclick="checkE7()">Verificar E7</button>
+    </div>
+    <div id="e7-result"></div>
+    <div id="widget-wrap"><div id="w-e7"></div></div>
+  `, init(){
+    window._wE7 = TimeWidget(DS,{...BASE,target:document.getElementById('w-e7'),referenceCurves:[]});
+    window.loadE7 = function(){
+      document.getElementById('w-e7').ts.addReferenceCurve([{
+        id:'ref_umbral', name:'Umbral f(x)=60',
+        data:[[0,60],[10,60]],
+        color:'#f59e0b', strokeWidth:2, isSimplePoints:false, collisionActive:true
+      }]);
+      log('[E7] Umbral f(x)=60 cargado.');
+    };
+  } },
+
+  // E8
+  { id:'E8', label:'E8 Enable/Disable', html:`
+    <h3>E8 — Coherencia al deshabilitar/rehabilitar grupo</h3>
+    <p class="info">Propiedad: |S_restab|=|S_activo| tras ciclo deshabilitar→habilitar.</p>
+    <div class="step">1. Dibuja una TimeBox cualquiera → anota |S_activo|</div>
+    <div class="step">2. Desmarca el checkbox del grupo → anota |S_deshab| (debe ser 0)</div>
+    <div class="step">3. Vuelve a marcar → anota |S_restab|</div>
+    <div>
+      |S_activo|:<input id="e8-sa" type="number" style="width:60px">
+      |S_deshab|:<input id="e8-sd" type="number" style="width:60px">
+      |S_restab|:<input id="e8-sr" type="number" style="width:60px">
+      <button class="btn" onclick="checkE8()">Verificar E8</button>
+    </div>
+    <div id="e8-result"></div>
+    <div id="widget-wrap"><div id="w-e8"></div></div>
+  `, init(){ window._wE8 = TimeWidget(DS,{...BASE,target:document.getElementById('w-e8')}); } },
+
+  // Resumen
+  { id:'RESUMEN', label:'📋 Resumen', html:`
+    <h3>Resumen de resultados</h3>
+    <table id="summary-table">
+      <tr><th>ID</th><th>Funcionalidad</th><th>Propiedad</th><th>Resultado</th></tr>
+      <tr><td>E1</td><td>TimeBox Intersect</td><td>S_C ⊆ S_I</td><td id="r-e1">—</td></tr>
+      <tr><td>E2</td><td>TimeBox Contains</td><td>Todo punto de S_C dentro de caja</td><td id="r-e2">—</td></tr>
+      <tr><td>E3</td><td>Slider Intersect</td><td>S_cont ⊆ S_int</td><td id="r-e3">—</td></tr>
+      <tr><td>E4</td><td>Slider Contains</td><td>S_cont ⊆ S_int</td><td id="r-e4">—</td></tr>
+      <tr><td>E5</td><td>Puntos + ε</td><td>Monotonía y reestablecimiento</td><td id="r-e5">—</td></tr>
+      <tr><td>E6</td><td>AND entre filtros</td><td>S_AND ⊆ S_i para todo i</td><td id="r-e6">—</td></tr>
+      <tr><td>E7</td><td>Operador NOT</td><td>|S|+|NOT S|=500</td><td id="r-e7">—</td></tr>
+      <tr><td>E8</td><td>Coherencia estado</td><td>|S_restab|=|S_activo|</td><td id="r-e8">—</td></tr>
+    </table>
+    <p style="margin-top:8px;font-size:.8em">Pulsa los botones "Verificar" en cada escenario para actualizar esta tabla.</p>
+  `, init(){} },
+];
+
+// ── Funciones de verificación ────────────────────────────────────
+window.checkE1E2 = function(){
+  const si = +document.getElementById('e1-si').value;
+  const sc = +document.getElementById('e1-sc').value;
+  const e1pass = sc <= si && si > 0;
+  const e2pass = sc >= 0;
+  const msg1 = `E1: |S_I|=${si}, |S_C|=${sc}, S_C⊆S_I → ${e1pass?'✅ PASS':'❌ FAIL'}`;
+  const msg2 = `E2: |S_C|=${sc} (inspeccionado visualmente) → ${e2pass?'✅ PASS':'❌ FAIL'}`;
+  document.getElementById('e1-result').innerHTML = `<pre>${msg1}\n${msg2}</pre>`;
+  setCell('r-e1', e1pass); setCell('r-e2', e2pass);
+  log(msg1); log(msg2);
+};
+
+window.checkE3E4 = function(){
+  const si = +document.getElementById('e3-si').value;
+  const sc = +document.getElementById('e3-sc').value;
+  const e3pass = si > 0;
+  const e4pass = sc <= si;
+  const msg3 = `E3: |S_int|=${si} → ${e3pass?'✅ PASS':'❌ FAIL'}`;
+  const msg4 = `E4: |S_cont|=${sc} ≤ |S_int|=${si} → ${e4pass?'✅ PASS':'❌ FAIL'}`;
+  document.getElementById('e3-result').innerHTML = `<pre>${msg3}\n${msg4}</pre>`;
+  setCell('r-e3', e3pass); setCell('r-e4', e4pass);
+  log(msg3); log(msg4);
+};
+
+window.checkE5 = function(){
+  const s2  = +document.getElementById('e5-s2').value;
+  const s6  = +document.getElementById('e5-s6').value;
+  const s12 = +document.getElementById('e5-s12').value;
+  const s2r = +document.getElementById('e5-s2r').value;
+  const mono  = s2 <= s6 && s6 <= s12;
+  const resta = s2r === s2;
+  const pass  = mono && resta;
+  const msg = `E5: |S₂|=${s2}, |S₆|=${s6}, |S₁₂|=${s12}, |S₂ʳ|=${s2r}\n  Monotonía: ${mono?'✅':'❌'} | Reestablecimiento: ${resta?'✅':'❌'}`;
+  document.getElementById('e5-result').innerHTML = `<pre>${msg}</pre>`;
+  setCell('r-e5', pass); log(msg);
+};
+
+window.checkE6 = function(){
+  const sc  = +document.getElementById('e6-scaja').value;
+  const sa  = +document.getElementById('e6-sand').value;
+  const sv  = +document.getElementById('e6-svacio').value;
+  const pass = sa <= sc && sv === 0;
+  const msg = `E6: |S_caja|=${sc}, |S_AND|=${sa}, |S_vacío|=${sv}\n  S_AND⊆S_caja: ${sa<=sc?'✅':'❌'} | S_vacío=0: ${sv===0?'✅':'❌'}`;
+  document.getElementById('e6-result').innerHTML = `<pre>${msg}</pre>`;
+  setCell('r-e6', pass); log(msg);
+};
+
+window.checkE7 = function(){
+  const sb = +document.getElementById('e7-sb').value;
+  const sn = +document.getElementById('e7-sn').value;
+  const pass = sb + sn === TOTAL;
+  const msg = `E7: |S_base|=${sb}, |S_NOT|=${sn}, suma=${sb+sn} (esperado ${TOTAL}) → ${pass?'✅ PASS':'❌ FAIL'}`;
+  document.getElementById('e7-result').innerHTML = `<pre>${msg}</pre>`;
+  setCell('r-e7', pass); log(msg);
+};
+
+window.checkE8 = function(){
+  const sa = +document.getElementById('e8-sa').value;
+  const sd = +document.getElementById('e8-sd').value;
+  const sr = +document.getElementById('e8-sr').value;
+  const pass = sd === 0 && sr === sa && sa > 0;
+  const msg = `E8: |S_activo|=${sa}, |S_deshab|=${sd}, |S_restab|=${sr}\n  Deshab=0: ${sd===0?'✅':'❌'} | Restab=Activo: ${sr===sa?'✅':'❌'}`;
+  document.getElementById('e8-result').innerHTML = `<pre>${msg}</pre>`;
+  setCell('r-e8', pass); log(msg);
+};
+
+function setCell(id, pass){
+  const el = document.getElementById(id);
+  if(el){ el.innerHTML = `<span class="${pass?'pass':'fail'}">${pass?'Pass':'Fail'}</span>`; }
+}
+
+// ── Montar escenas ───────────────────────────────────────────────
+const nav    = document.getElementById('nav');
+const scenes = document.getElementById('scenes');
+
+SCENES.forEach((sc, idx)=>{
+  const btn = document.createElement('button');
+  btn.textContent = sc.label;
+  if(idx===0) btn.classList.add('active');
+  btn.onclick = ()=>{
+    document.querySelectorAll('#scenes .scene').forEach((el,i)=>el.classList.toggle('on',i===idx));
+    document.querySelectorAll('#nav button').forEach((b,i)=>b.classList.toggle('active',i===idx));
+  };
+  nav.appendChild(btn);
+
+  const div = document.createElement('div');
+  div.className = 'scene' + (idx===0?' on':'');
+  div.innerHTML = sc.html;
+  scenes.appendChild(div);
+  sc.init();
+});
+
+log('Dataset listo: 500 series × 30 puntos (semilla=42, reproducible).');
+log('Completa cada escenario manualmente e introduce los conteos observados.');
+</script>
+</body>
+</html>

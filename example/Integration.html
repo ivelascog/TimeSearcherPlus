@@ -19,7 +19,7 @@
 <script>
     let fmt = d3.timeParse("%Y-%m-%d %H:%M:%S");
 
-    let alpha = document.getElementById('alpha')
+    let alpha = document.getElementById('alpha');
 
     d3.csv("./Crypto.csv", type).then((data) => {
         data = data.filter((d) => d["Date"].getFullYear() < 2018 && d["Symbol"] !== "BTC");
@@ -33,21 +33,21 @@
             noSelectedAlpha: alpha.value
         });
 
-        let slider = document.getElementById('slider')
+        let slider = document.getElementById('slider');
         slider.addEventListener("input", () => {
             target.ts.yDomain = [slider.min, slider.value];
             target.ts.update();
-        })
+        });
 
         alpha.addEventListener("input", () => {
             target.ts.noSelectedAlpha = alpha.value;
             target.ts.update();
-        })
+        });
     });
 
     function setRange(data) {
-        slider.min = d3.min(data, d => d.Low)
-        slider.max = d3.max(data, d => d.Low)
+        slider.min = d3.min(data, d => d.Low);
+        slider.max = d3.max(data, d => d.Low);
         slider.value = slider.max;
     }
 
