@@ -1,4 +1,4 @@
-import { log } from "./utils.js";
+import {log} from "./utils.js";
 import * as d3 from "d3";
 
 /*Data is an array of the next form

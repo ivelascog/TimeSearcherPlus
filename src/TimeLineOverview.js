@@ -1,5 +1,5 @@
 import * as d3 from "d3";
-import { darken } from "./utils.js";
+import {darken} from "./utils.js";
 import WebGPURenderer from "./WebGPURenderer.js";
 
 function TimeLineOverview({
