@@ -772,22 +772,27 @@ function createReferenceWidgets(
         const yRow = getContainers().brushesCoordinates
             ? getContainers().brushesCoordinates.querySelector("#coordsYRow")
             : null;
+        if (yRow) {
+            yRow.style.display = "";
+            yRow.style.opacity = mode === "slider" ? "0.5" : "";
+        }
         if (mode === "slider") {
             if (titleEl) titleEl.textContent = "Current Slider Coordinates:";
-            if (yRow) yRow.style.display = "none";
         } else {
             _coordsActiveSlider = null;
             if (titleEl) titleEl.textContent = "Current TimeBox Coordinates:";
-            if (yRow) yRow.style.display = "";
         }
+        updateSliderSelection();
     }
 
     function updateSliderCoordinates(slider) {
         setBrushSpinBoxesEnabled(true);
         if (!brushSpinBoxes) return;
-        let [[sx0], [sx1]] = brushSpinBoxes;
+        let [[sx0, sy0], [sx1, sy1]] = brushSpinBoxes;
         sx0.node().value = view.formatX(slider.leftX);
         sx1.node().value = view.formatX(slider.rightX);
+        sy0.node().value = "";
+        sy1.node().value = "";
     }
 
     function domainDxFromPixels(px = 6) {
@@ -1059,7 +1064,25 @@ function createReferenceWidgets(
             .select(".slider-background")
             .attr("d", pathString)
             .attr("fill", groupColor)
-            .attr("opacity", slider.negate ? 0.25 : 0.15);
+            .attr("opacity", sliderOpacity(slider));
+    }
+
+    function sliderOpacity(slider) {
+        const selected = _coordsActiveSlider && _coordsActiveSlider.id === slider.id;
+        return (slider.negate ? 0.25 : 0.15) + (selected ? 0.1 : 0);
+    }
+
+    function updateSliderSelection() {
+        if (!gProbes) return;
+        gProbes.selectAll("g.slider-group")
+            .classed("selected", slider => Boolean(_coordsActiveSlider && _coordsActiveSlider.id === slider.id))
+            .select(".slider-background")
+            .attr("opacity", sliderOpacity);
+    }
+
+    function selectSlider(slider) {
+        state.brushes.deselectBrush();
+        updateSliderSpinBox(slider);
     }
 
     function initReferenceLayer(g) {
@@ -1068,6 +1091,7 @@ function createReferenceWidgets(
             .data([1])
             .join("g")
             .attr("class", "gReferences")
+            .attr("clip-path", `url(#${view.clipId})`)
             .style("pointer-events", "none");
     }
 
@@ -1076,7 +1100,8 @@ function createReferenceWidgets(
             .selectAll("g.gProbes")
             .data([1])
             .join("g")
-            .attr("class", "gProbes");
+            .attr("class", "gProbes")
+            .attr("clip-path", `url(#${view.clipId})`);
     }
 
     ts.printSliders = function () {
@@ -1191,6 +1216,11 @@ function createReferenceWidgets(
         all.each(function (slider) {
             const gSlider = d3.select(this);
             const ref = getRefCurveById(slider.rcId);
+            gSlider.on("click.select", event => {
+                if (event.button !== 0) return;
+                event.stopPropagation();
+                selectSlider(slider);
+            });
             gSlider
                 .select(".slider-background")
                 .style("pointer-events", "all")
@@ -1219,6 +1249,7 @@ function createReferenceWidgets(
                     d3
                         .drag()
                         .on("start", function () {
+                            selectSlider(slider);
                             d3.select(this).style("cursor", "grabbing");
                         })
                         .on("drag", (e) => {
@@ -1267,17 +1298,24 @@ function createReferenceWidgets(
             };
 
             ["left", "right"].forEach((which) => {
+                let edgeWasDragged = false;
                 gSlider
                     .select(`.handle-${which} .slider-hit-area`)
                     .call(
                         d3
                             .drag()
+                            .on("start", () => {
+                                edgeWasDragged = false;
+                                selectSlider(slider);
+                            })
                             .on("drag", (e) => {
+                                edgeWasDragged = true;
                                 updateSingleEdge(which, e.x);
                                 updateSliderSpinBox(slider);
                                 handleDragComputation();
                             })
                             .on("end", (e) => {
+                                if (!edgeWasDragged) return;
                                 updateSingleEdge(which, e.x);
                                 updateSliderSpinBox(slider);
                                 state.brushes.recomputeSelection();
@@ -1328,19 +1366,6 @@ function createReferenceWidgets(
         // --- FIN CÓDIGO NUEVO (1/2) ---
 
         const visible = curves.filter((c) => c.isVisible !== false);
-
-        const domainX = view.scaleX.domain();
-        const domainY = view.scaleY.domain();
-        visible.forEach((c) => {
-            c.data.sort((a, b) => d3.ascending(a[0], b[0]));
-            c.data = c.data.filter(
-                (p) =>
-                    p[0] >= domainX[0] &&
-                    p[0] <= domainX[1] &&
-                    p[1] >= domainY[0] &&
-                    p[1] <= domainY[1]
-            );
-        });
 
         const lineCurves = visible.filter((c) => !c.isSimplePoints);
         const pointCurves = visible.filter((c) => c.isSimplePoints);
@@ -1444,9 +1469,10 @@ function createReferenceWidgets(
 
     function setBrushSpinBoxesEnabled(enabled) {
         if (brushSpinBoxes)
-            brushSpinBoxes
-                .flat()
-                .forEach((input) => input.property("disabled", !enabled));
+            brushSpinBoxes.forEach(([inputX, inputY]) => {
+                inputX.property("disabled", !enabled);
+                inputY.property("disabled", !enabled || Boolean(_coordsActiveSlider));
+            });
     }
 
     function onSelectedBrushChange(selectedBrush) {

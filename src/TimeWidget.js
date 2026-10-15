@@ -1,14 +1,26 @@
 import {createAuxiliaryWidgets} from "./AuxiliaryWidgets.js";
 import * as d3 from "d3";
 import {add, intervalToDuration, sub} from "date-fns";
+import createPerformanceBenchmark from "./PerformanceBenchmark.js";
+import {
+    finishPerformanceMeasurement,
+    finishRenderMeasurement,
+    PERFORMANCELOG,
+    startRenderMeasurement,
+} from "./PerformanceMonitor.js";
 
-import {log} from "./utils.js";
+import {log, normalizeDomain, resolveDomains} from "./utils.js";
 
 import TimelineDetails from "./TimelineDetails.js";
 import TimeLineOverview from "./TimeLineOverview";
 import brushInteraction from "./BrushInteraction";
 import HelpSystem from "./HelpSystem.js";
 import createReferenceCurves from "./ReferenceCurves.js";
+import {expandDomainToSnap} from "./Snap.js";
+
+// Serial number for DOM ids that must be unique across the whole document
+// rather than merely within one widget (see clipId below).
+let instanceCounter = 0;
 
 function TimeWidget(
   data,
@@ -32,6 +44,8 @@ function TimeWidget(
     fmtY = d3.format(".1f"), // Function, how to format x points in the tooltip
     stepX = { days: 10 }, // Defines the step used, both in the spinboxes and with the arrows on the X axis.
     stepY = 1, // // Defines the step used, both in the spinboxes and with the arrows on the Y axis.
+      snapX = null, // Domain interval to which brush X coordinates are snapped. Dates accept a date-fns Duration or milliseconds.
+      snapY = null, // Domain interval to which brush Y coordinates are snapped.
     xScale, //It allows to pass a scale of d3 with its parameters, except for the domain which is defined by the xDomain parameter.
     yScale = d3.scaleLinear(), //It allows to pass a scale of d3 with its parameters, except for the domain which is defined by the yDomain parameter.
     xDomain, // Defines the domain to be used in the x scale.
@@ -79,6 +93,7 @@ function TimeWidget(
     maxTimelines = null, // Set to a value to limit the number of distinct timelines to show
     xPartitions = 10, // Partitions performed on the X-axis for the collision acceleration algorithm.
     yPartitions = 10, // Partitions performed on the Y-axis for the collision acceleration algorithm.
+      performanceMonitoring, // false to disable, or {maxSamples, reportEvery, log, onReport}
     /* Options */
     medianNumBins = 10, // Number of bins used to compute the group median.
     medianLineDash = [7], // Selected group median line dash pattern canvas style
@@ -101,6 +116,10 @@ function TimeWidget(
   height = overviewHeight || height;
   detailsMargin = detailsMargin || margin;
 
+    // Stable for the lifetime of this widget: init() re-runs on every update, and
+    // the clipPath must keep the same id so gReferences' url(#…) stays resolvable.
+    const clipId = `plotClip-${++instanceCounter}`;
+
   let ts = {},
     groupedData,
     fData,
@@ -109,10 +128,10 @@ function TimeWidget(
     divOverview,
     divRender,
     divControls,
-    divData,
     brushesCoordinates,
     detailsElement,
     groupsElement,
+      divData,
     svg,
     gGroupBrushes,
     gBrushes,
@@ -141,23 +160,24 @@ function TimeWidget(
         referenceCurves,
         onCoordinatesChange: updateStatus,
     });
-  const {
-    getYAtX,
-    onBrushCoordinatesChange,
-    initBrushCoordinates,
-  } = referenceControls;
+    const {onBrushCoordinatesChange, initBrushCoordinates} = referenceControls;
 
   let helpSystem = null; // Sistema de ayuda: popup de documentación + demo guiada
   // Cache de render(): evita recrear Maps por frame cuando el estado no cambia.
   // render() siempre creaba new Map()/Array.from() → el dirty-cache de estilos GPU nunca saltaba
   // → updateStyles() escribía 3.2MB a la GPU en cada frame incluso sin cambios de selección.
   const _renderEmptyArray = [];
-  let _renderInputSelected = null, _renderInputNotSelected = null, _renderInputHasSelection = undefined;
-  let _renderCachedMDataSelected = null, _renderCachedMDataNotSelected = null, _renderCachedMedians = null;
+    let _renderInputSelected = null,
+        _renderInputNotSelected = null,
+        _renderInputHasSelection = undefined;
+    let _renderCachedMDataSelected = null,
+        _renderCachedMDataNotSelected = null,
+        _renderCachedMedians = null;
 
   // Exported Parameters
-  ts.xPartitions = xPartitions;
-  ts.yPartitions = yPartitions;
+    ts.x = x;
+    ts.y = y;
+    ts.id = id;
   ts.defaultAlpha = defaultAlpha;
   ts.selectedAlpha = selectedAlpha;
   ts.noSelectedAlpha = noSelectedAlpha;
@@ -177,6 +197,8 @@ function TimeWidget(
   ts.brushGroupSize = brushGroupSize;
   ts.stepX = stepX;
   ts.stepY = stepY;
+    ts.snapX = snapX;
+    ts.snapY = snapY;
   ts.medianLineAlpha = medianLineAlpha;
   ts.medianLineWidth = medianLineWidth;
   ts.medianLineDash = medianLineDash;
@@ -189,6 +211,10 @@ function TimeWidget(
   ts.highlightAlpha = highlightAlpha;
   ts.selectedColorTransform = selectedColorTransform;
   ts.renderer = renderer;
+    ts.xDomain = xDomain;
+    ts.yDomain = yDomain;
+    ts.maxTimelines = maxTimelines;
+
   //Backwards compatibility with groupAttr.
   if (groupAttr) {
     console.warn('The attribute "groupAttr" is deprecated use "color" instead');
@@ -223,7 +249,8 @@ function TimeWidget(
     .style("background-color", ts.backgroundColor)
     .node();
 
-    ({divControls, brushesCoordinates, groupsElement} = auxiliaryWidgets.createContainers());
+    ({divControls, brushesCoordinates, groupsElement} =
+        auxiliaryWidgets.createContainers());
   medianBrushGroups = new Map();
   dataSelected = new Map();
   dataNotSelected = [];
@@ -237,8 +264,8 @@ function TimeWidget(
   }
 
   function initDomains({ xDataType, fData }) {
-    if (!xDomain) {
-      xDomain = fixAxis && _this ? _this.extent.x : d3.extent(fData, x);
+      if (!ts.xDomain) {
+          ts.xDomain = fixAxis && _this ? _this.extent.x : d3.extent(fData, x); // Keep same axes as in the first rendering
     }
 
     overviewX = xScale ? xScale.copy() : undefined;
@@ -246,7 +273,7 @@ function TimeWidget(
     if (xDataType === "object" && x(fData[0]) instanceof Date) {
       hasScaleTime = true;
       if (!overviewX) overviewX = d3.scaleTime();
-      overviewX.domain(xDomain);
+        overviewX.domain(ts.xDomain);
       if (!fmtX) {
         // It is a function of type d3.timeFormat. I don't like the way to check that it is a function of that type, but I don't know a better one.
         fmtX = d3.timeFormat("%Y-%m-%d");
@@ -262,33 +289,43 @@ function TimeWidget(
       // if (xDataType === "number") {
       // X is number
       if (!overviewX) overviewX = d3.scaleLinear();
-      overviewX.domain(xDomain);
+        overviewX.domain(ts.xDomain);
       if (!fmtX) {
         fmtX = d3.format(".1f");
       }
     }
 
     overviewX.range([0, width - ts.margin.right - ts.margin.left]).nice();
+      overviewX.domain(expandDomainToSnap(overviewX.domain(), snapX));
 
-    if (!yDomain) {
-      yDomain = fixAxis && _this ? _this.extent.y : d3.extent(fData, y); // Keep same axes as in the first rendering
+      if (!ts.yDomain) {
+          ts.yDomain = fixAxis && _this ? _this.extent.y : d3.extent(fData, y); // Keep same axes as in the first rendering
     }
 
     overviewY = yScale.copy();
 
-    overviewY.domain(yDomain);
+      overviewY.domain(ts.yDomain);
 
-    overviewY
-      .range([height - ts.margin.top - ts.margin.bottom, 0])
-      .nice()
-      .clamp(true);
+      // No .clamp(true): with clamping, points outside a zoomed y-domain pile up
+      // as false flat lines on the top and bottom edges. They are hidden by the
+      // clip-path instead (see #65).
+      overviewY.range([height - ts.margin.top - ts.margin.bottom, 0]).nice();
+      overviewY.domain(expandDomainToSnap(overviewY.domain(), snapY));
   }
 
   function init() {
+      _renderInputSelected = _renderInputNotSelected = null;
+      _renderCachedMDataSelected = null;
       referenceControls.setView({
-          xLabel, yLabel,
-          scaleX: overviewX, scaleY: overviewY, formatX: fmtX, formatY: fmtY,
-          hasScaleTime, lineCount: groupedData ? groupedData.length : 0,
+          xLabel,
+          yLabel,
+          scaleX: overviewX,
+          scaleY: overviewY,
+          formatX: fmtX,
+          formatY: fmtY,
+          hasScaleTime,
+          clipId,
+          lineCount: groupedData ? groupedData.length : 0,
       });
     //CreateOverView
       divData = auxiliaryWidgets.initDataGroupsContainer();
@@ -305,14 +342,14 @@ function TimeWidget(
     timelineOverview = TimeLineOverview({
       ts,
       element: divRender.node(),
-      width: width,
-      height: height,
+        width,
+        height,
       x,
       y,
       groupAttr: color,
       overviewX,
       overviewY,
-      renderer, 
+        renderer,
     });
 
     svg = divRender
@@ -360,6 +397,25 @@ function TimeWidget(
             break;
         }
       });
+
+      // clip-path is resolved by url(#id) against the whole document, not
+      // scoped to this widget's subtree the way our other ids are — so two
+      // TimeWidgets on one page would both answer to the same name and the
+      // second would be clipped by the first one's rect. Hence the per-instance id.
+      let clip = g
+          .selectAll("#" + clipId)
+          .data([1])
+          .join("clipPath")
+          .attr("id", clipId);
+
+      clip
+          .selectAll("rect")
+          .data([1])
+          .join("rect")
+          .attr("x", 0)
+          .attr("y", 0)
+          .attr("width", width - margin.right - margin.left)
+          .attr("height", height - margin.top - margin.bottom);
 
     let yAxis = d3.axisLeft(overviewY);
     if (yTicks) {
@@ -464,7 +520,9 @@ function TimeWidget(
       .attr("stroke-dasharray", "4"); // make it dashed;
 
     if (color) {
-        auxiliaryWidgets.addDataGroups(groupedData.map(line => color(line[1][0])));
+        auxiliaryWidgets.addDataGroups(
+            groupedData.map((line) => color(line[1][0]))
+        );
     }
 
     gGroupBrushes = svg
@@ -496,18 +554,17 @@ function TimeWidget(
       data: groupedData,
       tooltipTarget: divRender.node(),
       contextMenuTarget: divRender.node(),
-      width,
-      height,
       xPartitions,
       yPartitions,
       x,
       y,
       brushShadow,
+        snapX,
+        snapY,
       fmtY,
       fmtX: fmtX,
       scaleX: overviewX,
       scaleY: overviewY,
-      updateTime: 150,
       extent: [
         [0, 0],
         [
@@ -519,11 +576,7 @@ function TimeWidget(
       groupsCallback: onBrushGroupsChange,
       changeSelectedCoordinatesCallback: onBrushCoordinatesChange,
         selectedBrushCallback: referenceControls.onSelectedBrushChange,
-      referenceCurves: referenceControls.referenceCurves,
-      getProbePairBoxes: () => ts.getActiveSliderBoxes(),
-      getSliders: () => referenceControls.sliders,
-      getYAtX: getYAtX,
-      printSlidersCallback: () => ts.printSliders(),
+        filterProvider: referenceControls.filterProvider,
     });
 
       referenceControls.bindBrushes(brushes);
@@ -534,6 +587,26 @@ function TimeWidget(
     divOverview.appendChild(divControls);
     initBrushCoordinates();
     initBrushesControls();
+      generateDataSelectionDiv();
+
+      timelineOverview.setScales({
+          scaleX: overviewX,
+          scaleY: overviewY,
+      });
+      timelineOverview.data(groupedData);
+
+      initDetails({overviewX, overviewY});
+
+      dataSelected.set(0, []);
+      renderSelected = dataSelected;
+      dataNotSelected = groupedData;
+      renderNotSelected = dataNotSelected;
+
+      if (_this) brushes.addFilters(_this.value.status, true);
+      else if (filters) brushes.addFilters(filters, true);
+
+      ts.printReferenceCurves(referenceControls.referenceCurves);
+      ts.printSliders();
 
     // init() puede ejecutarse varias veces (ts.data); el sistema de ayuda solo se crea una vez.
     if (showHelp && !helpSystem) {
@@ -544,14 +617,15 @@ function TimeWidget(
           chart: () => divRender.node(),
           groups: () => (showBrushesControls ? groupsElement : null),
           referenceCurves: () =>
-            referenceControls.referenceCurves && referenceControls.referenceCurves.length
+              referenceControls.referenceCurves &&
+              referenceControls.referenceCurves.length
               ? d3.select(target).select("#rcWidget").node()
               : null,
           coordinates: () =>
             showBrushesCoordinates ? brushesCoordinates : null,
-            dataGroups: () => (showDataGroups && color && divData ? divData.node() : null),
-          details: () =>
-            ts.hasDetails && showDetails ? detailsElement : null,
+            dataGroups: () =>
+                showDataGroups && color && divData ? divData.node() : null,
+            details: () => (ts.hasDetails && showDetails ? detailsElement : null),
         },
       });
     }
@@ -568,7 +642,9 @@ function TimeWidget(
     let dataSelectedF = new Map(dataSelected);
     let dataNotSelectedF = dataNotSelected;
     for (let d of dataSelectedF) {
-        let filtered = d[1].filter((d) => auxiliaryWidgets.selectedDataGroups.has(color(d[1][0])));
+        let filtered = d[1].filter((d) =>
+            auxiliaryWidgets.selectedDataGroups.has(color(d[1][0]))
+        );
       dataSelectedF.set(d[0], filtered);
     }
     dataNotSelectedF = dataNotSelectedF.filter((d) =>
@@ -647,7 +723,7 @@ function TimeWidget(
 
   function onArrowLeft() {
     let selectedBrush = brushes.getSelectedBrush();
-    if (selectedBrush === null) return;
+      if (selectedBrush === null || selectedBrush === undefined) return;
 
     let [[x0, y0], [x1, y1]] = selectedBrush[1].selectionDomain;
 
@@ -685,7 +761,7 @@ function TimeWidget(
 
   function onArrowDown() {
     let selectedBrush = brushes.getSelectedBrush();
-    if (selectedBrush === null) return;
+      if (selectedBrush === null || selectedBrush === undefined) return;
 
     let [[x0, y0], [x1, y1]] = selectedBrush[1].selectionDomain;
 
@@ -711,7 +787,7 @@ function TimeWidget(
 
   function onArrowUp() {
     let selectedBrush = brushes.getSelectedBrush();
-    if (selectedBrush === null) return;
+      if (selectedBrush === null || selectedBrush === undefined) return;
 
     let [[x0, y0], [x1, y1]] = selectedBrush[1].selectionDomain;
 
@@ -740,21 +816,26 @@ function TimeWidget(
   // En TimeWidget.js
   // En TimeWidget.js
 
-  function render(dataSelected, dataNotSelected, hasSelection) {
+    function renderNow(
+        dataSelected,
+        dataNotSelected,
+        hasSelection,
+        measurement = null
+    ) {
     let medians, mDataSelected, mDataNotSelectedArr;
 
     if (
-      dataSelected   === _renderInputSelected   &&
+        dataSelected === _renderInputSelected &&
       dataNotSelected === _renderInputNotSelected &&
-      hasSelection   === _renderInputHasSelection &&
+        hasSelection === _renderInputHasSelection &&
       _renderCachedMDataSelected !== null
     ) {
       // Cache hit: mismos objetos de entrada → la selección no cambió entre frames.
       // Pasamos las mismas referencias a timelineOverview.render() para que su
       // dirty-check de estilos salte el writeBuffer de 3.2MB.
-      mDataSelected    = _renderCachedMDataSelected;
+        mDataSelected = _renderCachedMDataSelected;
       mDataNotSelectedArr = _renderCachedMDataNotSelected;
-      medians          = _renderCachedMedians;
+        medians = _renderCachedMedians;
     } else {
       // Cache miss: recalcular Maps y medianas
       medians = [];
@@ -770,7 +851,10 @@ function TimeWidget(
 
       dataSelected.forEach((groupData, groupId) => {
         const group = brushes.getBrushesGroup().get(groupId);
-        if ((group && group.isEnable) || referenceControls.hasEnabledFilters(groupId)) {
+          if (
+              (group && group.isEnable) ||
+              referenceControls.hasEnabledFilters(groupId)
+          ) {
           mDataSelected.set(groupId, groupData);
         } else {
           groupData.forEach((d) => mDataNotSelectedSet.add(d));
@@ -782,28 +866,31 @@ function TimeWidget(
       });
       mDataNotSelectedArr = Array.from(mDataNotSelectedSet);
 
-      _renderInputSelected      = dataSelected;
-      _renderInputNotSelected   = dataNotSelected;
-      _renderInputHasSelection  = hasSelection;
-      _renderCachedMDataSelected    = mDataSelected;
+        _renderInputSelected = dataSelected;
+        _renderInputNotSelected = dataNotSelected;
+        _renderInputHasSelection = hasSelection;
+        _renderCachedMDataSelected = mDataSelected;
       _renderCachedMDataNotSelected = mDataNotSelectedArr;
-      _renderCachedMedians          = medians;
+        _renderCachedMedians = medians;
     }
 
+        if (PERFORMANCELOG) startRenderMeasurement(measurement);
     timelineOverview.render(
       mDataSelected,
       brushes.getBrushGroupSelected(),
-        auxiliaryWidgets.showNonSelected ? mDataNotSelectedArr : _renderEmptyArray,
+        auxiliaryWidgets.showNonSelected
+            ? mDataNotSelectedArr
+            : _renderEmptyArray,
       medians,
       hasSelection
     );
 
     if (ts.hasDetails) {
       let brushGroupSelected = brushes.getBrushGroupSelected();
-      window.requestAnimationFrame(() =>
-        timelineDetails.render({ data: dataSelected, brushGroupSelected })
-      );
+        timelineDetails.render({data: dataSelected, brushGroupSelected});
     }
+
+        if (PERFORMANCELOG) finishRenderMeasurement(measurement);
   }
 
   function getBrushGroupsMedians(data) {
@@ -837,8 +924,13 @@ function TimeWidget(
       }
       for (let line of g[1]) {
         for (let point of line[1]) {
-          let i = Math.floor((x(point) - minX) / binW);
-          i = i > ts.medianNumBins - 1 ? i - 1 : i;
+            let px = x(point);
+            // Skip points outside the (possibly zoomed) X domain: when zoomed in,
+            // data extends past [minX, maxX] and would index outside `bins`.
+            if (px < minX || px > maxX) continue;
+            let i = Math.floor((px - minX) / binW);
+            // Clamp to a valid bin (guards the right edge where px === maxX).
+            i = Math.max(0, Math.min(ts.medianNumBins - 1, i));
           bins[i].data.push(y(point));
         }
       }
@@ -860,7 +952,8 @@ function TimeWidget(
   function onSelectionChange(
     newDataSelected = dataSelected,
     newDataNotSelected = dataNotSelected,
-    hasSelection = brushes.hasSelection()
+    hasSelection = brushes.hasSelection(),
+    measurement = null
   ) {
     dataSelected = newDataSelected;
     dataNotSelected = newDataNotSelected;
@@ -881,19 +974,22 @@ function TimeWidget(
       getBrushGroupsMedians(renderSelected);
     }
 
-    render(renderSelected, renderNotSelected, hasSelection); // Print the filtered data by active dataGroups
+      renderNow(renderSelected, renderNotSelected, hasSelection, measurement);
 
     renderBrushesControls();
     triggerValueUpdate(renderSelected);
+      if (PERFORMANCELOG) finishPerformanceMeasurement(measurement);
   }
 
   // Called every time the brushGroups changes
   function onBrushGroupsChange() {
-    render(renderSelected, renderNotSelected, brushes.hasSelection());
+      _renderCachedMDataSelected = null;
+      renderNow(renderSelected, renderNotSelected, brushes.hasSelection());
 
-    const { slidersWereRemoved, associationsWereRemoved } = referenceControls.removeMissingGroups();
+      const {slidersWereRemoved, associationsWereRemoved} =
+          referenceControls.removeMissingGroups();
 
-renderBrushesControls();
+      renderBrushesControls();
     triggerValueUpdate();
 
     if (slidersWereRemoved || associationsWereRemoved) {
@@ -938,6 +1034,18 @@ renderBrushesControls();
       .flat();
   }
 
+    function asTidy(map, groupAttributeName = "tw_group") {
+        let aux = Array.from(map.entries()).map(([group, line]) =>
+            Array.from(line.values()).map((v) =>
+                v.map((d) => {
+                    d[groupAttributeName] = group;
+                    return d;
+                })
+            )
+        );
+        return aux.flat(2);
+    }
+
   // Triggers the update of the selection calls callback and dispatches input event
   function triggerValueUpdate(sel = renderSelected) {
     let value = new Map();
@@ -948,7 +1056,8 @@ renderBrushesControls();
       value.set(brushGroup.name, groupMap);
     }
 
-    divOverview.value = value;
+      divOverview.value = asTidy(value, "tw_group");
+      divOverview.value.legacyValue = value; //Raw value as previous versions
     divOverview.value.groupsColorScale = brushesColorScale;
     divOverview.value.nonSelectedIds = dataNotSelected.map((d) => d[0]);
     divOverview.value.selectedIds = dataSelected
@@ -959,6 +1068,8 @@ renderBrushesControls();
       .get(brushes.getBrushGroupSelected()).name;
     divOverview.value.asArray = (params) =>
       convertBrushMapToArray(value, params);
+      divOverview.value.getColor = (groupName) =>
+          brushesColorScale(divOverview.value.status.get(groupName).id);
     divOverview.extent = {
       x: overviewX.domain(),
       y: overviewY.domain(),
@@ -1025,12 +1136,26 @@ renderBrushesControls();
     );
 
     if (!fData || fData.length === 0) {
-      divOverview.innerHTML = ''; 
+        divOverview.innerHTML = "";
       alert("No data available to display. Please load data.");
-      return; 
+        return;
     }
 
     let xDataType = typeof x(fData[0]);
+
+      // Full data extent, recomputed for each new dataset. Zooming goes through
+      // ts.update(), never through here, so this is not narrowed by a zoom — but
+      // it must follow the data: domains are clamped to fullExtent, so a stale
+      // one would make records outside the first dataset's range unreachable.
+      ts.fullExtent = {x: d3.extent(fData, x), y: d3.extent(fData, y)};
+
+      // The xDomain/yDomain constructor options were copied onto ts.* at creation
+      // time, before any data (and so before fullExtent) existed. Validate them
+      // here against the real extent, writing back to ts.* — that is what
+      // initDomains() reads. A malformed domain normalizes to null, which lets
+      // initDomains fall back to the full data extent.
+      if (ts.xDomain) ts.xDomain = normalizeDomain(ts.xDomain, ts.fullExtent.x);
+      if (ts.yDomain) ts.yDomain = normalizeDomain(ts.yDomain, ts.fullExtent.y);
 
     initDomains({ xDataType, fData });
 
@@ -1048,32 +1173,18 @@ renderBrushesControls();
     ts.alphaScale.domain([0, groupedData.length]);
 
     // Limit the number of timelines
-    if (maxTimelines) groupedData = groupedData.slice(0, maxTimelines);
+      if (ts.maxTimelines) groupedData = groupedData.slice(0, ts.maxTimelines);
+
+      if (color)
+          auxiliaryWidgets.addDataGroups(
+              groupedData.map((line) => color(line[1][0]))
+          );
     init();
-
-    timelineOverview.setScales({
-      scaleX: overviewX,
-      scaleY: overviewY,
-    });
-    timelineOverview.data(groupedData);
-
-    generateDataSelectionDiv();
-
-    initDetails({ overviewX, overviewY });
-
-    dataSelected.set(0, []);
-    renderSelected = dataSelected;
-    dataNotSelected = groupedData;
-    renderNotSelected = dataNotSelected;
-
-    if (_this) brushes.addFilters(_this.value.status, true);
-    else if (filters) brushes.addFilters(filters, true);
-
     onSelectionChange();
   };
 
   // If we receive the data on initialization call ts.Data
-  if (data && x && y && id) {
+    if (data && ts.x && ts.y && ts.id) {
     ts.data(data);
   } else {
     overviewX = d3
@@ -1083,8 +1194,7 @@ renderBrushesControls();
     overviewY = d3
       .scaleLinear()
       .range([height - ts.margin.top - ts.margin.bottom, 0])
-      .nice()
-      .clamp(true);
+        .nice();
     init();
   }
 
@@ -1095,14 +1205,13 @@ renderBrushesControls();
 
   // To allow a message from the outside to rerender
   ts.render = () => {
-    // render(dataSelected, dataNotSelected);
     onSelectionChange();
   };
 
   // Renderizado directo: llama a render() con el estado cacheado, sin recalcular
   // medianas, reconstruir Maps ni disparar eventos. Usar solo para benchmarking.
   ts.renderDirect = () => {
-    render(renderSelected, renderNotSelected, brushes.hasSelection());
+      renderNow(renderSelected, renderNotSelected, brushes.hasSelection());
   };
 
   // Espera sincronización GPU (WebGPU async). Canvas resuelve inmediatamente.
@@ -1113,6 +1222,42 @@ renderBrushesControls();
   //   WebGPU → onSubmittedWorkDone()
   //   Canvas 2D → getImageData(0,0,1,1) fuerza flush de rasterización Skia
   ts.syncRenderer = () => timelineOverview.syncRenderer();
+
+    ts.update = () => {
+        let status = divOverview.value.status;
+        let xDataType = typeof x(fData[0]);
+        initDomains({xDataType, fData});
+        init();
+        brushes.addFilters(status, true);
+    };
+
+    ts.setDomains = ({x, y} = {}) => {
+        let next = resolveDomains({x, y}, ts.fullExtent, {
+            x: ts.xDomain,
+            y: ts.yDomain,
+        });
+        ts.xDomain = next.x;
+        ts.yDomain = next.y;
+        ts.update();
+        return ts;
+    };
+
+    ts.getExtent = () => {
+        return ts.fullExtent;
+    };
+
+    ts.performance = createPerformanceBenchmark({
+        getBrushes: () => brushes,
+        getExtent: () => ts.fullExtent,
+        render: (measurement) =>
+            renderNow(
+                renderSelected,
+                renderNotSelected,
+                brushes.hasSelection(),
+                measurement
+            ),
+        options: performanceMonitoring,
+    });
 
   // Remove possible previous event listener
   //target.removeEventListener("TimeWidget", onTimeWidgetEvent);

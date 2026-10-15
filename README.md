@@ -30,7 +30,7 @@ You can test TimeWidget right now with your **own CSV data** (less than 200MB), 
 - [Aggregation and Selection modes](https://observablehq.com/d/e7e7b8a69f571200?collection=@ivelascog/timesearcherplus)
 - [Custom Scales](https://observablehq.com/d/e7e7b8a69f571200?collection=@ivelascog/timesearcherplus)
 
-## Real World Examples. 
+## Real World Examples.
  - [Tweets](https://observablehq.com/@john-guerra/timesearcher-tweets-example)
  - [Global Temperatures by Country](https://observablehq.com/@john-guerra/global-temperatures-by-country)
  - [Unemployment](https://observablehq.com/@john-guerra/timesearcher-example)
@@ -124,7 +124,7 @@ or right in the html like in the example below.
     { Date: "01/03/2023", Open: 260, id: "Apple", group: "Technology" },
   ];
 
-   let target = TimeWidget(data, {        
+   let target = TimeWidget(data, {
       x: "Date", // Atribute to show in the X axis (Note that it also supports functions)
       y:  "Open", // Atribute to show in the Y axis (Note that it also supports functions)
       id: "stock", // Atribute to group the input data (Note that it also supports functions)
@@ -143,7 +143,7 @@ You have two options:  add them at initialization:
     y:  "Open", // Atribute to show in the Y axis (Note that it also supports functions)
     id: "stock", // Atribute to group the input data (Note that it also supports functions)
     color: "Group", // (Optional) Attribute to color by
-    
+
     xPartitions: 10, // Partitions performed on the X-axis for the collision acceleration algorithm.
     yPartitions: 10, // Partitions performed on the Y-axis for the collision acceleration algorithm.
     defaultAlpha: 0.8, // Default transparency (when no selection is active) of drawn lines
@@ -173,12 +173,18 @@ For the definition of the reference lines, see the [custom formats](#reference-l
 This section will show all possible options grouped by categories.
 ### Elements
  -  **target**: pass a html element where you want to render
- -  **detailsElement**:  pass a html element  where you want to render the details
- -  **coordinatesElement**: pass a html element where you want to render the brush coordinates Input.
- -  **groupsElement**: pass a html element where you want to have the brushes controls.
- -  **showBrushesControls**:If true, the brush control is displayed in the default location. If false you can still use brushesControlsElement to show the control on a different element on your app
+- **showBrushesControls**:If true, the brush control is displayed in the default location. If false you can still use
+  brushesControlsElement to show the control on a different element on your app. For this use the exported value
+  "groups"
  -  **showBrushTooltip**: Allows to display a tooltip on the brushes containing its coordinates.
  -  **showHelp**: If true (default), shows a "?" button on the widget that opens an in-tool documentation popup and a step-by-step guided tour. You can also trigger them programmatically with `target.ts.showHelpPopup()` and `target.ts.startTour()`.
+
+- **showBrushesCoordinates**: If false you can still use brushesCoordinatesElement to show the control on a different
+  element on your app. For this use the exported value "brushesCoordinates"
+- **showDataGroups**: If false you can still use dataGroupElement to show the control on a different element on your
+  app. For this use the exported value "dataGroups"
+- **showDetails**: If false and with hasDetails = true, you can still use detailsElement to show the control on a
+  different element on your app. For this use the exported value "details"
 ### Data
  - **x**:  Attribute to show in the X axis (Note that it also supports functions)
  - **y**:  Attribute to show in the Y axis (Note that it also supports functions)
@@ -191,17 +197,25 @@ This section will show all possible options grouped by categories.
  - **referenceCurves**:  Specifies a Json object with the information of the reference lines.
  - **fmtX**: Function, how to format x points in the tooltip. Note that it must conform to the data type provided in X.
  - **fmtY**: Function, how to format x points in the tooltip. Note that it must conform to the data type provided in Y.
+- **snapX**: Optional positive interval in X domain units to which both horizontal brush edges are snapped. For time
+  scales, use a single-unit date-fns Duration such as `{ months: 1 }` or `{ days: 7 }`, or a number of milliseconds.
+  Calendar durations are applied from the lower X-domain boundary with date-fns, so months and years preserve their real
+  calendar boundaries. The visible upper domain boundary is expanded when necessary so the domain width is an exact
+  multiple of the interval.
+- **snapY**: Optional positive interval in Y domain units to which both vertical brush edges are snapped. The grid
+  starts at the lower Y-domain boundary, and the visible upper boundary is expanded to the next interval when necessary.
  - **xLabel**: Label to show in the X axis
  - **yLabel**: Label to show in the Y axis
  - **xTicks**: Allows to use custom strings as ticks on the X-axis independently of the X-scale. A vector of [xValue,Label] pairs is expected. Note that only the defined elements are displayed and xValue must belong to the domain of X.
  - **yTicks**: Allows to use custom strings as ticks on the y-axis independently of the y-scale. A vector of [yValue,Label] pairs is expected. Note that only the defined elements are displayed and yValue must belong to the domain of X.
  - **filters**: Array of predefined TimeGroups and TimeBoxes. [Example](https://observablehq.com/d/29228e86855505e2?collection=@ivelascog/timesearcherplus)
+
 ### Color Configuration
  - **defaultAlpha**: Default transparency (when no selection is active) of drawn lines
  - **selectedAlpha**: Transparency of selected lines
  - **noSelectedAlpha**: Transparency of unselected lines
  - **alphaScale**: A scale to adjust the alpha by the number of rendering elements
- - **backgroundColor**: 
+- **backgroundColor**:
  - **defaultColor**: Default color (when no selection is active) of the drawn lines. It only has effect when "color" is not defined.
  - **selectedColor**: Color of selected lines. It only has effect when "color" is not defined.
  - **noSelectedColor**: Color of unselected lines. It only has effect when "color" is not defined.
@@ -260,7 +274,7 @@ This section details the different formats used by the application for some para
     "opacity": 0.5, // opacity level of the line
     "data": [[p1x,p1y],[p2x,p2y],...]
   }
-]  
+]
  ```
 
 ### Filters
@@ -274,7 +288,7 @@ filters: [
             {
                 selectionDomain: [
                   [1.5,-7], /*[x0,y0]*/
-                  [2.5, -17] /*[x1,y1]*/  
+                  [2.5, -17] /*[x1,y1]*/
                 ],
                 mode: "intersect", /* or "contains". Optional*/
                 aggregation: "and", /* or "or". Optional */
@@ -287,7 +301,95 @@ filters: [
 ]
 ```
 
+## Performance measurements
 
+Enable the lightweight monitor and move a brush as usual to measure internal
+CPU work. Every `reportEvery` completed measurements it reports the mean and
+p50/p95/p99 percentiles for collision detection (`collisionMs`), issuing draw
+commands (`renderMs`) and total CPU processing (`totalCpuMs`), in milliseconds.
+Reports are synchronous and do not wait for frame presentation. Frame times,
+FPS and GPU work are measured externally by the benchmark in `bench/`; see
+[bench/README.md](bench/README.md).
+
+```js
+const target = TimeWidget(data, {
+  x: "Date",
+  y: "Open",
+  id: "stock",
+  performanceMonitoring: {
+    maxSamples: 300,
+    reportEvery: 60,
+    log: true,
+  },
+});
+
+target.ts.performance.reset(); // start a clean experimental run
+const report = target.ts.performance.report(); // JSON-serializable results
+
+// Or run 300 rendering frames automatically and receive the final report:
+const automaticReport = await target.ts.performance.run({ frames: 300 });
+
+// Include selection/collision work by moving a brush automatically:
+const brushReport = await target.ts.performance.runBrush({
+  frames: 300,
+  warmupFrames: 60,
+  cycles: 3,
+  brushHeight: 0.25,
+});
+```
+
+Use `performanceMonitoring: false` to disable the instrumentation. An
+`onReport(report)` callback can be supplied instead of (or in addition to) the
+console output. `runBrush()` replaces the current filters with a deterministic
+brush and moves it horizontally, so its report also includes selection and
+collision timings without user interaction. The first `warmupFrames` frames
+are executed but discarded from all metrics (60 by default).
+
+## Contributing
+
+```bash
+npm ci
+npm run build        # rollup -> dist/{TimeWidget.js,.esm.js,.min.js}
+npm run test:all     # unit tests -> build -> e2e. The full gate.
+```
+
+To try a change in a browser, serve the **repository root** — the examples load
+`../dist/TimeWidget.js`, so serving `example/` on its own gives you a 404:
+
+```bash
+npm run build
+npx http-server . -p 8099 -c-1 -a 127.0.0.1
+# then open http://localhost:8099/example/stocks.html
+```
+
+`example/stocks.html` is the most complete demo (real data, brushes, group
+medians, reference curves). `npm run dev` is a rollup watch build, not a server.
+
+Working with an AI coding agent? [`CLAUDE.md`](./CLAUDE.md) documents the
+architecture, conventions, and the non-obvious traps in this codebase.
+
+### Testing
+
+Two tiers, because they catch different things:
+
+| Command            | What it covers                                                      |
+|--------------------|---------------------------------------------------------------------|
+| `npm test`         | Jest unit tests over the pure logic in `src/utils.js`, `src/BVH.js` |
+| `npm run test:e2e` | Playwright, real browser, driving the built bundle                  |
+
+**Put a test at the tier that can actually observe the bug.** Pure-logic bug →
+unit test. Anything involving construction, rendering, the DOM, or two widgets
+on one page → e2e; those bugs are invisible to the unit suite, which has been
+fully green while exactly that class of bug was live.
+
+Run `npm run build` before `npm run test:e2e` — the e2e suite drives `dist/`,
+so an un-built source change simply isn't there.
+
+**Prove a new test fails without its fix.** Revert the fix, watch the test go
+red, then restore it. A test that has never failed proves nothing, and it is
+easy to write an assertion that quietly holds either way.
+
+Both tiers run in CI on every pull request.
 
 ## License
 
@@ -295,7 +397,10 @@ TimeWidget.js is licensed under the MIT license. (http://opensource.org/licenses
 
 ## Contributors
 
-These research tools are the result of a collaboration between  Universidad Rey Juan Carlos in Madrid (Iván Velasco, Sofía Bayona and Luis Pastor), The Kangaroo Foundation in Colombia (Nathalie Charpak, José Tiberio Hernández), and Norhteastern University in Silicon Valley (John Alexis Guerra) 
+These research tools are the result of a collaboration between:
 
+* Universidad Rey Juan Carlos in Madrid (Iván Velasco, Sofía Bayona and Luis Pastor)
+* The Kangaroo Foundation in Colombia (Nathalie Charpak, José Tiberio Hernández)
+* Norhteastern University in Sillicon Valley ([John Alexis Guerra Gomez](https://johnguerra.co))
 
 
