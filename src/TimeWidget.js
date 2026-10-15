@@ -1,13 +1,15 @@
-﻿import * as d3 from "d3";
-import { add, intervalToDuration, sub } from "date-fns";
+import {createAuxiliaryWidgets} from "./AuxiliaryWidgets.js";
+import * as d3 from "d3";
+import {add, intervalToDuration, sub} from "date-fns";
 
-import { log } from "./utils.js";
+import {log} from "./utils.js";
 
 import TimelineDetails from "./TimelineDetails.js";
 import TimeLineOverview from "./TimeLineOverview";
 import brushInteraction from "./BrushInteraction";
 import HelpSystem from "./HelpSystem.js";
-import createReferenceControls from "./ReferenceControls.js";
+import createReferenceCurves from "./ReferenceCurves.js";
+
 function TimeWidget(
   data,
   {
@@ -16,6 +18,7 @@ function TimeWidget(
     showBrushesControls = true, // If false you can still use brushesControlsElement to show the control on a different element on your app. For this use the exported value "groups"
     showBrushTooltip = true, // Allows to display a tooltip on the brushes containing its coordinates.
     showBrushesCoordinates = true, // If false you can still use brushesCoordinatesElement to show the control on a different element on your app. For this use the exported value "brushesCoordinates"
+      showDataGroups = true, // Allows the data-group panel to be mounted externally.
     showDetails = true, // If false and with hasDetails = true, you can still use detailsElement to show the control on a different element on your app. For this use the exported value "details"
     showHelp = true, // Shows the "?" help button with the built-in documentation popup and the step-by-step guided tour.
     helpLang = "es", // Language for the built-in help system: 'es' (Spanish, default) or 'en' (English).
@@ -118,78 +121,28 @@ function TimeWidget(
     dataNotSelected,
     renderSelected, // Selected data to render. Depends on selected DataGroup and the selection of other TS
     renderNotSelected, // Non Selected data to render. Depends on selected DataGroup and the selection of other TS
-    showNonSelected, // Determines if unselected data is rendered
-    selectedGroupData,
     hasScaleTime,
-    nGroupsData,
     timelineDetails, // Centralizes the details component
     timelineOverview,
     brushes;
   // Read live scales and brushes because init() replaces them on every update.
-  const referenceControls = createReferenceControls(
-    {
-      get brushes() {
-        return brushes;
-      },
-      get brushesCoordinates() {
-        return brushesCoordinates;
-      },
-      get computeBrushColor() {
-        return computeBrushColor;
-      },
-      get divControls() {
-        return divControls;
-      },
-      get fmtX() {
-        return fmtX;
-      },
-      get fmtY() {
-        return fmtY;
-      },
-      get groupedData() {
-        return groupedData;
-      },
-      get hasScaleTime() {
-        return hasScaleTime;
-      },
-      get overviewX() {
-        return overviewX;
-      },
-      get overviewY() {
-        return overviewY;
-      },
-      get renderBrushesControls() {
-        return renderBrushesControls;
-      },
-      get showBrushesControls() {
-        return showBrushesControls;
-      },
-      get showBrushesCoordinates() {
-        return showBrushesCoordinates;
-      },
-      get target() {
-        return target;
-      },
-      get ts() {
-        return ts;
-      },
-      get updateStatus() {
-        return updateStatus;
-      },
-      get xLabel() {
-        return xLabel;
-      },
-      get yLabel() {
-        return yLabel;
-      },
-    },
-    referenceCurves
-  );
+
+    const auxiliaryWidgets = createAuxiliaryWidgets({
+        target,
+        ts,
+        showBrushesControls,
+        showDataGroups,
+        onChange: onSelectionChange,
+        coordinates: showBrushesCoordinates,
+    });
+    const referenceControls = createReferenceCurves({
+        ts,
+        auxiliaryWidgets,
+        referenceCurves,
+        onCoordinatesChange: updateStatus,
+    });
   const {
     getYAtX,
-    onRemoveBrushGroup,
-    renderReferenceCurvesWidget,
-    updateDependentStates,
     onBrushCoordinatesChange,
     initBrushCoordinates,
   } = referenceControls;
@@ -270,171 +223,17 @@ function TimeWidget(
     .style("background-color", ts.backgroundColor)
     .node();
 
-  divControls =
-    divControls ||
-    d3.select(target).select("#control").node() ||
-    d3.create("div").attr("id", "control").node();
-  brushesCoordinates =
-    brushesCoordinates ||
-    d3.select(target).select("#brushesCoordinates").node() ||
-    d3.create("div").attr("id", "brushesCoordinates").node();
-  groupsElement =
-    groupsElement ||
-    d3.select(target).select("#brushesGroups").node() ||
-    d3.create("div").attr("id", "brushesGroups").node();
+    ({divControls, brushesCoordinates, groupsElement} = auxiliaryWidgets.createContainers());
   medianBrushGroups = new Map();
   dataSelected = new Map();
   dataNotSelected = [];
-  selectedGroupData = new Set();
-  showNonSelected = true;
 
-  function computeBrushColor(groupId) {
-    return ts.brushesColorScale(groupId);
-  }
-
-  function onAddBrushGroup() {
-    brushes.addBrushGroup();
-  }
-
-  function onChangeNonSelected(newState) {
-    showNonSelected = newState;
-  }
-
-  function onChangeBrushGroupState(id, newState) {
-    brushes.changeBrushGroupState(id, newState);
-    updateDependentStates(id, newState);
-    brushes.recomputeSelection();
-    ts.printSliders();
-    renderBrushesControls();
-  }
-
-  function onSelectBrushGroup(id) {
-    const oldSelectedId = brushes.getBrushGroupSelected();
-    brushes.selectBrushGroup(id);
-    if (oldSelectedId !== undefined && oldSelectedId !== id) {
-      const oldGroup = brushes.getBrushesGroup().get(oldSelectedId);
-      if (oldGroup) {
-        updateDependentStates(oldSelectedId, oldGroup.isEnable);
-      }
+    function initBrushesControls() {
+        auxiliaryWidgets.initBrushesControls();
     }
-
-    updateDependentStates(id, true);
-
-    brushes.recomputeSelection();
-  }
-
-  function initBrushesControls() {
-    groupsElement.innerHTML = `
-        <h3>Groups</h3>
-        <div id="brushesList" style="margin-bottom: 8px;"></div>
-        <button id="btnAddBrushGroup">Add Group</button>
-    `;
-    groupsElement
-      .querySelector("button#btnAddBrushGroup")
-      .addEventListener("click", onAddBrushGroup);
-
-    referenceControls.initControls();
-
-if (showBrushesControls) {
-      divControls.appendChild(groupsElement);
-
-    }
-  }
-
-  function renderGroupsWidget() {
-    const brushesList = d3.select(groupsElement).select("#brushesList");
-
-    const brushGroups = Array.from(brushes.getBrushesGroup()).filter(
-      ([id, group]) => !group.name.startsWith("RC ")
-    );
-
-    brushesList
-      .selectAll(".brushControl")
-      .data(brushGroups, (d) => d[0])
-      .join("div")
-      .attr("class", "brushControl")
-      .each(function (d) {
-        const div = d3.select(this);
-        const groupName = d[1].name;
-        const groupCount = renderSelected.has(d[0])
-          ? renderSelected.get(d[0]).length
-          : 0;
-
-        div.node().innerHTML = `<div style="display: flex; align-items: center; flex-wrap: nowrap; margin-bottom: 2px;">
-            <input type="checkbox" id="checkBoxShowBrushGroup" ${
-              d[1].isEnable ? "checked" : ""
-            }></input>
-            <div id="groupColor" style="
-              min-width: ${ts.brushGroupSize}px; height: ${ts.brushGroupSize}px;
-              background-color: ${computeBrushColor(d[0])};
-              border: ${
-                d[0] === brushes.getBrushGroupSelected()
-                  ? "2px solid black"
-                  : "1px solid #ccc"
-              };
-              margin: 0 5px; cursor: pointer;
-            "></div>
-            <input id="groupName" style="border: none; outline: none; width: ${
-              groupName.length + 1
-            }ch;" value="${groupName}"></input>
-            <span id="groupSize" style="margin-right: 5px; cursor: pointer;">(${groupCount})</span>
-            <button style="color: red; font-weight: bold; border:none; background:none; display:${
-              brushes.getBrushesGroupSize() > 1 ? "block" : "none"
-            }" id="btnRemoveBrushGroup">&cross;</button>
-          </div>
-        `;
-
-        div.select("input#groupName").on("input", function () {
-          this.style.width = this.value.length + 1 + "ch";
-        });
-        div.select("input#groupName").on("change", (evt) => {
-          brushes.updateBrushGroupName(d[0], evt.target.value);
-        });
-        div.select("#btnRemoveBrushGroup").on("click", (e) => {
-          e.stopPropagation();
-          onRemoveBrushGroup(d[0]);
-        });
-        div.select("#checkBoxShowBrushGroup").on("change", (e) => {
-          onChangeBrushGroupState(d[0], e.target.checked);
-        });
-        div
-          .select("div#groupColor, span#groupSize")
-          .on("click", () => onSelectBrushGroup(d[0]));
-      });
-
-    const nonSelectedContainer = d3
-      .select(groupsElement)
-      .selectAll(".nonSelectedControl")
-      .data([1]);
-    nonSelectedContainer
-      .enter()
-      .append("div")
-      .attr("class", "nonSelectedControl")
-      .merge(nonSelectedContainer)
-      .each(function () {
-        this.innerHTML = `<div style="display: flex; align-items: center; margin-top: 5px;">
-                <input type="checkbox" id="checkBoxShowNonSelected" ${
-                  showNonSelected ? "checked" : ""
-                }></input>
-                <span>Non selected (<span id="nonSelectedCount">${
-                  renderNotSelected.length
-                }</span>)</span>
-            </div>`;
-        d3.select(this)
-          .select("#checkBoxShowNonSelected")
-          .on("change", (e) => {
-            showNonSelected = e.target.checked;
-            onSelectionChange();
-          });
-      });
-    d3.select(groupsElement)
-      .select("#nonSelectedCount")
-      .text(renderNotSelected.length);
-  }
 
   function renderBrushesControls() {
-    renderGroupsWidget();
-    renderReferenceCurvesWidget();
+      auxiliaryWidgets.render(renderSelected, renderNotSelected.length);
   }
 
   function initDomains({ xDataType, fData }) {
@@ -486,13 +285,13 @@ if (showBrushesControls) {
   }
 
   function init() {
+      referenceControls.setView({
+          xLabel, yLabel,
+          scaleX: overviewX, scaleY: overviewY, formatX: fmtX, formatY: fmtY,
+          hasScaleTime, lineCount: groupedData ? groupedData.length : 0,
+      });
     //CreateOverView
-    divData = d3
-      .select(divControls)
-      .selectAll("div#divData")
-      .data([1])
-      .join("div")
-      .attr("id", "divData");
+      divData = auxiliaryWidgets.initDataGroupsContainer();
 
     divRender = d3
       .select(divOverview)
@@ -542,7 +341,7 @@ if (showBrushesControls) {
             brushes.removeSelectedBrush();
             break;
           case "+":
-            onAddBrushGroup();
+              auxiliaryWidgets.addBrushGroup();
             break;
           case "ArrowRight":
             onArrowRigth(e);
@@ -665,8 +464,7 @@ if (showBrushesControls) {
       .attr("stroke-dasharray", "4"); // make it dashed;
 
     if (color) {
-      fData.forEach((d) => selectedGroupData.add(color(d)));
-      nGroupsData = selectedGroupData.size;
+        auxiliaryWidgets.addDataGroups(groupedData.map(line => color(line[1][0])));
     }
 
     gGroupBrushes = svg
@@ -720,6 +518,7 @@ if (showBrushesControls) {
       selectionCallback: onSelectionChange,
       groupsCallback: onBrushGroupsChange,
       changeSelectedCoordinatesCallback: onBrushCoordinatesChange,
+        selectedBrushCallback: referenceControls.onSelectedBrushChange,
       referenceCurves: referenceControls.referenceCurves,
       getProbePairBoxes: () => ts.getActiveSliderBoxes(),
       getSliders: () => referenceControls.sliders,
@@ -727,15 +526,10 @@ if (showBrushesControls) {
       printSlidersCallback: () => ts.printSliders(),
     });
 
-    gGroupBrushes
-      .selectAll("text")
-      .data([1])
-      .join("text")
-      .attr("x", 0)
-      .attr("y", ts.brushGroupSize / 2 + 2)
-      .text("Groups + : ")
-      .style("cursor", "pointer")
-      .on("click", onAddBrushGroup);
+      referenceControls.bindBrushes(brushes);
+      auxiliaryWidgets.bindControllers(brushes, referenceControls);
+
+      auxiliaryWidgets.renderGroupShortcut(gGroupBrushes);
 
     divOverview.appendChild(divControls);
     initBrushCoordinates();
@@ -755,7 +549,7 @@ if (showBrushesControls) {
               : null,
           coordinates: () =>
             showBrushesCoordinates ? brushesCoordinates : null,
-          dataGroups: () => (color && divData ? divData.node() : null),
+            dataGroups: () => (showDataGroups && color && divData ? divData.node() : null),
           details: () =>
             ts.hasDetails && showDetails ? detailsElement : null,
         },
@@ -766,39 +560,7 @@ if (showBrushesControls) {
   }
 
   function generateDataSelectionDiv() {
-    if (color) {
-      divData.node().innerHTML = "";
-      divData.append("span").text("Data groups: ");
-
-      let divButtons = divData
-        .selectAll(".groupData")
-        .data(selectedGroupData)
-        .join("div")
-        .attr("class", "groupData");
-      divButtons
-        .append("button")
-        .style("font-size", `${ts.brushGroupSize}px`)
-        .style("stroke", "black")
-        .style("margin", "2px")
-        .style("margin-right", "10px")
-        .style("border-width", "3px")
-        .style("border", "solid black")
-        .style("width", `${ts.brushGroupSize}px`)
-        .style("height", `${ts.brushGroupSize}px`)
-        .style("background-color", (d) => ts.colorScale(d))
-        .on("click", function (event, d) {
-          if (selectedGroupData.has(d)) {
-            selectedGroupData.delete(d);
-            d3.select(this).style("border", "solid transparent");
-          } else {
-            selectedGroupData.add(d);
-            d3.select(this).style("border", "solid black");
-          }
-
-          onGroupDataChange();
-        });
-      divButtons.append("span").text((d) => d);
-    }
+      if (color) auxiliaryWidgets.generateDataSelectionDiv();
   }
 
   // Filter dataSelected and dataNotSelected by enable dataGroups
@@ -806,20 +568,17 @@ if (showBrushesControls) {
     let dataSelectedF = new Map(dataSelected);
     let dataNotSelectedF = dataNotSelected;
     for (let d of dataSelectedF) {
-      let filtered = d[1].filter((d) => selectedGroupData.has(color(d[1][0])));
+        let filtered = d[1].filter((d) => auxiliaryWidgets.selectedDataGroups.has(color(d[1][0])));
       dataSelectedF.set(d[0], filtered);
     }
     dataNotSelectedF = dataNotSelectedF.filter((d) =>
-      selectedGroupData.has(color(d[1][0]))
+        auxiliaryWidgets.selectedDataGroups.has(color(d[1][0]))
     );
 
     return [dataSelectedF, dataNotSelectedF];
   }
 
   // Called when the active dataGroups are modified.
-  function onGroupDataChange() {
-    onSelectionChange();
-  }
 
   function initDetails({ overviewX, overviewY }) {
     if (ts.hasDetails) {
@@ -850,7 +609,7 @@ if (showBrushesControls) {
 
   function onArrowRigth() {
     let selectedBrush = brushes.getSelectedBrush();
-    if (selectedBrush === null) return;
+      if (selectedBrush === null || selectedBrush === undefined) return;
 
     let [[x0, y0], [x1, y1]] = selectedBrush[1].selectionDomain;
 
@@ -1034,7 +793,7 @@ if (showBrushesControls) {
     timelineOverview.render(
       mDataSelected,
       brushes.getBrushGroupSelected(),
-      showNonSelected ? mDataNotSelectedArr : _renderEmptyArray,
+        auxiliaryWidgets.showNonSelected ? mDataNotSelectedArr : _renderEmptyArray,
       medians,
       hasSelection
     );
@@ -1159,6 +918,7 @@ renderBrushesControls();
     }
     divOverview.value.status = status;
     divOverview.dispatchEvent(new Event("input", { bubbles: true }));
+      statusCallback(status);
   }
 
   // Converts the brushes map into an array
@@ -1205,6 +965,7 @@ renderBrushesControls();
     };
     divOverview.brushGroups = brushes.getBrushesGroup();
     updateStatus();
+      updateCallback(divOverview.value);
   }
 
   /*function brushesToDomain(brushesGroup) {
@@ -1361,6 +1122,11 @@ renderBrushesControls();
   divOverview.details = detailsElement;
   divOverview.brushesCoordinates = brushesCoordinates;
   divOverview.groups = groupsElement;
+    divOverview.dataGroups = divData.node();
+    ts.duplicateSelectedGroup = () => {
+        auxiliaryWidgets.duplicateGroup();
+        return ts;
+    };
 
   // Sistema de ayuda: abrir la documentación o la demo guiada desde fuera
   ts.showHelpPopup = () => helpSystem && helpSystem.showHelp();

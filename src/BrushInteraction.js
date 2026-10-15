@@ -1,11 +1,11 @@
 import * as d3 from "d3";
-import { throttle } from "throttle-debounce";
+import {throttle} from "throttle-debounce";
 import BVH from "./BVH";
 import brushTooltipEditable from "./BrushTooltipEditable.js";
 import BrushContextMenu from "./BrushContextMenu.js";
-import { compareSets, darken, isInsideDomain } from "./utils.js";
+import {compareSets, darken, isInsideDomain} from "./utils.js";
 
-import { BrushAggregation, BrushModes, log } from "./utils";
+import {BrushAggregation, BrushModes, log} from "./utils";
 
 function brushInteraction({
   ts,
@@ -204,7 +204,8 @@ function brushInteraction({
     mode = BrushModes.Intersect,
     aggregation = BrushAggregation.And,
     brushGroup = brushGroupSelected,
-    brushinitialSelection = undefined
+    brushinitialSelection = undefined,
+    negate = false
   ) {
     // Create the brush
     let brush = d3.brush().on("start", onBrushStart);
@@ -224,9 +225,10 @@ function brushInteraction({
           brushinitialSelection
         )
       );
+    brushesGroup.get(brushGroup).brushes.get(brushCount).negate = negate;
     let brushObject = [
       brushCount,
-      brushesGroup.get(brushGroupSelected).brushes.get(brushCount),
+      brushesGroup.get(brushGroup).brushes.get(brushCount),
     ];
     // Set events for Brush
     brush.on("brush.move", moveSelectedBrushes);
@@ -688,6 +690,10 @@ function brushFilter() {
     brushSize--;
     brushesGroup.get(brush.group).brushes.delete(id);
 
+    if (selectedBrush && selectedBrush[0] === id) {
+      selectedBrush = null;
+      selectedBrushCallback(null);
+    }
     drawBrushes();
     brushFilter();
     updateStatus();
@@ -848,6 +854,8 @@ function brushFilter() {
         brush[1].isSelected = false;
       }
     }
+    selectedBrush = null;
+    selectedBrushCallback(null);
   }
 
   function getUnusedIdBrushGroup() {
@@ -945,7 +953,7 @@ function brushFilter() {
           //Do that in left click
           let selection = brushValue.selection;
           updateSelectedCoordinates({ selection });
-          selectedBrush = selectedBrush && d[0] === selectedBrush[0] ? null : d;
+          selectedBrush = d;
           selectedBrushCallback(selectedBrush);
 
           // Show shadow on current brush
@@ -1173,6 +1181,10 @@ function brushFilter() {
     for (const [brushId, brush] of groupToDelete.brushes.entries()) {
       brushSize--;
     }
+    if (selectedBrush && selectedBrush[1].group === id) {
+      selectedBrush = null;
+      selectedBrushCallback(null);
+    }
     brushesGroup.delete(id);
     dataSelected.delete(id);
 
@@ -1259,6 +1271,22 @@ function brushFilter() {
       drawBrushes();
       selectedBrushCallback(selectedBrush);
     }
+  };
+
+  me.duplicateBrushGroup = function (sourceId = brushGroupSelected) {
+    const source = brushesGroup.get(sourceId);
+    if (!source) return;
+    const payload = cloneBrushGroupPayload(source);
+    if (payload.brushes.length === 0) {
+      me.addBrushGroup(); // nothing committed → behave like Add Group
+      return;
+    }
+    const before = new Set(brushesGroup.keys());
+    me.addFilters([payload], false); // appends a new group, materializes copied brushes
+    const newId = [...brushesGroup.keys()].find((k) => !before.has(k));
+    if (newId !== undefined) selectBrushGroup(newId);
+    updateStatus();
+    updateGroups();
   };
 
   me.getBrushesGroupSize = function () {
@@ -1570,7 +1598,7 @@ function brushFilter() {
               [0, 100],
             ]);
         }
-        newBrush(brush.mode, brush.aggregation, groupId, brush.selectionDomain);
+        newBrush(brush.mode, brush.aggregation, groupId, brush.selectionDomain, Boolean(brush.negate));
         brushSize++; // The brushSize will not be increased in onStartBrush
         // because the last brush added will be the one set for a new Brush.
       }
@@ -1640,6 +1668,28 @@ function brushFilter() {
     };
   me.contextMenu = brushContextMenu;
   return me;
+}
+
+export function cloneBrushGroupPayload(group, {suffix = " (copy)"} = {}) {
+  const brushes = [];
+  if (group && group.brushes) {
+    for (const brush of group.brushes.values()) {
+      if (brush.selection !== null && brush.selectionDomain) {
+        brushes.push({
+          mode: brush.mode,
+          aggregation: brush.aggregation,
+          selectionDomain: brush.selectionDomain.map(corner => corner.map(value => value instanceof Date ? new Date(+value) : value)),
+        });
+        if (Object.prototype.hasOwnProperty.call(brush, "negate")) brushes[brushes.length - 1].negate = brush.negate;
+      }
+    }
+  }
+  return {
+    isEnable: true,
+    isActive: false,
+    name: ((group && group.name) || "Group") + suffix,
+    brushes,
+  };
 }
 
 export default brushInteraction;
