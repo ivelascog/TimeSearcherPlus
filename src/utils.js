@@ -1,4 +1,13 @@
 import * as d3 from "d3";
+import { add as addDuration, sub as subDuration } from "date-fns";
+
+export function add(date, step) {
+  return typeof step === "number" ? new Date(+date + step) : addDuration(date, step);
+}
+
+export function sub(date, step) {
+  return typeof step === "number" ? new Date(+date - step) : subDuration(date, step);
+}
 
 let DEBUG = false;
 let before;

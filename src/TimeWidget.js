@@ -1,5 +1,5 @@
 ﻿import * as d3 from "d3";
-import { add, intervalToDuration, sub } from "date-fns";
+import { intervalToDuration } from "date-fns";
 import createPerformanceBenchmark from "./PerformanceBenchmark.js";
 import {
   finishPerformanceMeasurement,
@@ -9,15 +9,17 @@ import {
 } from "./PerformanceMonitor.js";
 
 import {
+  add,
   log,
   normalizeDomain,
   resolveDomains,
+  sub,
 } from "./utils.js";
 
 import TimelineDetails from "./TimelineDetails.js";
 import TimeLineOverview from "./TimeLineOverview";
 import brushInteraction from "./BrushInteraction";
-import { expandDomainToSnap } from "./Snap.js";
+import { expandDomainToSnap, stepAtLeastSnap } from "./Snap.js";
 
 // Serial number for DOM ids that must be unique across the whole document
 // rather than merely within one widget (see clipId below).
@@ -31,7 +33,7 @@ function TimeWidget(
     showBrushesControls = true, // If false you can still use brushesControlsElement to show the control on a different element on your app. For this use the exported value "groups"
     showBrushTooltip = true, // Allows to display a tooltip on the brushes containing its coordinates.
     showBrushesCoordinates = true, // If false you can still use brushesCoordinatesElement to show the control on a different element on your app. For this use the exported value "brushesCoordinates"
-    showDataGroups = true, // If false you can still use dataGroupElement to show the control on a different element on your app. For this use the exported value "dataGroups"
+    showDataCategories = true, // If false you can still use dataCategoryElement to show the control on a different element on your app. For this use the exported value "dataCategories"
     showDetails = true, // If false and with hasDetails = true, you can still use detailsElement to show the control on a different element on your app. For this use the exported value "details"
     /* Data */
     x = (d) => d.x, // Attribute to show in the X axis (Note that it also supports functions)
@@ -129,7 +131,7 @@ function TimeWidget(
     brushesCoordinatesElement,
     detailsElement,
     groupsElement,
-    dataGroupsElement,
+    dataCategoriesElement,
     svg,
     gGroupBrushes,
     gBrushes,
@@ -138,12 +140,12 @@ function TimeWidget(
     medianBrushGroups,
     dataSelected,
     dataNotSelected,
-    renderSelected, // Selected data to render. Depends on selected DataGroup and the selection of other TS
-    renderNotSelected, // Non Selected data to render. Depends on selected DataGroup and the selection of other TS
+    renderSelected, // Selected data to render. Depends on selected DataCategory and the selection of other TS
+    renderNotSelected, // Non Selected data to render. Depends on selected DataCategory and the selection of other TS
     showNonSelected, // Determines if unselected data is rendered
-    selectedGroupData,
+    selectedDataCategories,
     hasScaleTime,
-    nGroupsData,
+    nDataCategories,
     timelineDetails, // Centralizes the details component
     timelineOverview, // Centralizes the overview component
     brushes;
@@ -234,14 +236,14 @@ function TimeWidget(
     groupsElement ||
     d3.select(target).select("#brushesGroups").node() ||
     d3.create("div").attr("id", "brushesGroups").node();
-  dataGroupsElement =
-    dataGroupsElement ||
-    d3.select(target).select("#dataGroups").node() ||
-    d3.create("div").attr("id", "dataGroups").node();
+  dataCategoriesElement =
+    dataCategoriesElement ||
+    d3.select(target).select("#dataCategories").node() ||
+    d3.create("div").attr("id", "dataCategories").node();
   medianBrushGroups = new Map();
   dataSelected = new Map();
   dataNotSelected = [];
-  selectedGroupData = new Set();
+  selectedDataCategories = new Set();
   showNonSelected = true;
 
   function initBrushesControls() {
@@ -497,6 +499,8 @@ function TimeWidget(
     // clip-path instead (see #65).
     overviewY.range([height - ts.margin.top - ts.margin.bottom, 0]).nice();
     overviewY.domain(expandDomainToSnap(overviewY.domain(), snapY));
+    ts.stepX = stepAtLeastSnap(stepX, snapX, overviewX.domain());
+    ts.stepY = stepAtLeastSnap(stepY, snapY, overviewY.domain());
   }
 
   function init() {
@@ -695,8 +699,8 @@ function TimeWidget(
       .attr("stroke-dasharray", "4"); // make it dashed;
 
     if (color) {
-      fData.forEach((d) => selectedGroupData.add(color(d)));
-      nGroupsData = selectedGroupData.size;
+      fData.forEach((d) => selectedDataCategories.add(color(d)));
+      nDataCategories = selectedDataCategories.size;
     }
 
     gGroupBrushes = svg
@@ -762,7 +766,7 @@ function TimeWidget(
     divOverview.appendChild(divControls);
     initBrushCoordinates();
     initBrushesControls();
-    initDataGroupsElement();
+    initDataCategoriesElement();
 
     timelineOverview.setScales({
       scaleX: overviewX,
@@ -913,21 +917,21 @@ function TimeWidget(
     }
   }
 
-  function initDataGroupsElement() {
+  function initDataCategoriesElement() {
     if (color) {
-      dataGroupsElement.innerHTML = "";
-      let selection = d3.select(dataGroupsElement);
-      const groupCounts = d3.rollup(
+      dataCategoriesElement.innerHTML = "";
+      let selection = d3.select(dataCategoriesElement);
+      const categoryCounts = d3.rollup(
         groupedData,
         (timelines) => timelines.length,
         (timeline) => color(timeline[1][0])
       );
 
       let divButtons = selection
-        .selectAll(".groupData")
-        .data(selectedGroupData)
+        .selectAll(".categoryData")
+        .data(selectedDataCategories)
         .join("div")
-        .attr("class", "groupData");
+        .attr("class", "categoryData");
       divButtons
         .append("button")
         .style("font-size", `${ts.brushGroupSize}px`)
@@ -940,44 +944,44 @@ function TimeWidget(
         .style("height", `${ts.brushGroupSize}px`)
         .style("background-color", (d) => ts.colorScale(d))
         .on("click", function (event, d) {
-          if (selectedGroupData.has(d)) {
-            selectedGroupData.delete(d);
+          if (selectedDataCategories.has(d)) {
+            selectedDataCategories.delete(d);
             d3.select(this).style("border", "solid transparent");
           } else {
-            selectedGroupData.add(d);
+            selectedDataCategories.add(d);
             d3.select(this).style("border", "solid black");
           }
 
-          onGroupDataChange();
+          onDataCategoriesChange();
         });
       divButtons
         .append("span")
-        .text((d) => `${d} (${groupCounts.has(d) ? groupCounts.get(d) : 0})`);
+        .text((d) => `${d} (${categoryCounts.has(d) ? categoryCounts.get(d) : 0})`);
 
-      if (showDataGroups) {
-        selection.insert("h3", ":first-child").text("Data Groups:");
-        divControls.appendChild(dataGroupsElement);
+      if (showDataCategories) {
+        selection.insert("h3", ":first-child").text("Data Categories:");
+        divControls.appendChild(dataCategoriesElement);
       }
     }
   }
 
-  // Filter dataSelected and dataNotSelected by enable dataGroups
-  function filterDatabyDataGroups(dataSelected, dataNotSelected) {
+  // Filter dataSelected and dataNotSelected by enable dataCategories
+  function filterDatabyDataCategories(dataSelected, dataNotSelected) {
     let dataSelectedF = new Map(dataSelected);
     let dataNotSelectedF = dataNotSelected;
     for (let d of dataSelectedF) {
-      let filtered = d[1].filter((d) => selectedGroupData.has(color(d[1][0])));
+      let filtered = d[1].filter((d) => selectedDataCategories.has(color(d[1][0])));
       dataSelectedF.set(d[0], filtered);
     }
     dataNotSelectedF = dataNotSelectedF.filter((d) =>
-      selectedGroupData.has(color(d[1][0]))
+      selectedDataCategories.has(color(d[1][0]))
     );
 
     return [dataSelectedF, dataNotSelectedF];
   }
 
-  // Called when the active dataGroups are modified.
-  function onGroupDataChange() {
+  // Called when the active dataCategories are modified.
+  function onDataCategoriesChange() {
     onSelectionChange();
   }
 
@@ -1326,9 +1330,9 @@ function TimeWidget(
     dataSelected = newDataSelected;
     dataNotSelected = newDataNotSelected;
 
-    // Filter data with active dataGroups
+    // Filter data with active dataCategories
     if (color) {
-      [renderSelected, renderNotSelected] = filterDatabyDataGroups(
+      [renderSelected, renderNotSelected] = filterDatabyDataCategories(
         dataSelected,
         dataNotSelected
       );
@@ -1650,7 +1654,7 @@ function TimeWidget(
   divOverview.details = detailsElement;
   divOverview.brushesCoordinates = brushesCoordinatesElement;
   divOverview.groups = groupsElement;
-  divOverview.dataGroups = dataGroupsElement;
+  divOverview.dataCategories = dataCategoriesElement;
   return divOverview;
 }
 

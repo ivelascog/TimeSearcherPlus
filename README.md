@@ -176,7 +176,7 @@ This section will show all possible options grouped by categories.
  -  **showBrushesControls**:If true, the brush control is displayed in the default location. If false you can still use brushesControlsElement to show the control on a different element on your app. For this use the exported value "groups"
  -  **showBrushTooltip**: Allows to display a tooltip on the brushes containing its coordinates.
  -  **showBrushesCoordinates**: If false you can still use brushesCoordinatesElement to show the control on a different element on your app. For this use the exported value "brushesCoordinates"
- -  **showDataGroups**: If false you can still use dataGroupElement to show the control on a different element on your app. For this use the exported value "dataGroups"
+ -  **showDataCategories**: If false you can still use dataCategoryElement to show the control on a different element on your app. For this use the exported value "dataCategories"
  -  **showDetails**: If false and with hasDetails = true, you can still use detailsElement to show the control on a different element on your app. For this use the exported value "details"
 ### Data
  - **x**:  Attribute to show in the X axis (Note that it also supports functions)
@@ -192,6 +192,8 @@ This section will show all possible options grouped by categories.
  - **fmtY**: Function, how to format x points in the tooltip. Note that it must conform to the data type provided in Y.
  - **snapX**: Optional positive interval in X domain units to which both horizontal brush edges are snapped. For time scales, use a single-unit date-fns Duration such as `{ months: 1 }` or `{ days: 7 }`, or a number of milliseconds. Calendar durations are applied from the lower X-domain boundary with date-fns, so months and years preserve their real calendar boundaries. The visible upper domain boundary is expanded when necessary so the domain width is an exact multiple of the interval.
  - **snapY**: Optional positive interval in Y domain units to which both vertical brush edges are snapped. The grid starts at the lower Y-domain boundary, and the visible upper boundary is expanded to the next interval when necessary.
+ - **stepX**: Step used by the coordinate spinboxes and arrow controls on the X axis. Use X domain units for numeric scales, or a date-fns Duration (default: `{ days: 10 }`) or milliseconds for time scales. If `snapX` is larger, the effective step is set to `snapX`; calendar durations are compared from the lower visible domain boundary.
+ - **stepY**: Step used by the coordinate spinboxes and arrow controls on the Y axis, in Y domain units (default: `1`). If `snapY` is larger, the effective step is set to `snapY`.
  - **xLabel**: Label to show in the X axis
  - **yLabel**: Label to show in the Y axis
  - **xTicks**: Allows to use custom strings as ticks on the X-axis independently of the X-scale. A vector of [xValue,Label] pairs is expected. Note that only the defined elements are displayed and xValue must belong to the domain of X.

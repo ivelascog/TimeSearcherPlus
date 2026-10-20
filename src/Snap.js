@@ -1,3 +1,4 @@
+import { add } from "date-fns";
 import {
   expandDateDomainToSnap,
   isValidDateSnapDuration,
@@ -34,4 +35,15 @@ export function expandDomainToSnap(domain, interval) {
   return isDateSnap(interval, domain)
     ? expandDateDomainToSnap(domain, interval)
     : expandNumericDomainToSnap(domain, interval);
+}
+
+export function stepAtLeastSnap(step, snap, domain) {
+  if (!isValidSnapInterval(snap, domain)) return step;
+  if (domain[0] instanceof Date) {
+    const origin = domain[0];
+    const stepEnd = typeof step === "number" ? +origin + step : +add(origin, step);
+    const snapEnd = typeof snap === "number" ? +origin + snap : +add(origin, snap);
+    return snapEnd > stepEnd ? snap : step;
+  }
+  return snap > step ? snap : step;
 }

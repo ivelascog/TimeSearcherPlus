@@ -78,7 +78,7 @@ test("default axes omit grid and second Y axis", async ({ page }) => {
 for (const [option, property, selector] of [
   ["showBrushesControls", "groups", "#brushesGroups"],
   ["showBrushesCoordinates", "brushesCoordinates", "#brushesCoordinates"],
-  ["showDataGroups", "dataGroups", "#dataGroups"],
+  ["showDataCategories", "dataCategories", "#dataCategories"],
   ["showDetails", "details", "#detail"],
 ]) {
   test(`${option}=false exports a control that can be mounted externally`, async ({
@@ -115,18 +115,19 @@ test("data categories count timelines and toggle the exported selection", async 
       ]),
     ],
   });
-  await expect(page.locator(".groupData span")).toHaveText(["A (2)", "B (1)"]);
+  await expect(page.locator("#dataCategories h3")).toHaveText("Data Categories:");
+  await expect(page.locator(".categoryData span")).toHaveText(["A (2)", "B (1)"]);
   const before = await page.evaluate(() =>
     window.widget.value.map((d) => d.id)
   );
   expect(new Set(before).size).toBe(3);
-  await page.locator(".groupData button").first().click();
+  await page.locator(".categoryData button").first().click();
   expect(
     await page.evaluate(() => [
       ...new Set(window.widget.value.map((d) => d.id)),
     ])
   ).toEqual(["mid"]);
-  await page.locator(".groupData button").first().click();
+  await page.locator(".categoryData button").first().click();
   expect(
     new Set(await page.evaluate(() => window.widget.value.map((d) => d.id)))
       .size
